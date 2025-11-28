@@ -1,0 +1,158 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "binary"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(cuid())
+  name          String?
+  email         String          @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  accounts          Account[]
+  devices           Device[]
+  locations         Location[]
+  mobileTokens      MobileSession[]
+  sessions          Session[]
+  trackingSessions  TrackingSession[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Device {
+  id         String     @id @default(cuid())
+  deviceId   String     @unique
+  deviceName String
+  platform   String
+  lastSeen   DateTime   @default(now())
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  userId     String
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locations  Location[] @relation("DeviceLocations")
+
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model MobileSession {
+  id           String   @id @default(cuid())
+  token        String   @unique
+  deviceId     String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  lastActivity DateTime @default(now())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+  @@index([deviceId])
+}
+
+model Location {
+  id                String           @id @default(cuid())
+  latitude          Float
+  longitude         Float
+  accuracy          Float?
+  altitude          Float?
+  speed             Float?
+  timestamp         DateTime         @default(now())
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId          String?
+  device            Device?          @relation("DeviceLocations", fields: [deviceId], references: [id], onDelete: Cascade)
+  trackingSessionId String?
+  trackingSession   TrackingSession? @relation("SessionLocations", fields: [trackingSessionId], references: [id], onDelete: Cascade)
+  wifiScans         WifiScan[]
+  bleScans          BleScan[]
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([timestamp])
+  @@index([trackingSessionId])
+}
+
+
+
+model WifiScan {
+  id         String   @id @default(cuid())
+  ssid       String
+  bssid      String
+  rssi       Int
+  frequency  Int?
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([locationId])
+}
+
+model BleScan {
+  id         String   @id @default(cuid())
+  name       String?
+  address    String
+  rssi       Int
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@index([locationId])
+}
+
+model TrackingSession {
+  id        String     @id @default(cuid())
+  name      String?
+  startTime DateTime
+  endTime   DateTime
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locations Location[] @relation("SessionLocations")
+
+  @@index([userId])
+}
