@@ -104,6 +104,17 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
     }
 
+    // Filter by accuracy: only save if accuracy is not set or is good enough
+    const ACCURACY_THRESHOLD_METERS = 15;
+    if (typeof accuracy === "number" && accuracy > ACCURACY_THRESHOLD_METERS) {
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: "accuracy_above_threshold",
+        accuracy,
+      });
+    }
+
     // Find last stored location for this user/session (or user/device)
     const lastLocation = await prisma.location.findFirst({
       where: trackingSessionId

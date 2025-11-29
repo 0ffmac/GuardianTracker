@@ -97,11 +97,22 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
 
     if (locations.length === 0) return;
 
-    // 2.1 Prepare coordinates for Polyline
-    const coords: [number, number][] = locations.map((loc) => [
-      loc.latitude,
-      loc.longitude,
-    ]);
+    // 2.1 Prepare coordinates for Polyline (with smoothing)
+    function smoothLocations(locs: Location[], windowSize = 3): [number, number][] {
+      if (locs.length <= 2) return locs.map(l => [l.latitude, l.longitude]);
+      const smoothed: [number, number][] = [];
+      for (let i = 0; i < locs.length; i++) {
+        let latSum = 0, lonSum = 0, count = 0;
+        for (let j = Math.max(0, i - Math.floor(windowSize/2)); j <= Math.min(locs.length - 1, i + Math.floor(windowSize/2)); j++) {
+          latSum += locs[j].latitude;
+          lonSum += locs[j].longitude;
+          count++;
+        }
+        smoothed.push([latSum / count, lonSum / count]);
+      }
+      return smoothed;
+    }
+    const coords: [number, number][] = smoothLocations(locations, 3);
     const lastLocationData = locations[locations.length - 1];
     const lastLatLng: L.LatLngExpression = [lastLocationData.latitude, lastLocationData.longitude];
 
