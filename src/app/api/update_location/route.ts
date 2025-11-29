@@ -9,6 +9,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 export const runtime = "nodejs";
 
 const MIN_DISTANCE_METERS = 3;
+const MAX_ACCURACY_METERS = 50;
 
 const toRad = (value: number) => (value * Math.PI) / 180;
 
@@ -104,7 +105,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
     }
 
-    // (Reverted) No accuracy filter, always save point
+    // Filter out very inaccurate points to reduce jitter
+    if (typeof accuracy === "number" && accuracy > MAX_ACCURACY_METERS) {
+      // Still touch device/session activity so the tracker stays "alive"
+      if (mobileToken && deviceId) {
+        await prisma.device.update({
+          where: { id: deviceId },
+          data: { lastSeen: new Date() },
+        });
+
+        await prisma.mobileSession.updateMany({
+          where: { token: mobileToken, userId },
+          data: { lastActivity: new Date() },
+        });
+      }
+
+      return NextResponse.json({
+        success: true,
+        skipped: true,
+        reason: "low_gps_accuracy",
+        accuracyMeters: accuracy,
+      });
+    }
 
     // Find last stored location for this user/session (or user/device)
     const lastLocation = await prisma.location.findFirst({

@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 
 // Interface for type safety (uses camelCase to match the dashboard component)
 interface Location {
-  id: string; 
+  id: string;
   latitude: number;
   longitude: number;
   deviceId: string | null;
@@ -15,7 +15,10 @@ interface Location {
 
 interface MapProps {
   locations: Location[];
-  currentLocation: Location | null; 
+  currentLocation: Location | null;
+  fitOnUpdate?: boolean;
+  autoZoomOnFirstPoint?: boolean;
+  snappedGeoJson?: any | null;
 }
 
 // Helper function to define the custom pulsing marker icon
@@ -46,19 +49,17 @@ const getCustomIcon = () => L.divIcon({
   iconAnchor: [16, 16],
 });
 
-
-export default function Map({ locations, currentLocation, fitOnUpdate = true, autoZoomOnFirstPoint = false }: MapProps & { fitOnUpdate?: boolean, autoZoomOnFirstPoint?: boolean }) {
+export default function Map({ locations, currentLocation, fitOnUpdate = true, autoZoomOnFirstPoint = false, snappedGeoJson }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const lastSessionIdRef = useRef<string | null>(null);
 
   // 1. Map Initialization (Runs once)
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
     // Default center (Madrid) and a national zoom level (6)
-    const defaultCenter: L.LatLngExpression = [40.4168, -3.7038]; 
+    const defaultCenter: L.LatLngExpression = [40.4168, -3.7038];
 
     mapRef.current = L.map(containerRef.current).setView(defaultCenter, 6);
 
@@ -87,7 +88,7 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
     };
   }, []);
 
-  // 2. Data Update and Drawing Logic (Runs whenever locations changes)
+  // 2. Data Update and Drawing Logic (Runs whenever locations or snappedGeoJson changes)
   useEffect(() => {
     const map = mapRef.current;
     const layerGroup = layerGroupRef.current;
@@ -97,34 +98,33 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
 
     if (locations.length === 0) return;
 
-    // 2.1 Prepare coordinates for Polyline (with smoothing)
-    function smoothLocations(locs: Location[], windowSize = 3): [number, number][] {
-      if (locs.length <= 2) return locs.map(l => [l.latitude, l.longitude]);
-      const smoothed: [number, number][] = [];
-      for (let i = 0; i < locs.length; i++) {
-        let latSum = 0, lonSum = 0, count = 0;
-        for (let j = Math.max(0, i - Math.floor(windowSize/2)); j <= Math.min(locs.length - 1, i + Math.floor(windowSize/2)); j++) {
-          latSum += locs[j].latitude;
-          lonSum += locs[j].longitude;
-          count++;
-        }
-        smoothed.push([latSum / count, lonSum / count]);
-      }
-      return smoothed;
+    let bounds: L.LatLngBoundsExpression | null = null;
+
+    // Draw snapped polyline if available
+    if (snappedGeoJson && snappedGeoJson.type === "LineString" && Array.isArray(snappedGeoJson.coordinates)) {
+      const snappedCoords = snappedGeoJson.coordinates.map(([lon, lat]: [number, number]) => [lat, lon]);
+      const polyline = L.polyline(snappedCoords, {
+        color: "#00e676",
+        weight: 5,
+        opacity: 0.95,
+        smoothFactor: 1,
+      }).addTo(layerGroup);
+      bounds = polyline.getBounds();
+    } else {
+      // Fallback: draw raw points
+      const coords: [number, number][] = locations.map((l) => [l.latitude, l.longitude]);
+      const polyline = L.polyline(coords, {
+        color: "#667eea",
+        weight: 4,
+        opacity: 0.85,
+        smoothFactor: 1,
+      }).addTo(layerGroup);
+      bounds = polyline.getBounds();
     }
-    const coords: [number, number][] = smoothLocations(locations, 3);
+
+    // Place Marker on the Last Location
     const lastLocationData = locations[locations.length - 1];
     const lastLatLng: L.LatLngExpression = [lastLocationData.latitude, lastLocationData.longitude];
-
-    // 2.2 Draw Polyline
-    const polyline = L.polyline(coords, {
-      color: "#667eea",
-      weight: 4,
-      opacity: 0.85,
-      smoothFactor: 1,
-    }).addTo(layerGroup);
-
-    // 2.3 Place Marker on the Last Location
     L.marker(lastLatLng, { icon: getCustomIcon() })
       .addTo(layerGroup)
       .bindPopup(
@@ -134,21 +134,21 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
       )
       .openPopup();
 
-    // 2.4 Fit Bounds to show the entire route
-    if (coords.length === 1 && autoZoomOnFirstPoint) {
-      map.setView(lastLatLng, 16);
-    } else if (fitOnUpdate) {
-      if (coords.length > 1) {
-        map.fitBounds(polyline.getBounds(), {
+    // Fit Bounds to show the entire route
+    if (bounds) {
+      if (locations.length === 1 && autoZoomOnFirstPoint) {
+        map.setView(lastLatLng, 16);
+      } else if (fitOnUpdate) {
+        map.fitBounds(bounds, {
           padding: [50, 50],
-          maxZoom: 14 
+          maxZoom: 14,
         });
       } else {
         map.setView(lastLatLng, 10);
       }
     }
     // If fitOnUpdate is false, do not change zoom/center unless autoZoomOnFirstPoint triggers above
-  }, [locations, currentLocation, fitOnUpdate]);
+  }, [locations, currentLocation, fitOnUpdate, snappedGeoJson, autoZoomOnFirstPoint]);
 
   // Map container JSX (This MUST have a defined height from the parent component)
   // Fullscreen logic

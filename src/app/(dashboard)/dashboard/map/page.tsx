@@ -24,6 +24,7 @@ export default function DashboardMapPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [trackingSessions, setTrackingSessions] = useState<TrackingSession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [snappedGeoJson, setSnappedGeoJson] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchLocationHistory = async () => {
@@ -38,7 +39,6 @@ export default function DashboardMapPage() {
         return;
       }
 
-      // If nothing is selected yet, default to the most recent session
       setSelectedSessionId((prev) => prev ?? sessions[0].id);
     };
     fetchLocationHistory();
@@ -47,10 +47,30 @@ export default function DashboardMapPage() {
   useEffect(() => {
     if (!selectedSessionId) {
       setLocations([]);
+      setSnappedGeoJson(null);
       return;
     }
     const session = trackingSessions.find((s) => s.id === selectedSessionId);
     setLocations(session ? session.locations : []);
+    setSnappedGeoJson(null);
+    // Fetch snapped polyline if enough points
+    if (session && session.locations.length >= 2) {
+      const points = session.locations.map((loc) => ({
+        lat: loc.latitude,
+        lon: loc.longitude,
+        timestamp: Math.floor(new Date(loc.timestamp).getTime() / 1000),
+      }));
+      fetch("/api/map_match", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ points }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.snapped) setSnappedGeoJson(data.snapped);
+        })
+        .catch(() => setSnappedGeoJson(null));
+    }
   }, [selectedSessionId, trackingSessions]);
 
   return (
@@ -64,10 +84,9 @@ export default function DashboardMapPage() {
             id="session-select"
             value={selectedSessionId || ''}
             onChange={e => setSelectedSessionId(e.target.value)}
-            className="w-full md:w-64 p-3 bg-gold-900/40 border border-gold-400/30 
-              rounded-lg text-gold-100 appearance-none cursor-pointer 
-              focus:ring-gold-500 focus:border-gold-500 font-semibold
-              "
+            className="w-full md:w-64 p-3 bg-gold-900/40 border border-gold-400/30 \
+              rounded-lg text-gold-100 appearance-none cursor-pointer \
+              focus:ring-gold-500 focus:border-gold-500 font-semibold\n              "
           >
             {trackingSessions.map((s) => (
               <option key={s.id} value={s.id}>
@@ -82,6 +101,7 @@ export default function DashboardMapPage() {
             currentLocation={locations[locations.length - 1] || null}
             fitOnUpdate={true}
             autoZoomOnFirstPoint={true}
+            snappedGeoJson={snappedGeoJson}
           />
         </div>
 
