@@ -1,6 +1,6 @@
 "use client";
-// import dynamic from "next/dynamic";
-import Map from "@/components/Map";
+import dynamic from "next/dynamic";
+const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";

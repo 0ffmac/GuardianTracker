@@ -5,8 +5,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-// import dynamic from "next/dynamic";
-import Map from "@/components/Map";
+import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -19,7 +18,15 @@ import { Navbar } from "@/components/Navbar";
 
 // const TRACKED_DEVICE_ID = "simulator_01";
 
-// Map is imported as a client component; render it only after mount to avoid SSR issues.
+// Dynamic Map import
+const Map = dynamic(() => import("@/components/Map"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center bg-slate-900 rounded-2xl">
+      <div className="text-white">Loading map...</div>
+    </div>
+  ),
+});
 
 interface Location {
   id: string;
@@ -384,10 +391,7 @@ export default function DashboardPage() {
              </div>
            </div>
            <div className="h-[400px] rounded-xl overflow-hidden">
-              {/* Guard Map render to client-only */}
-              {typeof window !== 'undefined' && (
-                <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
-              )}
+              <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
            </div>
          </motion.div>
 
