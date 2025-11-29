@@ -68,6 +68,8 @@ const haversineDistance = (
 };
 
 export default function DashboardPage() {
+  // New: Track the active tracking session ID
+  const [activeTrackingSessionId, setActiveTrackingSessionId] = useState<string | null>(null);
   const { status } = useSession();
   const router = useRouter();
   const [locations, setLocations] = useState<Location[]>([]);
@@ -120,20 +122,24 @@ export default function DashboardPage() {
   // 3. Location Update (Geolocation watch)
   const updateLocation = useCallback(async (latitude: number, longitude: number) => {
     try {
+      const payload: any = {
+        latitude,
+        longitude,
+        device_id: navigator.userAgent,
+        timestamp: new Date().toISOString(),
+      };
+      if (activeTrackingSessionId) {
+        payload.trackingSessionId = activeTrackingSessionId;
+      }
       await fetch("/api/update_location", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          latitude, 
-          longitude, 
-          device_id: navigator.userAgent, 
-          timestamp: new Date().toISOString(),
-        }),
+        body: JSON.stringify(payload),
       });
     } catch (error) {
       console.error("Failed to update location:", error);
     }
-  }, []);
+  }, [activeTrackingSessionId]);
 
   // 4. Data Fetching and Filtering Logic
   const fetchLocationHistory = useCallback(async () => {
@@ -254,6 +260,29 @@ export default function DashboardPage() {
   const handleSessionSelect = (sessionId: string) => {
     // If user selects the default empty option, set selectedSessionId to null
     setSelectedSessionId(sessionId || null);
+  };
+
+  // New: Start/Stop tracking session logic (example, you may need to wire this to your UI)
+  const startTrackingSession = async (name?: string) => {
+    const res = await fetch("/api/start_tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    const data = await res.json();
+    if (data.success && data.trackingSession) {
+      setActiveTrackingSessionId(data.trackingSession.id);
+    }
+  };
+
+  const stopTrackingSession = async () => {
+    if (!activeTrackingSessionId) return;
+    await fetch("/api/stop_tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sessionId: activeTrackingSessionId }),
+    });
+    setActiveTrackingSessionId(null);
   };
 
 
