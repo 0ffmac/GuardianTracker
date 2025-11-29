@@ -11,11 +11,19 @@ export async function POST(request: Request) {
   }
 
   const userId = (session.user as any).id;
+ 
+   try {
+     const body = await request.json() as any;
+     const trackingSessionId =
+       body.trackingSessionId ||
+       body.tracking_session_id ||
+       body.sessionId ||
+       body.session_id ||
+       null;
+     const locations = body.locations;
+ 
+     if (!locations || !Array.isArray(locations) || !trackingSessionId) {
 
-  try {
-    const { locations, trackingSessionId } = await request.json();
-
-    if (!locations || !Array.isArray(locations) || !trackingSessionId) {
       return NextResponse.json(
         { error: "Invalid request body" },
         { status: 400 }

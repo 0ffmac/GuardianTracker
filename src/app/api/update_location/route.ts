@@ -66,19 +66,43 @@ export async function POST(request: Request) {
       deviceId = (session.user as any).deviceId || null;
     }
 
-    const {
-      latitude,
-      longitude,
-      accuracy,
-      altitude,
-      speed,
-      timestamp,
-      trackingSessionId,
-      wifiScans,
-      bleScans,
-    } = await request.json();
+    const rawBody = await request.json() as any;
+
+    const latitude =
+      typeof rawBody.latitude === "number"
+        ? rawBody.latitude
+        : typeof rawBody.lat === "number"
+        ? rawBody.lat
+        : undefined;
+    const longitude =
+      typeof rawBody.longitude === "number"
+        ? rawBody.longitude
+        : typeof rawBody.lon === "number"
+        ? rawBody.lon
+        : typeof rawBody.lng === "number"
+        ? rawBody.lng
+        : undefined;
+
+    const accuracy = rawBody.accuracy;
+    const altitude = rawBody.altitude;
+    const speed = rawBody.speed;
+    const timestamp = rawBody.timestamp || rawBody.time || rawBody.created_at;
+
+    const trackingSessionId =
+      rawBody.trackingSessionId ||
+      rawBody.tracking_session_id ||
+      rawBody.sessionId ||
+      rawBody.session_id ||
+      null;
+
+    const wifiScans = rawBody.wifiScans || rawBody.wifi_scans || [];
+    const bleScans = rawBody.bleScans || rawBody.ble_scans || [];
 
     console.log(`[update_location] Incoming location for userId: ${userId}, deviceId: ${deviceId}, trackingSessionId: ${trackingSessionId}`);
+
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      return NextResponse.json({ error: "Invalid coordinates" }, { status: 400 });
+    }
 
     // Find last stored location for this user/session (or user/device)
     const lastLocation = await prisma.location.findFirst({
