@@ -5,7 +5,8 @@
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
+// import dynamic from "next/dynamic";
+import Map from "@/components/Map";
 import { motion } from "framer-motion";
 import {
   MapPin,
@@ -18,15 +19,7 @@ import { Navbar } from "@/components/Navbar";
 
 // const TRACKED_DEVICE_ID = "simulator_01";
 
-// Dynamic Map import
-const Map = dynamic(() => import("@/components/Map"), {
-  ssr: false,
-  loading: () => (
-    <div className="w-full h-full flex items-center justify-center bg-slate-900 rounded-2xl">
-      <div className="text-white">Loading map...</div>
-    </div>
-  ),
-});
+// Map is imported as a client component; render it only after mount to avoid SSR issues.
 
 interface Location {
   id: string;
@@ -391,7 +384,10 @@ export default function DashboardPage() {
              </div>
            </div>
            <div className="h-[400px] rounded-xl overflow-hidden">
-              <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
+              {/* Guard Map render to client-only */}
+              {typeof window !== 'undefined' && (
+                <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
+              )}
            </div>
          </motion.div>
 
@@ -433,19 +429,7 @@ export default function DashboardPage() {
                </select>
              </div>
            </div>
-           <div className="h-[400px] rounded-xl overflow-hidden mb-6">
-             <Map
-               locations={(() => {
-                 const session = trackingSessions.find((s) => s.id === selectedSessionId);
-                 return session ? session.locations : [];
-               })()}
-               currentLocation={(() => {
-                 const session = trackingSessions.find((s) => s.id === selectedSessionId);
-                 return session && session.locations.length > 0 ? session.locations[session.locations.length - 1] : null;
-               })()}
-               fitOnUpdate={true}
-             />
-           </div>
+
             {/* Session Stats Row for History */}
             {selectedSessionId && (() => {
               const session = trackingSessions.find((s) => s.id === selectedSessionId);
@@ -456,40 +440,49 @@ export default function DashboardPage() {
  
               return (
                 <>
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.55 }}
-                    className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6"
-                  >
-                    <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-gold-500/10 text-gold-300">
-                        <MapPin className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-400">Distance</p>
-                        <p className="text-lg font-semibold text-white">{distance} km</p>
-                      </div>
-                    </div>
-                    <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-300">
-                        <Clock className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-400">Duration</p>
-                        <p className="text-lg font-semibold text-white">{duration} min</p>
-                      </div>
-                    </div>
-                    <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex items-center gap-3">
-                      <div className="p-2 rounded-xl bg-sky-500/10 text-sky-300">
-                        <TrendingUp className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-xs uppercase tracking-wide text-gray-400">Points</p>
-                        <p className="text-lg font-semibold text-white">{points}</p>
-                      </div>
-                    </div>
-                  </motion.div>
+                   <motion.div
+                     initial={{ opacity: 0, y: 20 }}
+                     animate={{ opacity: 1, y: 0 }}
+                     transition={{ delay: 0.55 }}
+                     className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"
+                   >
+                     <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-gold-400/20 flex items-center gap-3 shadow-lg">
+                       <div className="p-2 rounded-xl bg-gold-500/10 text-gold-300">
+                         <MapPin className="w-5 h-5" />
+                       </div>
+                       <div>
+                         <p className="text-xs uppercase tracking-wide text-gold-400">Distance</p>
+                         <p className="text-lg font-semibold text-gold-100">{distance} km</p>
+                       </div>
+                     </div>
+                     <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-emerald-400/20 flex items-center gap-3 shadow-lg">
+                       <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-300">
+                         <Clock className="w-5 h-5" />
+                       </div>
+                       <div>
+                         <p className="text-xs uppercase tracking-wide text-emerald-400">Duration</p>
+                         <p className="text-lg font-semibold text-emerald-100">{duration} min</p>
+                       </div>
+                     </div>
+                     <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-sky-400/20 flex items-center gap-3 shadow-lg">
+                       <div className="p-2 rounded-xl bg-sky-500/10 text-sky-300">
+                         <TrendingUp className="w-5 h-5" />
+                       </div>
+                       <div>
+                         <p className="text-xs uppercase tracking-wide text-sky-400">Points</p>
+                         <p className="text-lg font-semibold text-sky-100">{points}</p>
+                       </div>
+                     </div>
+                     <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-blue-400/20 flex items-center gap-3 shadow-lg">
+                       <div className="p-2 rounded-xl bg-blue-500/10 text-blue-300">
+                         <Activity className="w-5 h-5" />
+                       </div>
+                       <div>
+                         <p className="text-xs uppercase tracking-wide text-blue-400">Devices</p>
+                         <p className="text-lg font-semibold text-blue-100">{Array.from(new Set(session.locations.map(l => l.deviceId)).values()).filter(Boolean).length}</p>
+                       </div>
+                     </div>
+                   </motion.div>
 
                   {/* Wifi History Table */}
                   <motion.div

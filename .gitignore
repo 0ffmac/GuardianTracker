@@ -44,3 +44,8 @@ next-env.d.ts
 dev.db
 .gitignore
 public/downloads/*
+
+# Markdown files
+FixedOSRM_OAUTH.md
+
+.gitignore
