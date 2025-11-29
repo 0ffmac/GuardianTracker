@@ -6,7 +6,7 @@ import { Features } from '@/components/Features';
 import { Footer } from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
-import { ArrowRight } from 'lucide-react';
+
 
 const App: React.FC = () => {
   return (
@@ -18,7 +18,7 @@ const App: React.FC = () => {
         <Features />
         
         {/* Luxury CTA Section */}
-        <section className="py-32 px-6 relative overflow-hidden bg-background">
+        <section id="start-trial" className="py-32 px-6 relative overflow-hidden bg-background">
           <div className="max-w-7xl mx-auto relative z-10">
             <motion.div
               initial={{ opacity: 0, y: 40 }}

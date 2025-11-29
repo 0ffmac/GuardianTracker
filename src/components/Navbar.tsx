@@ -87,15 +87,31 @@ export const Navbar: React.FC = () => {
                   <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
                 </button>
               ))
-            : ['Features', 'Security', 'Pricing', 'About'].map((item) => (
-                <a
-                  key={item}
-                  href={`#${item.toLowerCase()}`}
-                  className="text-xs font-sans font-medium uppercase tracking-widest text-gray-400 hover:text-gold-400 transition-colors relative group"
-                >
-                  {item}
-                  <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
-                </a>
+            : [
+                { label: 'Features', kind: 'hash', href: '#features' },
+                { label: 'Security', kind: 'route', href: '/discover' },
+                { label: 'Pricing', kind: 'route', href: '/pricing' },
+                { label: 'About', kind: 'route', href: '/about' },
+              ].map((link) => (
+                link.kind === 'route' ? (
+                  <button
+                    key={link.label}
+                    onClick={() => router.push(link.href)}
+                    className="text-xs font-sans font-medium uppercase tracking-widest text-gray-400 hover:text-gold-400 transition-colors relative group"
+                  >
+                    {link.label}
+                    <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
+                  </button>
+                ) : (
+                  <a
+                    key={link.label}
+                    href={link.href}
+                    className="text-xs font-sans font-medium uppercase tracking-widest text-gray-400 hover:text-gold-400 transition-colors relative group"
+                  >
+                    {link.label}
+                    <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
+                  </a>
+                )
               ))}
         </div>
 
