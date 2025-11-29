@@ -76,6 +76,7 @@ export const Navbar: React.FC = () => {
                 { href: '/dashboard', label: 'Overview' },
                 { href: '/dashboard/map', label: 'Map' },
                 { href: '/dashboard/metrics', label: 'Metrics' },
+                { href: '/dashboard/settings', label: 'Settings' },
               ].map((link) => (
                 <button
                   key={link.href}

@@ -7,73 +7,44 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-
   if (!session || !session.user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
   const userId = (session.user as any).id;
-  console.log(`[location_history] Fetching tracking sessions for userId: ${userId}`);
-
   try {
     const [locations, devices, trackingSessions] = await Promise.all([
       prisma.location.findMany({
-        where: {
-          userId: userId,
-        },
-        orderBy: {
-          timestamp: "asc",
-        },
-        select: {
-          id: true,
-          latitude: true,
-          longitude: true,
-          deviceId: true,
-          timestamp: true,
-        },
+        where: { userId },
+        orderBy: { timestamp: "asc" },
+        select: { id: true, latitude: true, longitude: true, deviceId: true, timestamp: true },
       }),
       prisma.device.findMany({
-        where: {
-          userId: userId,
-        },
-        orderBy: {
-          lastSeen: "desc",
-        },
+        where: { userId },
+        orderBy: { lastSeen: "desc" },
       }),
       prisma.trackingSession.findMany({
-        where: {
-          userId: userId,
-        },
+        where: { userId },
         include: {
           locations: {
-            orderBy: {
-              timestamp: "asc",
-            },
-            select: {
-              id: true,
-              latitude: true,
-              longitude: true,
-              deviceId: true,
-              timestamp: true,
-            },
+            orderBy: { timestamp: "asc" },
+            select: { id: true, latitude: true, longitude: true, deviceId: true, timestamp: true },
           },
         },
-        orderBy: {
-          startTime: "desc",
-        },
+        orderBy: { startTime: "desc" },
       }),
     ]);
-
-    console.log(
-      `[locations] Returning ${locations.length} locations, ${devices.length} devices and ${trackingSessions.length} sessions for userId: ${userId}`
-    );
-
     return NextResponse.json({ locations, devices, trackingSessions });
   } catch (error) {
-    console.error("Failed to fetch location history:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
+}
+
+export async function DELETE(request: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session || !session.user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const userId = (session.user as any).id;
+  await prisma.location.deleteMany({ where: { userId } });
+  return NextResponse.json({ success: true });
 }

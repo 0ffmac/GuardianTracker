@@ -7,6 +7,7 @@ const tabs = [
   { href: "/dashboard", label: "Overview" },
   { href: "/dashboard/map", label: "Map" },
   { href: "/dashboard/metrics", label: "Metrics" },
+  { href: "/dashboard/settings", label: "Settings" }, // Added Settings tab
 ];
 
 export default function DashboardNavbar() {
