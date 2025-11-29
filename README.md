@@ -76,6 +76,7 @@ To run the application locally, follow these steps:
    ```bash
    npm install
    ```
+   Create env and add file:.dev.db
 
 3. **Set up the database:**
    Run the following command to create the SQLite database and apply the migrations:
@@ -83,7 +84,10 @@ To run the application locally, follow these steps:
    npx prisma migrate dev
    ```
 
+   I need to Edit the types.ts
+
 4. **Run the development server:**
+
    ```bash
    npm run dev
    ```

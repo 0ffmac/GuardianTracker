@@ -19,7 +19,7 @@ export const Navbar: React.FC = () => {
   // 2. Combined Auth Action (Sign In/Sign Out)
   const handleAuthAction = () => {
     if (isLoggedIn) {
-      signOut({ callbackUrl: '/' }); 
+      signOut({ callbackUrl: window.location.origin + '/' }); 
     } else {
       router.push('/login');
     }
@@ -30,7 +30,7 @@ export const Navbar: React.FC = () => {
     if (isLoggedIn) {
         router.push('/dashboard');
     } else {
-        router.push('/register'); // Assuming '/register' or '/signup'
+        router.push('/login'); // Assuming '/register' or '/signup'
     }
   };
 

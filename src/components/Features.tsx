@@ -2,7 +2,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Shield, MapPin, Clock, Users, Zap, Globe, Smartphone, Bell } from 'lucide-react';
-import { Feature } from '../../types';
+// Define the Feature type locally
+type Feature = {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+};
 
 const features: Feature[] = [
   {

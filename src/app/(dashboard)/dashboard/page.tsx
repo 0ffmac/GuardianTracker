@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
 
-const TRACKED_DEVICE_ID = "simulator_01";
+// const TRACKED_DEVICE_ID = "simulator_01";
 
 // Dynamic Map import
 const Map = dynamic(() => import("@/components/Map"), {
@@ -292,7 +292,7 @@ export default function DashboardPage() {
                 </p>
             </div>
             <a
-                href="/downloads/GuardianClient.apk"
+                href="https://gitgoing.net/downloads/GuardianClient.apk"
                 download
                 className="mt-4 md:mt-0 px-6 py-2 bg-gold-500 text-black font-bold rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
             >
