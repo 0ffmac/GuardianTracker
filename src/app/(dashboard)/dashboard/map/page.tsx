@@ -31,16 +31,27 @@ export default function DashboardMapPage() {
       const data = await res.json();
       const sessions: TrackingSession[] = (data.trackingSessions || []) as TrackingSession[];
       setTrackingSessions(sessions);
-      if (!selectedSessionId && sessions.length > 0) {
-        setSelectedSessionId(sessions[0].id);
+
+      if (sessions.length === 0) {
+        setSelectedSessionId(null);
+        setLocations([]);
+        return;
       }
-      if (selectedSessionId) {
-        const session = sessions.find((s) => s.id === selectedSessionId);
-        setLocations(session ? session.locations : []);
-      }
+
+      // If nothing is selected yet, default to the most recent session
+      setSelectedSessionId((prev) => prev ?? sessions[0].id);
     };
     fetchLocationHistory();
-  }, [selectedSessionId]);
+  }, []);
+
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setLocations([]);
+      return;
+    }
+    const session = trackingSessions.find((s) => s.id === selectedSessionId);
+    setLocations(session ? session.locations : []);
+  }, [selectedSessionId, trackingSessions]);
 
   return (
     <div className="min-h-screen bg-background text-white">
@@ -66,7 +77,51 @@ export default function DashboardMapPage() {
           </select>
         </div>
         <div className="h-[500px] rounded-xl overflow-hidden">
-          <Map locations={locations} currentLocation={locations[locations.length-1] || null} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
+          <Map
+            locations={locations}
+            currentLocation={locations[locations.length - 1] || null}
+            fitOnUpdate={true}
+            autoZoomOnFirstPoint={true}
+          />
+        </div>
+
+        <div className="mt-6 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20 overflow-x-auto">
+          <h2 className="text-xl font-semibold mb-4">Points for Selected Session</h2>
+          {locations.length === 0 ? (
+            <p className="text-sm text-gold-300/80">
+              No points recorded for this session yet.
+            </p>
+          ) : (
+            <table className="min-w-full text-sm">
+              <thead>
+                <tr className="text-left text-gold-300/80 border-b border-gold-400/30">
+                  <th className="py-2 pr-4">#</th>
+                  <th className="py-2 pr-4">Time</th>
+                  <th className="py-2 pr-4">Latitude</th>
+                  <th className="py-2 pr-4">Longitude</th>
+                </tr>
+              </thead>
+              <tbody>
+                {locations.map((loc, index) => (
+                  <tr
+                    key={loc.id}
+                    className="border-b border-gold-400/10 last:border-b-0"
+                  >
+                    <td className="py-1 pr-4 text-gold-100">{index + 1}</td>
+                    <td className="py-1 pr-4 text-gold-100">
+                      {new Date(loc.timestamp).toLocaleString()}
+                    </td>
+                    <td className="py-1 pr-4 text-gold-100 font-mono text-xs">
+                      {loc.latitude.toFixed(6)}
+                    </td>
+                    <td className="py-1 pr-4 text-gold-100 font-mono text-xs">
+                      {loc.longitude.toFixed(6)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </main>
       <Footer />
