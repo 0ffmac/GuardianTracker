@@ -151,5 +151,28 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
   }, [locations, currentLocation, fitOnUpdate]);
 
   // Map container JSX (This MUST have a defined height from the parent component)
-  return <div ref={containerRef} className="w-full h-full rounded-xl" />;
+  // Fullscreen logic
+  function handleFullscreen() {
+    if (containerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        containerRef.current.requestFullscreen();
+      }
+    }
+  }
+
+  return (
+    <div className="relative w-full h-full rounded-xl">
+      <button
+        onClick={handleFullscreen}
+        title="Maximize Map"
+        className="absolute top-2 right-2 z-[1000] bg-black/60 hover:bg-black/80 text-white rounded-full p-2 shadow-lg focus:outline-none"
+        style={{ pointerEvents: 'auto' }}
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+      </button>
+      <div ref={containerRef} className="w-full h-full rounded-xl" />
+    </div>
+  );
 }

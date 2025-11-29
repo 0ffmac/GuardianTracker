@@ -391,7 +391,7 @@ export default function DashboardPage() {
              </div>
            </div>
            <div className="h-[400px] rounded-xl overflow-hidden">
-             <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={false} autoZoomOnFirstPoint={true} />
+              <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
            </div>
          </motion.div>
 
