@@ -94,6 +94,48 @@ export default function DashboardPage() {
     { ssid: string | null; bssid: string | null; count: number; avgRssi: number | null }[]
   >([]);
 
+  // Nearby contacts / alerts state
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState(5);
+  const [nearbyContacts, setNearbyContacts] = useState<
+    {
+      userId: string;
+      name: string | null;
+      email: string;
+      image: string | null;
+      distanceKm: number;
+      lastLocation: { latitude: number; longitude: number; timestamp: string };
+    }[]
+  >([]);
+  const [selectedNearbyContact, setSelectedNearbyContact] = useState<
+    | {
+        userId: string;
+        name: string | null;
+        email: string;
+        image: string | null;
+        distanceKm: number;
+        lastLocation: { latitude: number; longitude: number; timestamp: string };
+      }
+    | null
+  >(null);
+  const [shareWithNearbyContacts, setShareWithNearbyContacts] = useState(true);
+
+  // Load persisted privacy preference on mount
+  useEffect(() => {
+    const loadPrivacy = async () => {
+      try {
+        const res = await fetch("/api/user/privacy");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.shareLocationWithTrustedContacts === "boolean") {
+          setShareWithNearbyContacts(data.shareLocationWithTrustedContacts);
+        }
+      } catch (err) {
+        console.error("Failed to load privacy settings", err);
+      }
+    };
+    loadPrivacy();
+  }, []);
+
   // 1. Authentication Check
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -242,6 +284,40 @@ export default function DashboardPage() {
     };
     loadEnvironment();
   }, [selectedSessionId]);
+
+  // 5c. Fetch nearby contacts when live tracking and sharing are enabled
+  useEffect(() => {
+    if (!hasLiveData || !currentLocation || !shareWithNearbyContacts) {
+      setNearbyContacts([]);
+      setSelectedNearbyContact(null);
+      return;
+    }
+
+    const loadNearby = async () => {
+      try {
+        const res = await fetch(`/api/contacts/nearby?radiusKm=${nearbyRadiusKm}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        setNearbyContacts(data.contacts || []);
+        if (data.contacts && data.contacts.length > 0) {
+          // Keep existing selection if still present, otherwise clear
+          setSelectedNearbyContact((prev) =>
+            prev && data.contacts.find((c: any) => c.userId === prev.userId)
+              ? prev
+              : null
+          );
+        } else {
+          setSelectedNearbyContact(null);
+        }
+      } catch (err) {
+        console.error("Failed to load nearby contacts", err);
+      }
+    };
+
+    loadNearby();
+    const interval = setInterval(loadNearby, 20000);
+    return () => clearInterval(interval);
+  }, [hasLiveData, currentLocation, shareWithNearbyContacts, nearbyRadiusKm]);
 
   useEffect(() => {
     if ("geolocation" in navigator) {
@@ -423,16 +499,121 @@ export default function DashboardPage() {
                )}
              </div>
 
-             <div className="h-full rounded-xl border border-white/10 bg-black/20 p-4 flex flex-col justify-between">
+             <div className="h-full rounded-xl border border-white/10 bg-black/20 p-4 flex flex-col gap-4">
                <div>
-                 <h3 className="text-lg font-semibold text-white mb-2">Alerts & Nearby Contacts</h3>
+                 <h3 className="text-lg font-semibold text-white mb-1">Alerts & Nearby Contacts</h3>
                  <p className="text-sm text-gray-400 mb-3">
-                   When live tracking is active, this panel will highlight close emergency contacts or important alerts.
+                   See trusted contacts that are physically close to your live location.
                  </p>
+
+                 <div className="flex items-center justify-between gap-2 mb-3">
+                   <label className="flex items-center gap-2 text-xs text-gray-300">
+                     <span className="uppercase tracking-wide">Radius</span>
+                     <select
+                       value={nearbyRadiusKm}
+                       onChange={(e) => setNearbyRadiusKm(Number(e.target.value))}
+                       className="bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-gray-100"
+                     >
+                       <option value={1}>1 km</option>
+                       <option value={2}>2 km</option>
+                       <option value={5}>5 km</option>
+                       <option value={10}>10 km</option>
+                       <option value={20}>20 km</option>
+                     </select>
+                   </label>
+                   <label className="flex items-center gap-2 text-xs text-gray-300">
+                     <input
+                       type="checkbox"
+                       checked={shareWithNearbyContacts}
+                       onChange={async () => {
+                         const next = !shareWithNearbyContacts;
+                         setShareWithNearbyContacts(next);
+                         try {
+                           await fetch("/api/user/privacy", {
+                             method: "PUT",
+                             headers: { "Content-Type": "application/json" },
+                             body: JSON.stringify({
+                               shareLocationWithTrustedContacts: next,
+                             }),
+                           });
+                         } catch (err) {
+                           console.error("Failed to update privacy settings", err);
+                         }
+                       }}
+                       className="h-4 w-4 text-gold-500"
+                     />
+                     <span>Share my live location</span>
+                   </label>
+                 </div>
                </div>
-               <div className="mt-2 text-sm text-gray-500 italic">
-                 No alerts at the moment.
+
+               <div className="flex-1 overflow-y-auto border border-white/5 rounded-md bg-black/20 p-2">
+                 {!hasLiveData && (
+                   <p className="text-xs text-gray-500 italic">
+                     Start the mobile app to enable nearby contact detection.
+                   </p>
+                 )}
+                 {hasLiveData && nearbyContacts.length === 0 && (
+                   <p className="text-xs text-gray-500 italic">
+                     No trusted contacts within {nearbyRadiusKm} km.
+                   </p>
+                 )}
+                 {hasLiveData && nearbyContacts.length > 0 && (
+                   <ul className="space-y-1">
+                     {nearbyContacts.map((c) => (
+                       <li key={c.userId}>
+                         <button
+                           type="button"
+                           onClick={() => setSelectedNearbyContact(c)}
+                           className={`w-full flex items-center justify-between rounded px-2 py-1 text-left text-xs transition-colors ${
+                             selectedNearbyContact && selectedNearbyContact.userId === c.userId
+                               ? "bg-gold-500/20 text-gold-100"
+                               : "bg-black/30 text-gray-100 hover:bg-black/50"
+                           }`}
+                         >
+                           <span className="truncate">
+                             {c.name || c.email}
+                           </span>
+                           <span className="ml-2 text-[11px] text-gray-300">
+                             {c.distanceKm.toFixed(1)} km
+                           </span>
+                         </button>
+                       </li>
+                     ))}
+                   </ul>
+                 )}
                </div>
+
+               {hasLiveData && currentLocation && selectedNearbyContact && (
+                 <div className="mt-2">
+                   <p className="text-xs text-gray-300 mb-1">
+                     Selected: <span className="font-semibold">{selectedNearbyContact.name || selectedNearbyContact.email}</span>
+                   </p>
+                   <div className="w-full h-40 rounded-md overflow-hidden border border-white/10">
+                     <Map
+                       locations={[
+                         {
+                           id: "me",
+                           latitude: currentLocation.latitude,
+                           longitude: currentLocation.longitude,
+                           deviceId: currentLocation.deviceId,
+                           timestamp: currentLocation.timestamp,
+                         },
+                         {
+                           id: selectedNearbyContact.userId,
+                           latitude: selectedNearbyContact.lastLocation.latitude,
+                           longitude: selectedNearbyContact.lastLocation.longitude,
+                           deviceId: null,
+                           timestamp: selectedNearbyContact.lastLocation.timestamp as any,
+                         },
+                       ]}
+                       currentLocation={null}
+                       fitOnUpdate={true}
+                       autoZoomOnFirstPoint={false}
+                     />
+                   </div>
+                 </div>
+               )}
              </div>
            </div>
          </motion.div>
