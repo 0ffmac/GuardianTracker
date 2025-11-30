@@ -20,6 +20,7 @@ export default function SettingsPage() {
   const [contactLoading, setContactLoading] = useState(false);
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactDeletingId, setContactDeletingId] = useState<string | null>(null);
+  const [inviteUpdatingId, setInviteUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -130,6 +131,26 @@ export default function SettingsPage() {
       setError("Failed to delete all user data.");
     } finally {
       setDangerLoading(false);
+    }
+  }
+
+  async function handleInviteStatus(id: string, status: "ACCEPTED" | "DECLINED") {
+    setInviteUpdatingId(id);
+    try {
+      const res = await fetch(`/api/contacts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error("Failed to update invite");
+      setTrustedBy((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, status } : t))
+      );
+    } catch (err) {
+      // Keep it quiet in UI; optional: setError
+      console.error(err);
+    } finally {
+      setInviteUpdatingId(null);
     }
   }
 
@@ -264,7 +285,18 @@ export default function SettingsPage() {
                 </span>
               </div>
             )}
-            <div className="mt-4">
+            <div className="mt-3">
+              {trustedBy.some((t) => t.status === "PENDING") && (
+                <div className="mb-3 rounded-xl bg-amber-900/40 border border-amber-400/40 px-4 py-3 text-xs text-amber-100">
+                  <div className="font-semibold mb-1">Pending emergency contact requests</div>
+                  <p>
+                    You have {trustedBy.filter((t) => t.status === "PENDING").length} pending request
+                    {trustedBy.filter((t) => t.status === "PENDING").length === 1 ? "" : "s"} to become an emergency contact.
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="mt-2">
               {trustedBy.length === 0 ? (
                 <div className="text-sm text-gray-400">
                   No one has added you as an emergency contact yet.
@@ -282,6 +314,36 @@ export default function SettingsPage() {
                         </div>
                         {t.owner?.email && (
                           <div className="text-xs text-gray-400">{t.owner.email}</div>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {t.status === "PENDING" && (
+                          <>
+                            <button
+                              className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition text-xs"
+                              onClick={() => handleInviteStatus(t.id, "ACCEPTED")}
+                              disabled={inviteUpdatingId === t.id}
+                            >
+                              {inviteUpdatingId === t.id ? "Accepting..." : "Accept"}
+                            </button>
+                            <button
+                              className="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition text-xs"
+                              onClick={() => handleInviteStatus(t.id, "DECLINED")}
+                              disabled={inviteUpdatingId === t.id}
+                            >
+                              {inviteUpdatingId === t.id ? "Declining..." : "Decline"}
+                            </button>
+                          </>
+                        )}
+                        {t.status === "ACCEPTED" && (
+                          <span className="px-2 py-1 rounded-full bg-emerald-900/60 text-emerald-200 text-[11px] font-semibold">
+                            Accepted
+                          </span>
+                        )}
+                        {t.status === "DECLINED" && (
+                          <span className="px-2 py-1 rounded-full bg-neutral-800/80 text-neutral-300 text-[11px] font-semibold">
+                            Declined
+                          </span>
                         )}
                       </div>
                     </li>

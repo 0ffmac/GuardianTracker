@@ -74,6 +74,20 @@ export async function POST(request: Request) {
   });
 
   if (existing) {
+    // If they previously declined, turning it back to PENDING lets you "re-invite".
+    if (existing.status === "DECLINED") {
+      const updated = await prisma.trustedContact.update({
+        where: { id: existing.id },
+        data: { status: "PENDING" },
+        include: {
+          contact: {
+            select: { id: true, name: true, email: true, image: true },
+          },
+        },
+      });
+      return NextResponse.json({ contact: updated }, { status: 200 });
+    }
+
     return NextResponse.json(
       { error: "This user is already a trusted contact" },
       { status: 400 }
@@ -84,6 +98,7 @@ export async function POST(request: Request) {
     data: {
       ownerId,
       contactId: contactUser.id,
+      status: "PENDING",
     },
     include: {
       contact: {
