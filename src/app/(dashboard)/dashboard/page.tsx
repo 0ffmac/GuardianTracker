@@ -70,7 +70,7 @@ const haversineDistance = (
 export default function DashboardPage() {
   // New: Track the active tracking session ID
   const [activeTrackingSessionId, setActiveTrackingSessionId] = useState<string | null>(null);
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
@@ -90,6 +90,8 @@ export default function DashboardPage() {
     wifiScans: number;
     bleScans: number;
   } | null>(null);
+  // Last time any device checked in (for status display)
+  const [lastDeviceSeenAt, setLastDeviceSeenAt] = useState<string | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<
     { ssid: string | null; bssid: string | null; count: number; avgRssi: number | null }[]
   >([]);
@@ -211,13 +213,23 @@ export default function DashboardPage() {
 
       setTrackingSessions(sessions);
 
-      // Check for active devices (last seen within 30 seconds)
+      // Check for active devices (recent last seen). If a device
+      // hasn't checked in for a while, treat live tracking as idle.
       const now = new Date().getTime();
-      const activeThreshold = 30 * 1000; // 30 seconds
-      const activeDevices = allDevices.filter((device) =>
-        now - new Date(device.lastSeen).getTime() < activeThreshold
-      );
+      const activeThreshold = 2 * 60 * 1000; // 2 minutes
+
+      let latestSeen: number | null = null;
+      const activeDevices = allDevices.filter((device) => {
+        const ts = new Date(device.lastSeen).getTime();
+        if (!Number.isNaN(ts)) {
+          if (latestSeen === null || ts > latestSeen) {
+            latestSeen = ts;
+          }
+        }
+        return now - ts < activeThreshold;
+      });
       setHasLiveData(activeDevices.length > 0);
+      setLastDeviceSeenAt(latestSeen ? new Date(latestSeen).toISOString() : null);
 
       if (sessions.length === 0) {
         setLocations([]);
@@ -374,7 +386,17 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-background text-white selection:bg-gold-500/30 selection:text-gold-200">
       <Navbar />
       <main className="max-w-7xl mx-auto px-6 py-8 pt-20">
-        {/* Stats Grid */}
+         {/* Greeting + Stats Grid */}
+      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
+        <div>
+          <p className="text-sm text-gray-400">
+            Welcome back{session?.user?.name ? "," : ""}
+          </p>
+          <h1 className="text-2xl font-bold text-white">
+            {session?.user?.name || session?.user?.email || "Your overview"}
+          </h1>
+        </div>
+      </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           {/* ... (Motion divs for Total Points, Distance, Duration - unchanged) ... */}
@@ -461,25 +483,40 @@ export default function DashboardPage() {
                  The dashboard only shows live points while a device is actively reporting. Use the Map tab to explore history.
                </p>
              </div>
-             <div className="flex items-center gap-2">
-               <Activity
-                 className={
-                   hasLiveData
-                     ? "w-5 h-5 text-green-400 animate-pulse"
-                     : "w-5 h-5 text-gray-500"
-                 }
-               />
-               <span
-                 className={
-                   hasLiveData
-                     ? "text-green-400 font-medium"
-                     : "text-gray-400 font-medium"
-                 }
-               >
-                 {hasLiveData ? "Active" : "Idle"}
-               </span>
-             </div>
-           </div>
+              <div className="flex flex-col items-end gap-1">
+                <div className="flex items-center gap-2">
+                  <Activity
+                    className={
+                      hasLiveData
+                        ? "w-5 h-5 text-green-400 animate-pulse"
+                        : "w-5 h-5 text-gray-500"
+                    }
+                  />
+                  <span
+                    className={
+                      hasLiveData
+                        ? "text-green-400 font-medium"
+                        : "text-gray-400 font-medium"
+                    }
+                  >
+                    {hasLiveData ? "Active" : "Idle"}
+                  </span>
+                </div>
+                {lastDeviceSeenAt && (
+                  <p className="text-[11px] text-gray-400">
+                    Last seen {(() => {
+                      const diffMs = Date.now() - new Date(lastDeviceSeenAt).getTime();
+                      if (diffMs < 60 * 1000) return "just now";
+                      const mins = Math.round(diffMs / (60 * 1000));
+                      if (mins < 60) return `${mins} min ago`;
+                      const hours = Math.round(mins / 60);
+                      return `${hours} hr${hours > 1 ? "s" : ""} ago`;
+                    })()}
+                  </p>
+                )}
+              </div>
+            </div>
+
 
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
              <div className="lg:col-span-2 h-[350px] lg:h-[380px] rounded-xl overflow-hidden">

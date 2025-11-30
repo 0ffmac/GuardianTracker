@@ -28,31 +28,44 @@ export async function GET(
   }
 }
 
-// UPDATE a user by ID
+// UPDATE a user by ID (only self)
 export async function PUT(
   request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userId = (session.user as any).id as string;
     const id = params.id;
-    const { name, email } = await request.json();
+
+    if (userId !== id) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json().catch(() => ({} as any));
+    const data: any = {};
+    if (typeof body.name === "string") data.name = body.name.trim();
+    if (typeof body.email === "string") data.email = body.email.trim();
+    if (typeof body.image === "string") data.image = body.image.trim();
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: "No valid fields provided" }, { status: 400 });
+    }
+
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: {
-        name,
-        email,
-      },
+      data,
     });
     return NextResponse.json(updatedUser);
   } catch (error) {
-    console.error("UPDATE user error:", error);
+    console.error("UPDATE user error", error);
     if ((error as any).code === "P2025") {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 

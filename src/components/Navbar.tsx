@@ -11,6 +11,8 @@ export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll();
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
   const router = useRouter();
   // 1. Next-Auth Session and Status Check
   const { data: session, status } = useSession();
@@ -42,7 +44,34 @@ export const Navbar: React.FC = () => {
       });
   }, [scrollY]);
 
-  const isDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard');
+  // 5. Load latest profile avatar for navbar
+  useEffect(() => {
+    if (!isLoggedIn || !session?.user) {
+      setAvatarUrl(null);
+      return;
+    }
+    const id = (session.user as any).id;
+    if (!id) return;
+
+    const loadProfile = async () => {
+      try {
+        const res = await fetch(`/api/user/${id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        console.log("Navbar profile data:", data);
+        if (typeof data.image === "string" && data.image.length > 0) {
+          setAvatarUrl(data.image);
+        }
+      } catch (err) {
+        console.error("Failed to load navbar profile", err);
+      }
+    };
+
+    loadProfile();
+  }, [isLoggedIn, session?.user]);
+ 
+   const isDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard');
+
 
   return (
     <motion.nav
@@ -117,21 +146,34 @@ export const Navbar: React.FC = () => {
 
 
         {/* Actions */}
-        <div className="flex items-center gap-6"> {/* 🔑 Corrected the closing tags */}
+        <div className="flex items-center gap-4">
           
           {/* 5. Avatar Display */}
-          {isLoggedIn && session?.user?.image && (
-            <img 
-              src={session.user.image} 
-              alt={session.user.name || 'User Avatar'} 
-              className="w-8 h-8 rounded-full border border-gold-400 object-cover" 
-            />
+          {isLoggedIn && (
+            <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-gold-400">
+              {avatarUrl || session?.user?.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img 
+                  src={avatarUrl || (session.user?.image as string)} 
+                  alt={session.user?.name || session.user?.email || 'User Avatar'} 
+                  className="w-full h-full object-cover" 
+                />
+              ) : (
+                <span className="text-xs font-semibold text-gold-200">
+                  {(session.user?.name || session.user?.email || '?')
+                    .toString()
+                    .trim()
+                    .charAt(0)
+                    .toUpperCase()}
+                </span>
+              )}
+            </div>
           )}
-
+ 
           {/* 6. Primary Auth Button (Sign In / Sign Out) */}
           <button 
             onClick={handleAuthAction}
-            className="hidden sm:flex items-center gap-2 text-xs font-sans uppercase tracking-widest text-white hover:text-gold-400 transition-colors"
+            className="flex items-center gap-2 text-xs font-sans uppercase tracking-widest text-white hover:text-gold-400 transition-colors"
           >
             {isLoggedIn ? (
                 <>
@@ -143,15 +185,18 @@ export const Navbar: React.FC = () => {
             )}
           </button>
           
-          {/* 7. CTA Button (Get Started / Go to Dashboard) */}
-          <Button 
-            variant="outline" 
-            onClick={handleCtaAction} 
-            className="!py-2 !px-6 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white"
-          >
-            {isLoggedIn ? 'Go to Dashboard' : 'Get Started'}
-          </Button>
+          {/* 7. CTA Button (Get Started / Go to Dashboard) - hide on very small screens */}
+          <div className="hidden sm:block">
+            <Button 
+              variant="outline" 
+              onClick={handleCtaAction} 
+              className="!py-2 !px-6 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white"
+            >
+              {isLoggedIn ? 'Dashboard' : 'Get Started'}
+            </Button>
+          </div>
         </div>
+
       </div>
     </motion.nav>
   );
