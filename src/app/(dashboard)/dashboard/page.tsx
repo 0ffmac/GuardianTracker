@@ -81,6 +81,8 @@ export default function DashboardPage() {
     distance: 0,
     duration: 0,
   });
+  // Whether there is an actively reporting device (for live-only map)
+  const [hasLiveData, setHasLiveData] = useState(false);
 
   // Wifi/BLE environment metrics for selected session
   const [environmentSummary, setEnvironmentSummary] = useState<{
@@ -173,9 +175,7 @@ export default function DashboardPage() {
       const activeDevices = allDevices.filter((device) =>
         now - new Date(device.lastSeen).getTime() < activeThreshold
       );
-      // activeDevices can be used to reflect live status in the UI,
-      // but we no longer block history visualization when there
-      // are no active devices.
+      setHasLiveData(activeDevices.length > 0);
 
       if (sessions.length === 0) {
         setLocations([]);
@@ -382,16 +382,58 @@ export default function DashboardPage() {
              <div>
                <h2 className="text-2xl font-bold text-white">Live Tracking</h2>
                <p className="text-gray-400">
-                 This map shows your most recent tracking session or live updates if tracking is active.
+                 The dashboard only shows live points while a device is actively reporting. Use the Map tab to explore history.
                </p>
              </div>
              <div className="flex items-center gap-2">
-               <Activity className="w-5 h-5 text-green-400 animate-pulse" />
-               <span className="text-green-400 font-medium">Active</span>
+               <Activity
+                 className={
+                   hasLiveData
+                     ? "w-5 h-5 text-green-400 animate-pulse"
+                     : "w-5 h-5 text-gray-500"
+                 }
+               />
+               <span
+                 className={
+                   hasLiveData
+                     ? "text-green-400 font-medium"
+                     : "text-gray-400 font-medium"
+                 }
+               >
+                 {hasLiveData ? "Active" : "Idle"}
+               </span>
              </div>
            </div>
-           <div className="h-[400px] rounded-xl overflow-hidden">
-              <Map locations={locations} currentLocation={currentLocation} fitOnUpdate={true} autoZoomOnFirstPoint={true} />
+
+           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+             <div className="lg:col-span-2 h-[350px] lg:h-[380px] rounded-xl overflow-hidden">
+               {hasLiveData ? (
+                 <Map
+                   locations={locations}
+                   currentLocation={currentLocation}
+                   fitOnUpdate={true}
+                   autoZoomOnFirstPoint={true}
+                 />
+               ) : (
+                 <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-xl border border-dashed border-white/10">
+                   <p className="text-sm text-gray-400 text-center px-4">
+                     No active tracking right now. Start the mobile app to see your live position here.
+                   </p>
+                 </div>
+               )}
+             </div>
+
+             <div className="h-full rounded-xl border border-white/10 bg-black/20 p-4 flex flex-col justify-between">
+               <div>
+                 <h3 className="text-lg font-semibold text-white mb-2">Alerts & Nearby Contacts</h3>
+                 <p className="text-sm text-gray-400 mb-3">
+                   When live tracking is active, this panel will highlight close emergency contacts or important alerts.
+                 </p>
+               </div>
+               <div className="mt-2 text-sm text-gray-500 italic">
+                 No alerts at the moment.
+               </div>
+             </div>
            </div>
          </motion.div>
 
@@ -588,7 +630,7 @@ export default function DashboardPage() {
           );
         })()} */}
 
-        {currentLocation && (
+        {hasLiveData && currentLocation && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

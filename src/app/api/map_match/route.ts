@@ -12,7 +12,68 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "At least 2 points required" }, { status: 400 });
     }
 
-    // OSRM has a max number of points per /match request.
+    // 1) Clean obvious GPS glitches using a speed threshold.
+    const MAX_SPEED_KMH = 250; // discard teleports faster than this
+
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const haversineMeters = (
+      lat1: number,
+      lon1: number,
+      lat2: number,
+      lon2: number
+    ) => {
+      const R = 6371000; // meters
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    const cleanedPoints: any[] = [];
+    // Sort by timestamp in case they arrived unordered
+    const sortedPoints = [...points].sort(
+      (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
+    );
+
+    cleanedPoints.push(sortedPoints[0]);
+    for (let i = 1; i < sortedPoints.length; i++) {
+      const prev = cleanedPoints[cleanedPoints.length - 1];
+      const curr = sortedPoints[i];
+
+      // Skip if coordinates missing
+      if (typeof curr.lat !== "number" || typeof curr.lon !== "number") continue;
+      if (typeof prev.lat !== "number" || typeof prev.lon !== "number") continue;
+
+      const tPrev = prev.timestamp || 0;
+      const tCurr = curr.timestamp || 0;
+      const dt = tCurr - tPrev;
+      if (dt <= 0) {
+        // No forward time movement: drop curr
+        continue;
+      }
+
+      const dist = haversineMeters(prev.lat, prev.lon, curr.lat, curr.lon);
+      const speedKmh = (dist / 1000) / (dt / 3600);
+
+      if (speedKmh > MAX_SPEED_KMH) {
+        // Implausible jump: treat as glitch and skip this point
+        continue;
+      }
+
+      cleanedPoints.push(curr);
+    }
+
+    if (cleanedPoints.length < 2) {
+      return NextResponse.json({ error: "Not enough valid points after cleaning" }, { status: 400 });
+    }
+
+    // 2) OSRM has a max number of points per /match request.
     // To support long trips, chunk the trace into overlapping
     // windows, call /match on each, and merge the results.
     const MAX_POINTS_PER_MATCH = 90; // keep below server limit (often 100)
@@ -57,18 +118,18 @@ export async function POST(request: Request) {
       }
     };
 
-    if (points.length <= MAX_POINTS_PER_MATCH) {
-      await callOsrmForChunk(points);
+    if (cleanedPoints.length <= MAX_POINTS_PER_MATCH) {
+      await callOsrmForChunk(cleanedPoints);
     } else {
       // Sliding window with overlap
       const step = MAX_POINTS_PER_MATCH - OVERLAP_POINTS;
-      for (let start = 0; start < points.length; start += step) {
-        const end = Math.min(points.length, start + MAX_POINTS_PER_MATCH);
-        const chunk = points.slice(start, end);
+      for (let start = 0; start < cleanedPoints.length; start += step) {
+        const end = Math.min(cleanedPoints.length, start + MAX_POINTS_PER_MATCH);
+        const chunk = cleanedPoints.slice(start, end);
         if (chunk.length < 2) break;
         // eslint-disable-next-line no-await-in-loop
         await callOsrmForChunk(chunk);
-        if (end === points.length) break;
+        if (end === cleanedPoints.length) break;
       }
     }
 
