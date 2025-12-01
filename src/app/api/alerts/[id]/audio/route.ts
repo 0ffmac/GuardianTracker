@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
+import fs from "fs/promises";
+import path from "path";
 
 export const runtime = "nodejs";
 
@@ -80,10 +82,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
         return NextResponse.json({ error: "Audio file is required" }, { status: 400 });
       }
 
-      // In a real implementation, you would upload to a cloud storage service
-      // For now, we'll simulate by creating a placeholder URL
-      const contentUrl = `/api/audio/${audioFile.name}`; // Placeholder URL
-      const contentType = formData.get('contentType') as string || audioFile.type || "audio/webm";
+      // Persist the uploaded audio file to disk so it can be played back
+      const uploadDir = path.join(process.cwd(), "public", "audio");
+      await fs.mkdir(uploadDir, { recursive: true });
+
+      const extension = audioFile.type === "audio/mpeg" ? ".mp3" : ".webm";
+      const fileName = `${alertId}-${Date.now()}-${Math.random().toString(36).slice(2)}${extension}`;
+      const filePath = path.join(uploadDir, fileName);
+
+      const arrayBuffer = await audioFile.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      await fs.writeFile(filePath, buffer);
+
+      const contentUrl = `/api/audio/${fileName}`;
+      const contentType = (formData.get('contentType') as string) || audioFile.type || "audio/webm";
       const durationStr = formData.get('duration') as string;
       const duration = durationStr ? parseFloat(durationStr) : undefined;
 

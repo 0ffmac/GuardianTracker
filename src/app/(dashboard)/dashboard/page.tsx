@@ -65,6 +65,15 @@ interface Alert {
   recipientStatus?: string;
   recipientNotifiedAt?: string;
   recipientRespondedAt?: string;
+  recipients?: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+    status: string;
+    notifiedAt: string | null;
+    respondedAt: string | null;
+  }[];
 }
 
 interface AudioMessage {
@@ -157,6 +166,8 @@ export default function DashboardPage() {
 
   // Alerts state
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [sentAlerts, setSentAlerts] = useState<Alert[]>([]);
+  const [alertsView, setAlertsView] = useState<"received" | "sent">("received");
 
   // Load persisted privacy preference on mount
   useEffect(() => {
@@ -187,20 +198,36 @@ export default function DashboardPage() {
     }
   }, []);
 
+  // Fetch alerts created by the current user
+  const fetchSentAlerts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/alerts?type=sent");
+      if (!res.ok) throw new Error("Failed to fetch sent alerts");
+      const data = await res.json();
+      setSentAlerts(data.alerts);
+    } catch (error) {
+      console.error("Error fetching sent alerts:", error);
+    }
+  }, []);
+
   // Load alerts on mount
   useEffect(() => {
     if (status === "authenticated") {
       fetchAlerts();
+      fetchSentAlerts();
     }
-  }, [status, fetchAlerts]);
+  }, [status, fetchAlerts, fetchSentAlerts]);
 
   // Refresh alerts periodically
   useEffect(() => {
     if (status === "authenticated") {
-      const interval = setInterval(fetchAlerts, 30000); // Refresh every 30 seconds
+      const interval = setInterval(() => {
+        fetchAlerts();
+        fetchSentAlerts();
+      }, 30000); // Refresh every 30 seconds
       return () => clearInterval(interval);
     }
-  }, [status, fetchAlerts]);
+  }, [status, fetchAlerts, fetchSentAlerts]);
 
   // 1. Authentication Check
   useEffect(() => {
@@ -554,20 +581,187 @@ export default function DashboardPage() {
 
 
          {/* Live Tracking Map Section */}
-         <motion.div
-           initial={{ opacity: 0, y: 20 }}
-           animate={{ opacity: 1, y: 0 }}
-           transition={{ delay: 0.4 }}
-           className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
-         >
-           <div className="flex items-center justify-between mb-6">
-             <div>
-               <h2 className="text-2xl font-bold text-white">Live Tracking</h2>
-               <p className="text-gray-400">
-                 The dashboard only shows live points while a device is actively reporting. Use the Map tab to explore history.
-               </p>
-             </div>
-              <div className="flex flex-col items-end gap-1">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+          >
+            <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-6">
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white">Emergency Alerts</h2>
+                    <p className="text-gray-400 text-sm">
+                      View alerts you have received from your trusted contacts or ones you have sent to them.
+                    </p>
+                  </div>
+                  <div className="inline-flex rounded-full bg-black/40 border border-white/10 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setAlertsView("received")}
+                      className={`px-3 py-1 rounded-full transition-colors ${
+                        alertsView === "received" ? "bg-white text-black" : "text-gray-300"
+                      }`}
+                    >
+                      Received
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAlertsView("sent")}
+                      className={`px-3 py-1 rounded-full transition-colors ${
+                        alertsView === "sent" ? "bg-white text-black" : "text-gray-300"
+                      }`}
+                    >
+                      Sent
+                    </button>
+                  </div>
+                </div>
+
+                <div className="max-h-80 overflow-y-auto pr-1">
+                  <AlertList
+                    alerts={alertsView === "received" ? alerts : sentAlerts}
+                    onRespond={alertsView === "received" ? handleAlertResponse : undefined}
+                    showActions={alertsView === "received"}
+                  />
+                </div>
+              </div>
+
+              <div className="w-full md:w-80 rounded-xl border border-white/10 bg-black/20 p-4 flex flex-col gap-4">
+                <div>
+                  <h3 className="text-lg font-semibold text-white mb-1">Nearby Contacts</h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    See trusted contacts that are physically close to your live location.
+                  </p>
+
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <label className="flex items-center gap-2 text-xs text-gray-300">
+                      <span className="uppercase tracking-wide">Radius</span>
+                      <select
+                        value={nearbyRadiusKm}
+                        onChange={(e) => setNearbyRadiusKm(Number(e.target.value))}
+                        className="bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-gray-100"
+                      >
+                        <option value={1}>1 km</option>
+                        <option value={2}>2 km</option>
+                        <option value={5}>5 km</option>
+                        <option value={10}>10 km</option>
+                        <option value={20}>20 km</option>
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-2 text-xs text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={shareWithNearbyContacts}
+                        onChange={async () => {
+                          const next = !shareWithNearbyContacts;
+                          setShareWithNearbyContacts(next);
+                          try {
+                            await fetch("/api/user/privacy", {
+                              method: "PUT",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                shareLocationWithTrustedContacts: next,
+                              }),
+                            });
+                          } catch (err) {
+                            console.error("Failed to update privacy settings", err);
+                          }
+                        }}
+                        className="h-4 w-4 text-gold-500"
+                      />
+                      <span>Share my live location</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto border border-white/5 rounded-md bg-black/20 p-2">
+                  {!hasLiveData && (
+                    <p className="text-xs text-gray-500 italic">
+                      Start the mobile app to enable nearby contact detection.
+                    </p>
+                  )}
+                  {hasLiveData && nearbyContacts.length === 0 && (
+                    <p className="text-xs text-gray-500 italic">
+                      No trusted contacts within {nearbyRadiusKm} km.
+                    </p>
+                  )}
+                  {hasLiveData && nearbyContacts.length > 0 && (
+                    <ul className="space-y-1">
+                      {nearbyContacts.map((c) => (
+                        <li key={c.userId}>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedNearbyContact(c)}
+                            className={`w-full flex items-center justify-between rounded px-2 py-1 text-left text-xs transition-colors ${
+                              selectedNearbyContact && selectedNearbyContact.userId === c.userId
+                                ? "bg-gold-500/20 text-gold-100"
+                                : "bg-black/30 text-gray-100 hover:bg-black/50"
+                            }`}
+                          >
+                            <span className="truncate">
+                              {c.name || c.email}
+                            </span>
+                            <span className="ml-2 text-[11px] text-gray-300">
+                              {c.distanceKm.toFixed(1)} km
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {hasLiveData && currentLocation && selectedNearbyContact && (
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-300 mb-1">
+                      Selected: <span className="font-semibold">{selectedNearbyContact.name || selectedNearbyContact.email}</span>
+                    </p>
+                    <div className="w-full h-40 rounded-md overflow-hidden border border-white/10">
+                      <Map
+                        locations={[
+                          {
+                            id: "me",
+                            latitude: currentLocation.latitude,
+                            longitude: currentLocation.longitude,
+                            deviceId: currentLocation.deviceId,
+                            timestamp: currentLocation.timestamp,
+                          },
+                          {
+                            id: selectedNearbyContact.userId,
+                            latitude: selectedNearbyContact.lastLocation.latitude,
+                            longitude: selectedNearbyContact.lastLocation.longitude,
+                            deviceId: null,
+                            timestamp: selectedNearbyContact.lastLocation.timestamp as any,
+                          },
+                        ]}
+                        currentLocation={null}
+                        fitOnUpdate={true}
+                        autoZoomOnFirstPoint={false}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Live Tracking Map Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+          >
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-white">Live Tracking</h2>
+                <p className="text-gray-400">
+                  The dashboard only shows live points while a device is actively reporting. Use the Map tab to explore history.
+                </p>
+              </div>
+               <div className="flex flex-col items-end gap-1">
+
                 <div className="flex items-center gap-2">
                   <Activity
                     className={

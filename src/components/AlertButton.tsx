@@ -87,15 +87,6 @@ const AlertButton: React.FC<AlertButtonProps> = ({
 
   const handleTriggerAlert = async () => {
     try {
-      let audioUrl = null;
-      
-      // If there's recorded audio, we need to upload it first
-      if (audioBlob) {
-        // In a real implementation, we'd upload to a storage service
-        // For now, we'll create a data URL as a placeholder
-        audioUrl = URL.createObjectURL(audioBlob);
-      }
-
       const response = await fetch('/api/alerts/emergency', {
         method: 'POST',
         headers: {
@@ -103,13 +94,30 @@ const AlertButton: React.FC<AlertButtonProps> = ({
         },
         body: JSON.stringify({
           title: variant === 'emergency' ? 'Emergency Alert' : 'Alert',
-          description: `Help needed. ${audioUrl ? 'Audio message attached.' : ''}`
+          description: 'Help needed.',
         }),
       });
 
       if (response.ok) {
         const result = await response.json();
         console.log('Alert triggered successfully:', result);
+
+        // If we recorded audio, upload it as an audio message for this alert
+        if (audioBlob && result.alertId) {
+          try {
+            const formData = new FormData();
+            formData.append('audioFile', audioBlob, `alert_${result.alertId}_${Date.now()}.webm`);
+            formData.append('contentType', 'audio/webm');
+            formData.append('duration', recordingTime.toString());
+
+            await fetch(`/api/alerts/${result.alertId}/audio`, {
+              method: 'POST',
+              body: formData,
+            });
+          } catch (uploadError) {
+            console.error('Error uploading alert audio:', uploadError);
+          }
+        }
         
         // Redirect to dashboard or show success message
         setShowConfirm(false);

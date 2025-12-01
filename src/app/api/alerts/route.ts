@@ -78,16 +78,17 @@ export async function GET(request: Request) {
             orderBy: { createdAt: "asc" }
           },
           alertRecipients: {
-            where: {
-              contactId: userId  // This will return empty array for alerts the user created
+            include: {
+              contact: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  image: true,
+                },
+              },
             },
-            select: {
-              status: true,
-              createdAt: true,
-              notifiedAt: true,
-              respondedAt: true
-            }
-          }
+          },
         },
         orderBy: { createdAt: "desc" },
       });
@@ -143,26 +144,45 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({
-      alerts: alerts.map(alert => {
-        // Only add recipient info if alertRecipients was included (for received alerts)
-        if ('alertRecipients' in alert && alert.alertRecipients && alert.alertRecipients.length > 0) {
+      alerts: alerts.map((alert: any) => {
+        if (type === "sent") {
+          const recipients = (alert.alertRecipients || []).map((ar: any) => ({
+            id: ar.contactId,
+            name: ar.contact?.name ?? null,
+            email: ar.contact?.email ?? "",
+            image: ar.contact?.image ?? null,
+            status: ar.status,
+            notifiedAt: ar.notifiedAt,
+            respondedAt: ar.respondedAt,
+          }));
+
+          return {
+            ...alert,
+            recipients,
+            recipientStatus: null,
+            recipientNotifiedAt: null,
+            recipientRespondedAt: null,
+          };
+        }
+
+        // Received alerts: keep existing single-recipient convenience fields
+        if ("alertRecipients" in alert && alert.alertRecipients && alert.alertRecipients.length > 0) {
           const recipient = alert.alertRecipients[0];
           return {
             ...alert,
             recipientStatus: recipient?.status || null,
             recipientNotifiedAt: recipient?.notifiedAt || null,
-            recipientRespondedAt: recipient?.respondedAt || null
-          };
-        } else {
-          // For sent alerts, return without recipient info
-          return {
-            ...alert,
-            recipientStatus: null,
-            recipientNotifiedAt: null,
-            recipientRespondedAt: null
+            recipientRespondedAt: recipient?.respondedAt || null,
           };
         }
-      })
+
+        return {
+          ...alert,
+          recipientStatus: null,
+          recipientNotifiedAt: null,
+          recipientRespondedAt: null,
+        };
+      }),
     });
   } catch (error) {
     console.error("Error fetching alerts:", error);

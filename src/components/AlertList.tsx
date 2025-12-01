@@ -20,6 +20,15 @@ interface Alert {
   recipientStatus?: string;
   recipientNotifiedAt?: string;
   recipientRespondedAt?: string;
+  recipients?: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+    status: string;
+    notifiedAt: string | null;
+    respondedAt: string | null;
+  }[];
 }
 
 interface AudioMessage {
@@ -40,9 +49,10 @@ interface AlertListProps {
   alerts: Alert[];
   onRespond?: (alertId: string, action: string) => void;
   onSendMessage?: (alertId: string, message: string) => void;
+  showActions?: boolean;
 }
 
-const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage }) => {
+const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage, showActions = true }) => {
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
   const [audioStates, setAudioStates] = useState<Record<string, { isPlaying: boolean; audioRef: HTMLAudioElement | null }>>({});
 
@@ -166,36 +176,54 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage 
                 
                 {expandedAlert === alert.id && (
                   <div className="mt-4 pt-4 border-t border-white/10">
-                    <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => handleRespond(alert.id, 'read')}
-                  className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-                >
-                  Mark as Read
-                </button>
-                <button
-                  onClick={() => {
-                    if (window.confirm("Do you want to respond with a check-in message?")) {
-                      handleRespond(alert.id, 'acknowledge');
-                    }
-                  }}
-                  className="px-3 py-1.5 text-xs bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
-                >
-                  Acknowledge & Send Check-In
-                </button>
-                <button
-                  onClick={() => handleRespond(alert.id, 'dismiss')}
-                  className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
-                >
-                  Dismiss Alert
-                </button>
-              </div>
+                    {alert.recipients && alert.recipients.length > 0 && (
+                      <div className="mb-3">
+                        <p className="text-xs text-gray-400 mb-1">Recipients</p>
+                        <ul className="space-y-1 text-xs text-gray-300">
+                          {alert.recipients.map((recipient) => (
+                            <li key={recipient.id} className="flex justify-between gap-2">
+                              <span className="truncate">{recipient.name || recipient.email}</span>
+                              <span className="text-gray-400">{recipient.status}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
-              {/* Audio Recording Interface */}
-              <div className="mt-3 pt-3 border-t border-white/10">
-                <p className="text-xs text-gray-400 mb-2">Send audio response:</p>
-                <AudioRecorder alertId={alert.id} />
-              </div>
+                    {showActions && (
+                      <>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button
+                            onClick={() => handleRespond(alert.id, "read")}
+                            className="px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+                          >
+                            Mark as Read
+                          </button>
+                          <button
+                            onClick={() => {
+                              if (window.confirm("Do you want to acknowledge this alert?")) {
+                                handleRespond(alert.id, "acknowledge");
+                              }
+                            }}
+                            className="px-3 py-1.5 text-xs bg-yellow-600 hover:bg-yellow-700 text-white rounded-lg transition-colors"
+                          >
+                            Acknowledge Alert
+                          </button>
+                          <button
+                            onClick={() => handleRespond(alert.id, "dismiss")}
+                            className="px-3 py-1.5 text-xs bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                          >
+                            Dismiss Alert
+                          </button>
+                        </div>
+
+                        {/* Audio Recording Interface */}
+                        <div className="mt-3 pt-3 border-t border-white/10">
+                          <p className="text-xs text-gray-400 mb-2">Send audio response:</p>
+                          <AudioRecorder alertId={alert.id} />
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

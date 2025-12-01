@@ -1,19 +1,39 @@
 import { NextResponse } from "next/server";
+import fs from "fs/promises";
+import path from "path";
 
-// This is a placeholder route for serving audio files.
-// In a real implementation, you would serve actual uploaded audio files
-// from a storage service like AWS S3, Google Cloud Storage, etc.
+export const runtime = "nodejs";
+
 export async function GET(
   request: Request,
   { params }: { params: { filename: string } }
 ) {
-  // In a real implementation, you would fetch the audio file from storage
-  // and return it with the appropriate content-type and headers
-  return new NextResponse(
-    "Audio file placeholder - in a real implementation, this would return an actual audio file",
-    { status: 404, headers: { "Content-Type": "text/plain" } }
-  );
-}
+  try {
+    const { filename } = params;
+    const filePath = path.join(process.cwd(), "public", "audio", filename);
 
-// This route could be expanded to handle actual audio file storage
-// depending on your infrastructure preferences
+    const file = await fs.readFile(filePath);
+
+    let contentType = "audio/webm";
+    if (filename.endsWith(".mp3")) {
+      contentType = "audio/mpeg";
+    } else if (filename.endsWith(".wav")) {
+      contentType = "audio/wav";
+    }
+
+    return new NextResponse(file, {
+      status: 200,
+      headers: {
+        "Content-Type": contentType,
+        "Cache-Control": "public, max-age=31536000, immutable",
+      },
+    });
+  } catch (error: any) {
+    if (error.code === "ENOENT") {
+      return new NextResponse("Audio file not found", { status: 404 });
+    }
+
+    console.error("Error serving audio file:", error);
+    return new NextResponse("Error serving audio file", { status: 500 });
+  }
+}
