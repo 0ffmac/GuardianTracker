@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma"
 import jwt from "jsonwebtoken"
 import { compare } from "bcryptjs"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
+// const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key"
+const JWT_SECRET = process.env.NEXTAUTH_SECRET as string
 
 export const runtime = "nodejs"
 
