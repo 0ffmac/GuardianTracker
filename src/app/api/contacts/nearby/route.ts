@@ -8,15 +8,28 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const toRad = (v: number) => (v * Math.PI) / 180;
 
-// Detect user from mobile JWT or web session cookie
+// Haversine helper
+const toRad = (v: number) => (v * Math.PI) / 180;
+const haversineKm = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
 async function getUserIdFromRequest(request: Request): Promise<string | null> {
   const authHeader =
     request.headers.get("authorization") ||
     request.headers.get("Authorization");
 
-  // Mobile JWT (Bearer token)
+  // Mobile JWT
   if (authHeader && authHeader.toLowerCase().startsWith("bearer ")) {
     const token = authHeader.slice(7).trim();
     if (token) {
@@ -32,33 +45,14 @@ async function getUserIdFromRequest(request: Request): Promise<string | null> {
     }
   }
 
-  // Web session fallback (cookies)
+  // Web cookie session
   const session = await getServerSession(authOptions);
   if (session && (session.user as any)?.id) {
-    return (session.user as any).id as string;
+    return (session.user as any).id;
   }
 
   return null;
 }
-
-// Standard Haversine distance helper
-const haversineKm = (
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-) => {
-  const R = 6371;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) *
-      Math.cos(toRad(lat2)) *
-      Math.sin(dLon / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
-};
 
 export async function GET(request: Request) {
   try {
@@ -68,23 +62,25 @@ export async function GET(request: Request) {
     }
 
     const url = new URL(request.url);
-    const radiusStr = url.searchParams.get("radiusKm");
-    const radiusKm = radiusStr ? Math.max(0.5, Number(radiusStr)) : 5; // default: 5 km
+    const radiusKm = Math.max(
+      0.5,
+      Number(url.searchParams.get("radiusKm") ?? 5)
+    );
 
-    // Check user privacy preference
+    // Check privacy setting
     const privacyUser = await prisma.user.findUnique({
       where: { id: userId },
       select: { shareLocationWithTrustedContacts: true },
     });
 
-    if (!privacyUser || !privacyUser.shareLocationWithTrustedContacts) {
+    if (!privacyUser?.shareLocationWithTrustedContacts) {
       return NextResponse.json(
         { contacts: [], radiusKm, sharingEnabled: false },
         { status: 200 }
       );
     }
 
-    // Fetch user's latest location
+    // Get own latest location
     const selfLocation = await prisma.location.findFirst({
       where: { userId },
       orderBy: { timestamp: "desc" },
@@ -120,7 +116,6 @@ export async function GET(request: Request) {
     for (const rel of relations) {
       const other = rel.ownerId === userId ? rel.contact : rel.owner;
       if (!other) continue;
-
       otherUserIds.add(other.id);
       contactMeta[other.id] = {
         id: other.id,
@@ -134,14 +129,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ contacts: [], radiusKm }, { status: 200 });
     }
 
-    const results: any[] = [];
-
-    // Compute distances for each contact
+    // Compute distances
+    const results = [];
     for (const otherId of otherUserIds) {
       const lastLoc = await prisma.location.findFirst({
         where: { userId: otherId },
         orderBy: { timestamp: "desc" },
       });
+
       if (!lastLoc) continue;
 
       const distanceKm = haversineKm(
@@ -168,7 +163,6 @@ export async function GET(request: Request) {
       }
     }
 
-    // Sort nearest first
     results.sort((a, b) => a.distanceKm - b.distanceKm);
 
     return NextResponse.json(
@@ -183,6 +177,7 @@ export async function GET(request: Request) {
     );
   }
 }
+
 
 
 
