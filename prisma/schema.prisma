@@ -35,6 +35,10 @@ model User {
   trackingSessions TrackingSession[]
   trustedContacts  TrustedContact[] @relation("OwnerContacts")
   trustedBy        TrustedContact[] @relation("ContactUsers")
+  alerts           Alert[]          // Alerts created by this user
+  alertRecipients  AlertRecipient[] // Alerts this user has received
+  sentAudioMessages AudioMessage[]  @relation("AudioSender") // Audio messages sent by this user
+  receivedAudioMessages AudioMessage[] @relation("AudioReceiver") // Audio messages received by this user
 }
 
 model TrustedContact {
@@ -174,4 +178,58 @@ model TrackingSession {
   locations Location[] @relation("SessionLocations")
 
   @@index([userId])
+}
+
+model Alert {
+  id          String   @id @default(cuid())
+  userId      String   // Person who triggered the alert
+  title       String   // "Emergency Alert", "Help Request", etc.
+  description String?  // Optional details
+  status      String   @default("ACTIVE") // ACTIVE, RESOLVED, DISMISSED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationship to the user who triggered the alert
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relationships to trusted contacts who will receive the alert
+  alertRecipients AlertRecipient[]
+
+  // Audio messages related to this alert
+  audioMessages AudioMessage[]
+}
+
+model AlertRecipient {
+  id         String   @id @default(cuid())
+  alertId    String
+  contactId  String   // The contact who receives the alert
+  status     String   @default("PENDING") // PENDING, READ, RESPONDED
+  notifiedAt DateTime?
+  respondedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  alert   Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  contact User  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([alertId, contactId])
+}
+
+model AudioMessage {
+  id         String   @id @default(cuid())
+  alertId    String
+  senderId   String   // Who sent the audio message
+  receiverId String?  // Who is the intended recipient (nullable for broadcast)
+  contentUrl String   // URL to the audio file
+  contentType String  @default("audio/webm") // MIME type
+  duration   Float?   // Duration in seconds
+  status     String   @default("SENT") // SENT, DELIVERED, READ
+  createdAt  DateTime @default(now())
+
+  alert    Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+  sender   User  @relation("AudioSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User? @relation("AudioReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([alertId])
+  @@index([senderId])
+  @@index([receiverId])
 }
