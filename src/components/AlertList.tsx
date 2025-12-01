@@ -60,6 +60,30 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage,
     setExpandedAlert(expandedAlert === alertId ? null : alertId);
   };
 
+  const handleToggleAndMaybePlay = (alert: Alert) => {
+    const isCurrentlyExpanded = expandedAlert === alert.id;
+
+    // If collapsing, just collapse and stop any playing audio
+    if (isCurrentlyExpanded) {
+      setExpandedAlert(null);
+      Object.entries(audioStates).forEach(([id, state]) => {
+        if (state.isPlaying && state.audioRef) {
+          state.audioRef.pause();
+        }
+      });
+      return;
+    }
+
+    // Expand the alert
+    setExpandedAlert(alert.id);
+
+    // If there is at least one audio message, start with the latest
+    if (alert.audioMessages && alert.audioMessages.length > 0) {
+      const last = alert.audioMessages[alert.audioMessages.length - 1];
+      handleAudioPlay(last.id, last.contentUrl);
+    }
+  };
+
   const handleAudioPlay = (audioId: string, url: string) => {
     // Stop any currently playing audio
     Object.entries(audioStates).forEach(([id, state]) => {
@@ -192,6 +216,9 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage,
 
                     {showActions && (
                       <>
+                        <p className="text-xs text-gray-400 mb-2">
+                          These actions update your response status for the sender; they do not send a text message.
+                        </p>
                         <div className="flex flex-col sm:flex-row gap-2">
                           <button
                             onClick={() => handleRespond(alert.id, "read")}
@@ -229,8 +256,9 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage,
               </div>
               
               <button
-                onClick={() => toggleAlert(alert.id)}
+                onClick={() => handleToggleAndMaybePlay(alert)}
                 className="p-1.5 text-gray-400 hover:text-white transition-colors"
+                aria-label={expandedAlert === alert.id ? "Close alert details" : "Open alert details and play audio"}
               >
                 {expandedAlert === alert.id ? <X className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
               </button>
