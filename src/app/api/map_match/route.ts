@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 // const OSRM_URL = process.env.OSRM_URL || "http://localhost:5000";
-const OSRM_URL = process.env.OSRM_URL || "https://9cdd8c44328a.ngrok-free.app";
+const OSRM_URL = process.env.OSRM_URL;
 
 export const runtime = "nodejs";
 
