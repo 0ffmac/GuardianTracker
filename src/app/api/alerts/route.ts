@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 
@@ -6,28 +8,38 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    // Get the authorization header
+    let userId: string;
+
+    // Check if this is a mobile request (with Bearer token) or web request (with session)
     const authHeader = request.headers.get('Authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Mobile request with JWT token
+      const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      const JWT_SECRET = process.env.NEXTAUTH_SECRET as string;
+
+      if (!JWT_SECRET) {
+        return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
+      }
+
+      // Verify the JWT token
+      let decodedToken: any;
+      try {
+        decodedToken = jwt.verify(token, JWT_SECRET) as { userId: string; deviceId: string };
+      } catch (error) {
+        return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+      }
+
+      userId = decodedToken.userId;
+    } else {
+      // Web request with NextAuth session
+      const session = await getServerSession(authOptions);
+      if (!session?.user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+
+      userId = (session.user as any).id as string;
     }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    const JWT_SECRET = process.env.NEXTAUTH_SECRET as string;
-
-    if (!JWT_SECRET) {
-      return NextResponse.json({ error: "Server configuration error" }, { status: 500 });
-    }
-
-    // Verify the JWT token
-    let decodedToken: any;
-    try {
-      decodedToken = jwt.verify(token, JWT_SECRET) as { userId: string; deviceId: string };
-    } catch (error) {
-      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-    }
-
-    const userId = decodedToken.userId;
     
     // Parse query parameters
     const { searchParams } = new URL(request.url);
