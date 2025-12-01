@@ -68,24 +68,25 @@ export async function POST(request: Request) {
       }
     });
 
-    // Get the user's trusted contacts to send the alert to
-    const trustedContacts = await prisma.trustedContact.findMany({
+    // Get the contacts who have added this user as an emergency contact
+    // This means other people have added this user as their emergency contact
+    const contactsWhoTrustMe = await prisma.trustedContact.findMany({
       where: {
-        ownerId: userId,
-        status: "ACCEPTED", // Only send to accepted contacts
+        contactId: userId,  // The logged in user is the emergency contact
+        status: "ACCEPTED", // Only to accepted contacts
       },
       select: {
-        contactId: true,
+        ownerId: true, // The person who added this user as contact
       }
     });
 
     // Create alert recipients for each trusted contact
-    if (trustedContacts.length > 0) {
-      for (const contact of trustedContacts) {
+    if (contactsWhoTrustMe.length > 0) {
+      for (const contact of contactsWhoTrustMe) {
         await prisma.alertRecipient.create({
           data: {
             alertId: alert.id,
-            contactId: contact.contactId,
+            contactId: contact.ownerId, // The person who added this user as contact
             status: "PENDING",
             notifiedAt: new Date(),
           }
@@ -96,7 +97,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: true,
       alertId: alert.id,
-      recipients: trustedContacts.map(c => c.contactId)
+      recipients: contactsWhoTrustMe.map(c => c.ownerId)
     });
   } catch (error) {
     console.error("Error creating emergency alert:", error);
