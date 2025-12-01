@@ -13,8 +13,10 @@ import {
   TrendingUp,
   Activity,
   Download, // Added Download icon for the new section
+  AlertTriangle,
 } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import AlertList from "@/components/AlertList";
 
 // const TRACKED_DEVICE_ID = "simulator_01";
 
@@ -45,6 +47,38 @@ interface TrackingSession {
   totalPoints: number;
   distanceKm: number;
   durationMin: number;
+}
+
+interface Alert {
+  id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  createdAt: string;
+  user: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+  };
+  audioMessages: AudioMessage[];
+  recipientStatus?: string;
+  recipientNotifiedAt?: string;
+  recipientRespondedAt?: string;
+}
+
+interface AudioMessage {
+  id: string;
+  contentUrl: string;
+  contentType: string;
+  duration: number | null;
+  createdAt: string;
+  sender: {
+    id: string;
+    name: string | null;
+    email: string;
+    image: string | null;
+  };
 }
 
 // Haversine Distance Helper (for calculating stats)
@@ -121,6 +155,9 @@ export default function DashboardPage() {
   >(null);
   const [shareWithNearbyContacts, setShareWithNearbyContacts] = useState(true);
 
+  // Alerts state
+  const [alerts, setAlerts] = useState<Alert[]>([]);
+
   // Load persisted privacy preference on mount
   useEffect(() => {
     const loadPrivacy = async () => {
@@ -137,6 +174,33 @@ export default function DashboardPage() {
     };
     loadPrivacy();
   }, []);
+
+  // Fetch alerts for the current user
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/alerts?type=received");
+      if (!res.ok) throw new Error("Failed to fetch alerts");
+      const data = await res.json();
+      setAlerts(data.alerts);
+    } catch (error) {
+      console.error("Error fetching alerts:", error);
+    }
+  }, []);
+
+  // Load alerts on mount
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetchAlerts();
+    }
+  }, [status, fetchAlerts]);
+
+  // Refresh alerts periodically
+  useEffect(() => {
+    if (status === "authenticated") {
+      const interval = setInterval(fetchAlerts, 30000); // Refresh every 30 seconds
+      return () => clearInterval(interval);
+    }
+  }, [status, fetchAlerts]);
 
   // 1. Authentication Check
   useEffect(() => {
@@ -371,6 +435,26 @@ export default function DashboardPage() {
       body: JSON.stringify({ sessionId: activeTrackingSessionId }),
     });
     setActiveTrackingSessionId(null);
+  };
+
+  // Respond to an alert
+  const handleAlertResponse = async (alertId: string, action: string) => {
+    try {
+      const response = await fetch(`/api/alerts/${alertId}/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to respond to alert: ${response.statusText}`);
+      }
+
+      // Update the local state after successful response
+      fetchAlerts();
+    } catch (error) {
+      console.error("Error responding to alert:", error);
+    }
   };
 
 
@@ -880,6 +964,28 @@ export default function DashboardPage() {
             </div>
           </motion.div>
         )}
+
+        {/* Alerts Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.6 }}
+          className="mt-6 bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+        >
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-white">Emergency Alerts</h3>
+            <button
+              onClick={fetchAlerts}
+              className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+          <AlertList
+            alerts={alerts}
+            onRespond={handleAlertResponse}
+          />
+        </motion.div>
       </main>
     </div>
   );
