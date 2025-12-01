@@ -42,16 +42,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
       userId = (session.user as any).id as string;
     }
-    
+
     // Verify that the alert exists and that the user has permission to add audio to it
     const alert = await prisma.alert.findUnique({
       where: { id: alertId }
     });
-    
+
     if (!alert) {
       return NextResponse.json({ error: "Alert not found" }, { status: 404 });
     }
-    
+
     // Check if user is either the alert creator or a recipient
     const isCreator = alert.userId === userId;
     const isRecipient = await prisma.alertRecipient.findFirst({
@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         contactId: userId
       }
     });
-    
+
     if (!isCreator && !isRecipient) {
       return NextResponse.json({ error: "Unauthorized to add audio to this alert" }, { status: 403 });
     }
@@ -87,12 +87,19 @@ export async function POST(request: Request, { params }: { params: { id: string 
       const durationStr = formData.get('duration') as string;
       const duration = durationStr ? parseFloat(durationStr) : undefined;
 
+      // Determine the appropriate receiver for this audio message
+      // If the sender is the alert creator, the audio should go to recipients
+      // If the sender is a recipient, the audio should go back to the creator
+      const intendedReceiverId = isCreator
+        ? null  // Broadcast to all recipients or specific recipient if receiverId provided
+        : alert.userId; // Send response back to the alert creator
+
       // Create the audio message
       audioMessage = await prisma.audioMessage.create({
         data: {
           alertId,
           senderId: userId,
-          receiverId: receiverId || undefined, // Optional - can be null for broadcast
+          receiverId: receiverId || intendedReceiverId, // Allow specific receiver or use default logic
           contentUrl,
           contentType: contentType,
           duration: duration || undefined,
@@ -117,12 +124,19 @@ export async function POST(request: Request, { params }: { params: { id: string 
         return NextResponse.json({ error: "Audio content URL is required" }, { status: 400 });
       }
 
+      // Determine the appropriate receiver for this audio message
+      // If the sender is the alert creator, the audio should go to recipients
+      // If the sender is a recipient, the audio should go back to the creator
+      const intendedReceiverId = isCreator
+        ? null  // Broadcast to all recipients or specific recipient if receiverId provided
+        : alert.userId; // Send response back to the alert creator
+
       // Create the audio message
       audioMessage = await prisma.audioMessage.create({
         data: {
           alertId,
           senderId: userId,
-          receiverId: receiverId || undefined, // Optional - can be null for broadcast
+          receiverId: receiverId || intendedReceiverId, // Allow specific receiver or use default logic
           contentUrl,
           contentType: contentType || "audio/webm",
           duration: duration || undefined,

@@ -129,7 +129,9 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage 
                 </div>
                 
                 {alert.description && (
-                  <p className="text-gray-300 text-sm mb-2">{alert.description}</p>
+                  <div className="mb-3 p-3 bg-black/30 rounded-lg">
+                    <p className="text-gray-300 text-sm">{alert.description}</p>
+                  </div>
                 )}
                 
                 <div className="text-xs text-gray-400 mb-3">
