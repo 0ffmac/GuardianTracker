@@ -48,6 +48,10 @@ public/downloads/*
 # Markdown files
 FixedOSRM_OAUTH.md
 OSRM_OAUTH_FIXES_ALLSatNov29.md
+NearByContactsProfileCleanedPoints.md
 
+
+cookies.txt
 *gitignore*
 prisma/*
+
