@@ -83,8 +83,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       // In a real implementation, you would upload to a cloud storage service
       // For now, we'll simulate by creating a placeholder URL
       const contentUrl = `/api/audio/${audioFile.name}`; // Placeholder URL
-      const contentType = audioFile.type || "audio/webm";
-      const duration = 0; // Would need to calculate from actual audio
+      const contentType = formData.get('contentType') as string || audioFile.type || "audio/webm";
+      const durationStr = formData.get('duration') as string;
+      const duration = durationStr ? parseFloat(durationStr) : undefined;
 
       // Create the audio message
       audioMessage = await prisma.audioMessage.create({
