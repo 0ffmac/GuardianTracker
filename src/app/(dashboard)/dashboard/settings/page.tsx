@@ -453,15 +453,24 @@ export default function SettingsPage() {
    useEffect(() => {
      if (!mounted) return;
 
-     // Derive the primary device for the selected session
-     if (!selectedSession) {
+     if (!selectedSessionId || trackingSessions.length === 0) {
        setSuspiciousWifiDevices([]);
        setSuspiciousBleDevices([]);
        setSuspiciousError(null);
        return;
      }
 
-     const primaryDeviceId = sessionDeviceIds[0];
+     const session =
+       trackingSessions.find((s) => s.id === selectedSessionId) || trackingSessions[0];
+     const locations = session?.locations || [];
+     const deviceIds = Array.from(
+       new Set(
+         locations
+           .map((loc: any) => loc.deviceId)
+           .filter((id: string | null | undefined) => !!id)
+       )
+     );
+     const primaryDeviceId = deviceIds[0] as string | undefined;
 
      if (!primaryDeviceId) {
        setSuspiciousWifiDevices([]);
@@ -470,14 +479,16 @@ export default function SettingsPage() {
        return;
      }
 
-     async function fetchSuspicious() {
-       setSuspiciousLoading(true);
-       setSuspiciousError(null);
-       try {
-         const url = `/api/tracked_devices/suspicious?user_device_id=${encodeURIComponent(
-           primaryDeviceId as string
-         )}`;
-         const res = await fetch(url);
+      async function fetchSuspicious() {
+        setSuspiciousLoading(true);
+        setSuspiciousError(null);
+        try {
+          const idForQuery = primaryDeviceId ?? "";
+          const url = `/api/tracked_devices/suspicious?user_device_id=${encodeURIComponent(
+            idForQuery
+          )}`;
+          const res = await fetch(url);
+
          if (!res.ok) {
            throw new Error("Failed to load suspicious devices");
          }
@@ -501,7 +512,7 @@ export default function SettingsPage() {
      }
 
      fetchSuspicious();
-   }, [mounted, selectedSession, sessionDeviceIds]);
+   }, [mounted, selectedSessionId, trackingSessions]);
  
    function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);

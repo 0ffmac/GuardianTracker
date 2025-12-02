@@ -21,7 +21,7 @@ export const Navbar: React.FC = () => {
   // 2. Combined Auth Action (Sign In/Sign Out)
   const handleAuthAction = () => {
     if (isLoggedIn) {
-      signOut({ callbackUrl: window.location.origin + '/' }); 
+      signOut({ callbackUrl: window.location.origin + '/' });
     } else {
       router.push('/login');
     }
@@ -30,18 +30,18 @@ export const Navbar: React.FC = () => {
   // 3. Conditional CTA Action (Get Started/Dashboard)
   const handleCtaAction = () => {
     if (isLoggedIn) {
-        router.push('/dashboard');
+      router.push('/dashboard');
     } else {
-        router.push('/login'); // Assuming '/register' or '/signup'
+      router.push('/login'); // Assuming '/register' or '/signup'
     }
   };
 
   // 4. Optimized Scroll Listener
   useEffect(() => {
-      // Subscribe to changes in the scrollY MotionValue
-      return scrollY.onChange((latest) => {
-        setIsScrolled(latest > 20);
-      });
+    // Subscribe to changes in the scrollY MotionValue
+    return scrollY.onChange((latest) => {
+      setIsScrolled(latest > 20);
+    });
   }, [scrollY]);
 
   // 5. Load latest profile avatar for navbar
@@ -69,9 +69,8 @@ export const Navbar: React.FC = () => {
 
     loadProfile();
   }, [isLoggedIn, session?.user]);
- 
-   const isDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard');
 
+  const isDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard');
 
   return (
     <motion.nav
@@ -84,20 +83,20 @@ export const Navbar: React.FC = () => {
     >
       <div className="max-w-7xl mx-auto px-6 md:px-12 flex justify-between items-center">
         {/* Logo (clickable link to home) */}
-        <a 
+        <a
           onClick={() => router.push('/')}
           className="flex items-center gap-3 cursor-pointer group"
         >
           <div className="w-8 h-8 flex items-center justify-center border border-gold-400/50 rounded-none transform rotate-45 group-hover:rotate-0 transition-transform duration-500">
-             <div className="transform -rotate-45 group-hover:rotate-0 transition-transform duration-500">
-                <Shield className="w-4 h-4 text-gold-400" />
-             </div>
+            <div className="transform -rotate-45 group-hover:rotate-0 transition-transform duration-500">
+              <Shield className="w-4 h-4 text-gold-400" />
+            </div>
           </div>
           <span className="text-xl md:text-2xl font-serif tracking-[0.1em] text-white group-hover:text-gold-300 transition-colors uppercase">
             Guardian
           </span>
         </a>
- 
+
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-10">
           {isDashboard
@@ -144,19 +143,17 @@ export const Navbar: React.FC = () => {
               ))}
         </div>
 
-
         {/* Actions */}
         <div className="flex items-center gap-4">
-          
-          {/* 5. Avatar Display */}
+          {/* Avatar Display */}
           {isLoggedIn && (
             <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center overflow-hidden border border-gold-400">
               {avatarUrl || session?.user?.image ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img 
-                  src={avatarUrl || (session.user?.image as string)} 
-                  alt={session.user?.name || session.user?.email || 'User Avatar'} 
-                  className="w-full h-full object-cover" 
+                <img
+                  src={avatarUrl || (session.user?.image as string)}
+                  alt={session.user?.name || session.user?.email || 'User Avatar'}
+                  className="w-full h-full object-cover"
                 />
               ) : (
                 <span className="text-xs font-semibold text-gold-200">
@@ -169,34 +166,33 @@ export const Navbar: React.FC = () => {
               )}
             </div>
           )}
- 
-          {/* 6. Primary Auth Button (Sign In / Sign Out) */}
-          <button 
+
+          {/* Auth Button */}
+          <button
             onClick={handleAuthAction}
             className="flex items-center gap-2 text-xs font-sans uppercase tracking-widest text-white hover:text-gold-400 transition-colors"
           >
             {isLoggedIn ? (
-                <>
-                  <LogOut className="w-4 h-4" />
-                  Sign Out
-                </>
+              <>
+                <LogOut className="w-4 h-4" />
+                Sign Out
+              </>
             ) : (
-                'Sign In'
+              'Sign In'
             )}
           </button>
-          
-          {/* 7. CTA Button (Get Started / Go to Dashboard) - hide on very small screens */}
+
+          {/* CTA Button (Get Started / Go to Dashboard) */}
           <div className="hidden sm:block">
-            <Button 
-              variant="outline" 
-              onClick={handleCtaAction} 
+            <Button
+              variant="outline"
+              onClick={handleCtaAction}
               className="!py-2 !px-6 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white"
             >
               {isLoggedIn ? 'Dashboard' : 'Get Started'}
             </Button>
           </div>
         </div>
-
       </div>
     </motion.nav>
   );
