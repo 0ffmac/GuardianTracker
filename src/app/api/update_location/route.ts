@@ -194,13 +194,6 @@ async function processSingleLocation(
     mobileToken,
     rawBody,
   });
-  if (!trackingSessionId) {
-    console.warn("[WARN] Dropping point with missing trackingSessionId:", rawBody);
-    return {
-      status: 400,
-      payload: { error: "Missing trackingSessionId" },
-    };
-  }
   if (typeof latitude !== "number" || typeof longitude !== "number") {
     return {
       status: 400,
