@@ -7,6 +7,9 @@ const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 export const runtime = "nodejs";
 const MIN_DISTANCE_METERS = 3;
 const MAX_ACCURACY_METERS = 50;
+const MIN_SIGHTINGS_FOR_SUSPICION = 5;
+const MIN_DISTINCT_PLACES_FOR_SUSPICION = 3;
+const PLACE_CELL_DECIMALS = 3; // ~100–150m
 const toRad = (value: number) => (value * Math.PI) / 180;
 const distanceInMeters = (
   lat1: number,
@@ -26,6 +29,125 @@ const distanceInMeters = (
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+const computePlaceKey = (latitude: number, longitude: number) => {
+  const factor = Math.pow(10, PLACE_CELL_DECIMALS);
+  const latCell = Math.round(latitude * factor) / factor;
+  const lonCell = Math.round(longitude * factor) / factor;
+  return `${latCell.toFixed(PLACE_CELL_DECIMALS)},${lonCell.toFixed(
+    PLACE_CELL_DECIMALS
+  )}`;
+};
+async function recordDeviceObservationAndTrackedDevice(params: {
+  userDeviceId: string | null;
+  trackingSessionId: string | null;
+  type: "wifi" | "ble";
+  identifier: string;
+  name: string | null;
+  rssi: number;
+  latitude: number;
+  longitude: number;
+  timestamp: Date;
+}) {
+  const {
+    userDeviceId,
+    trackingSessionId,
+    type,
+    identifier,
+    name,
+    rssi,
+    latitude,
+    longitude,
+    timestamp,
+  } = params;
+  if (!userDeviceId) {
+    // Suspicious-device logic is keyed per app device; without it we skip.
+    return;
+  }
+  const placeKey = computePlaceKey(latitude, longitude);
+  await prisma.$transaction(async (tx) => {
+    await (tx as any).deviceObservation.create({
+      data: {
+        userDeviceId,
+        trackingSessionId: trackingSessionId || undefined,
+        type,
+        identifier,
+        name,
+        rssi,
+        latitude,
+        longitude,
+        timestamp,
+      },
+    });
+    const trackedDeviceUpdateData: any = {
+      lastSeenAt: timestamp,
+      totalSightings: { increment: 1 },
+    };
+    if (name && name.trim().length > 0) {
+      trackedDeviceUpdateData.lastName = name;
+    }
+    const trackedDevice = await (tx as any).trackedDevice.upsert({
+      where: {
+        userDeviceId_type_identifier: {
+          userDeviceId,
+          type,
+          identifier,
+        },
+      },
+      create: {
+        userDeviceId,
+        type,
+        identifier,
+        lastName: name && name.trim().length > 0 ? name : null,
+        firstSeenAt: timestamp,
+        lastSeenAt: timestamp,
+        totalSightings: 1,
+        distinctLocationCount: 0,
+        suspicionScore: 0,
+        isSuspicious: false,
+      },
+      update: trackedDeviceUpdateData,
+    });
+    await (tx as any).devicePlace.upsert({
+      where: {
+        trackedDeviceId_placeKey: {
+          trackedDeviceId: trackedDevice.id,
+          placeKey,
+        },
+      },
+      create: {
+        trackedDeviceId: trackedDevice.id,
+        placeKey,
+        firstSeenAt: timestamp,
+        lastSeenAt: timestamp,
+        count: 1,
+      },
+      update: {
+        lastSeenAt: timestamp,
+        count: {
+          increment: 1,
+        },
+      },
+    });
+    const distinctLocationCount = await (tx as any).devicePlace.count({
+      where: {
+        trackedDeviceId: trackedDevice.id,
+      },
+    });
+    const suspicionScore =
+      trackedDevice.totalSightings + 3 * distinctLocationCount;
+    const isSuspicious =
+      trackedDevice.totalSightings >= MIN_SIGHTINGS_FOR_SUSPICION &&
+      distinctLocationCount >= MIN_DISTINCT_PLACES_FOR_SUSPICION;
+    await (tx as any).trackedDevice.update({
+      where: { id: trackedDevice.id },
+      data: {
+        distinctLocationCount,
+        suspicionScore,
+        isSuspicious,
+      },
+    });
+  });
+}
 async function processSingleLocation(
   rawBody: any,
   userId: string,
@@ -147,6 +269,7 @@ async function processSingleLocation(
     }
   }
   // Create location record
+  const locationTimestamp = timestamp ? new Date(timestamp) : new Date();
   location = await prisma.location.create({
     data: {
       latitude,
@@ -154,7 +277,7 @@ async function processSingleLocation(
       accuracy: accuracy || null,
       altitude: altitude || null,
       speed: speed || null,
-      timestamp: timestamp ? new Date(timestamp) : new Date(),
+      timestamp: locationTimestamp,
       userId,
       deviceId,
       trackingSessionId,
@@ -178,6 +301,17 @@ async function processSingleLocation(
       // Use individual creates instead of createMany for compatibility
       for (const row of wifiData) {
         await prisma.wifiScan.create({ data: row });
+        await recordDeviceObservationAndTrackedDevice({
+          userDeviceId: deviceId,
+          trackingSessionId,
+          type: "wifi",
+          identifier: row.bssid,
+          name: row.ssid,
+          rssi: row.rssi,
+          latitude,
+          longitude,
+          timestamp: locationTimestamp,
+        });
       }
     }
   }
@@ -194,6 +328,17 @@ async function processSingleLocation(
       // Use individual creates instead of createMany for compatibility
       for (const row of bleData) {
         await prisma.bleScan.create({ data: row });
+        await recordDeviceObservationAndTrackedDevice({
+          userDeviceId: deviceId,
+          trackingSessionId,
+          type: "ble",
+          identifier: row.address,
+          name: row.name,
+          rssi: row.rssi,
+          latitude,
+          longitude,
+          timestamp: locationTimestamp,
+        });
       }
     }
   }

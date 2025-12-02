@@ -1,10 +1,12 @@
 "use client";
+
 import dynamic from "next/dynamic";
-const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { MapPin, Clock, TrendingUp, Activity, CalendarDays } from "lucide-react";
+
+const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
 // Map imported directly; render only when hasMounted to avoid SSR issues.
 
@@ -15,6 +17,7 @@ interface Location {
   deviceId: string | null;
   timestamp: string;
 }
+
 interface TrackingSession {
   id: string;
   name: string | null;
@@ -25,7 +28,10 @@ interface TrackingSession {
 
 export default function DashboardMapPage() {
   const [hasMounted, setHasMounted] = useState(false);
-  useEffect(() => { setHasMounted(true); }, []);
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   // Do not early-return before other hooks to avoid hook order mismatches
   const [locations, setLocations] = useState<Location[]>([]);
   const [trackingSessions, setTrackingSessions] = useState<TrackingSession[]>([]);
@@ -34,6 +40,11 @@ export default function DashboardMapPage() {
   const [osrmConfidence, setOsrmConfidence] = useState<number | null>(null);
   const [showSnapped, setShowSnapped] = useState(true);
 
+  const [nearbySuspiciousCount, setNearbySuspiciousCount] = useState<number | null>(null);
+  const [nearbySuspiciousLoading, setNearbySuspiciousLoading] = useState(false);
+  const [nearbySuspiciousError, setNearbySuspiciousError] = useState<string | null>(null);
+
+  // Load tracking sessions and initial selection
   useEffect(() => {
     const fetchLocationHistory = async () => {
       const res = await fetch("/api/locations");
@@ -52,6 +63,7 @@ export default function DashboardMapPage() {
     fetchLocationHistory();
   }, []);
 
+  // Update locations + snapped route when selected session changes
   useEffect(() => {
     if (!selectedSessionId) {
       setLocations([]);
@@ -59,10 +71,12 @@ export default function DashboardMapPage() {
       setOsrmConfidence(null);
       return;
     }
+
     const session = trackingSessions.find((s) => s.id === selectedSessionId);
     setLocations(session ? session.locations : []);
     setSnappedGeoJson(null);
     setOsrmConfidence(null);
+
     // Fetch snapped polyline if enough points
     if (session && session.locations.length >= 2) {
       const points = session.locations.map((loc) => ({
@@ -70,6 +84,7 @@ export default function DashboardMapPage() {
         lon: loc.longitude,
         timestamp: Math.floor(new Date(loc.timestamp).getTime() / 1000),
       }));
+
       fetch("/api/map_match", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -87,20 +102,86 @@ export default function DashboardMapPage() {
     }
   }, [selectedSessionId, trackingSessions]);
 
+  // Check for suspicious devices near the last known location of this session's primary device
+  useEffect(() => {
+    if (!hasMounted) return;
+    if (!locations || locations.length === 0) {
+      setNearbySuspiciousCount(null);
+      setNearbySuspiciousError(null);
+      return;
+    }
+
+    const deviceIds = Array.from(new Set(locations.map((l) => l.deviceId).filter(Boolean)));
+    const primaryDeviceId = deviceIds[0] as string | undefined;
+
+    if (!primaryDeviceId) {
+      setNearbySuspiciousCount(null);
+      setNearbySuspiciousError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function fetchNearbySuspicious() {
+      setNearbySuspiciousLoading(true);
+      setNearbySuspiciousError(null);
+      try {
+        const idForQuery = primaryDeviceId ?? "";
+        const res = await fetch(
+          `/api/tracked_devices/nearby?user_device_id=${encodeURIComponent(idForQuery)}`
+        );
+        if (!res.ok) {
+          // Treat "no data" style errors as simply "no suspicious devices".
+          if (res.status === 400 || res.status === 404) {
+            if (!cancelled) {
+              setNearbySuspiciousCount(0);
+            }
+            return;
+          }
+          throw new Error("Failed to load nearby suspicious devices");
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          setNearbySuspiciousCount(Array.isArray(data) ? data.length : 0);
+        }
+      } catch (err) {
+        console.error("[map] Failed to load nearby suspicious devices", err);
+        if (!cancelled) {
+          setNearbySuspiciousError("Could not check for suspicious devices nearby.");
+          setNearbySuspiciousCount(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setNearbySuspiciousLoading(false);
+        }
+      }
+    }
+
+    fetchNearbySuspicious();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasMounted, locations]);
+
   // Stats for the selected session
   const stats = useMemo(() => {
     if (!locations || locations.length === 0) return null;
-    // Distance (km)
+
     const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
       const R = 6371;
       const dLat = ((lat2 - lat1) * Math.PI) / 180;
       const dLon = ((lon2 - lon1) * Math.PI) / 180;
-      const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
+
     let distance = 0;
     for (let i = 1; i < locations.length; i++) {
       distance += haversine(
@@ -110,15 +191,19 @@ export default function DashboardMapPage() {
         locations[i].longitude
       );
     }
-    // Duration (min)
-    const duration = Math.floor((new Date(locations[locations.length - 1].timestamp).getTime() - new Date(locations[0].timestamp).getTime()) / 1000 / 60);
-    // Points
+
+    const duration = Math.floor(
+      (new Date(locations[locations.length - 1].timestamp).getTime() -
+        new Date(locations[0].timestamp).getTime()) /
+        1000 /
+        60
+    );
+
     const points = locations.length;
-    // Devices
-    const deviceIds = Array.from(new Set(locations.map(l => l.deviceId).filter(Boolean)));
-    // Start/End
+    const deviceIds = Array.from(new Set(locations.map((l) => l.deviceId).filter(Boolean)));
     const start = locations[0].timestamp;
     const end = locations[locations.length - 1].timestamp;
+
     return { distance, duration, points, deviceIds, start, end };
   }, [locations]);
 
@@ -127,16 +212,19 @@ export default function DashboardMapPage() {
       <Navbar />
       <main className="max-w-7xl mx-auto px-6 py-8 pt-20">
         <h1 className="text-2xl font-bold mb-4">Tracking Map</h1>
+
         {/* Stats Card Grid */}
         {stats && (
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
             <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-gold-400/20 flex items-center gap-3 shadow-lg">
               <div className="p-2 rounded-xl bg-gold-500/10 text-gold-300">
                 <MapPin className="w-5 h-5" />
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-gold-400">Distance</p>
-                <p className="text-lg font-semibold text-gold-100">{stats.distance.toFixed(2)} km</p>
+                <p className="text-lg font-semibold text-gold-100">
+                  {stats.distance.toFixed(2)} km
+                </p>
               </div>
             </div>
             <div className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-emerald-400/20 flex items-center gap-3 shadow-lg">
@@ -165,10 +253,13 @@ export default function DashboardMapPage() {
                 <p className="text-xs uppercase tracking-wide text-blue-400">Devices</p>
                 <div className="flex items-center gap-2 mt-1">
                   {stats.deviceIds.length === 0 ? (
-                    <span className="text-blue-100">–</span>
+                    <span className="text-blue-100">60</span>
                   ) : (
-                    stats.deviceIds.map((id, idx) => (
-                      <span key={id as string} className="inline-block px-2 py-1 bg-blue-900/40 text-blue-100 rounded text-xs font-mono">
+                    stats.deviceIds.map((id) => (
+                      <span
+                        key={id as string}
+                        className="inline-block px-2 py-1 bg-blue-900/40 text-blue-100 rounded text-xs font-mono"
+                      >
                         {id as string}
                       </span>
                     ))
@@ -182,18 +273,43 @@ export default function DashboardMapPage() {
               </div>
               <div>
                 <p className="text-xs uppercase tracking-wide text-gold-400">Session</p>
-                <p className="text-xs text-gold-100">{new Date(stats.start).toLocaleString()}</p>
-                <p className="text-xs text-gold-100">{new Date(stats.end).toLocaleString()}</p>
+                <p className="text-xs text-gold-100">
+                  {new Date(stats.start).toLocaleString()}
+                </p>
+                <p className="text-xs text-gold-100">
+                  {new Date(stats.end).toLocaleString()}
+                </p>
               </div>
             </div>
           </div>
         )}
+
+        {nearbySuspiciousLoading && (
+          <div className="mb-2 text-xs text-amber-200">
+            Checking for suspicious devices nearby...
+          </div>
+        )}
+        {nearbySuspiciousError && (
+          <div className="mb-2 text-xs text-red-300">{nearbySuspiciousError}</div>
+        )}
+        {nearbySuspiciousCount !== null && nearbySuspiciousCount > 0 && (
+          <div className="mb-4 rounded-2xl border border-red-500/40 bg-red-950/70 px-4 py-3 flex items-center justify-between gap-3">
+            <div className="text-sm text-red-50">
+              Potential stalker devices detected nearby: {" "}
+              <span className="font-semibold">{nearbySuspiciousCount}</span>. {" "}
+              See details in Settings 20 Suspicious devices.
+            </div>
+          </div>
+        )}
+
         <div className="mt-4 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20">
-          <label htmlFor="session-select" className="mr-2">Session:</label>
+          <label htmlFor="session-select" className="mr-2">
+            Session:
+          </label>
           <select
             id="session-select"
-            value={selectedSessionId || ''}
-            onChange={e => setSelectedSessionId(e.target.value)}
+            value={selectedSessionId || ""}
+            onChange={(e) => setSelectedSessionId(e.target.value)}
             className="w-full md:w-64 p-3 bg-gold-900/40 border border-gold-400/30 rounded-lg text-gold-100 appearance-none cursor-pointer focus:ring-gold-500 focus:border-gold-500 font-semibold"
           >
             {trackingSessions.map((s) => (
@@ -221,13 +337,14 @@ export default function DashboardMapPage() {
             )}
           </div>
         </div>
-        <div className="h-[500px] rounded-xl overflow-hidden">
+
+        <div className="h-[500px] rounded-xl overflow-hidden mt-4">
           {hasMounted && (
             <Map
               locations={locations}
               currentLocation={locations[locations.length - 1] || null}
-              fitOnUpdate={true}
-              autoZoomOnFirstPoint={true}
+              fitOnUpdate
+              autoZoomOnFirstPoint
               snappedGeoJson={showSnapped ? snappedGeoJson : null}
             />
           )}

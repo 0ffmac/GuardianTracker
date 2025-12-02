@@ -98,8 +98,10 @@ model Device {
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
   userId     String
-  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  locations  Location[] @relation("DeviceLocations")
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locations         Location[]         @relation("DeviceLocations")
+  deviceObservations DeviceObservation[] @relation("DeviceDeviceObservations")
+  trackedDevices     TrackedDevice[]     @relation("DeviceTrackedDevices")
 
   @@index([userId])
   @@index([deviceId])
@@ -168,19 +170,71 @@ model BleScan {
   @@index([locationId])
 }
 
-model TrackingSession {
+ model TrackingSession {
   id        String     @id @default(cuid())
   name      String?
   startTime DateTime
   endTime   DateTime
   userId    String
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  locations Location[] @relation("SessionLocations")
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  locations         Location[]         @relation("SessionLocations")
+  deviceObservations DeviceObservation[] @relation("SessionDeviceObservations")
 
   @@index([userId])
-}
+ }
+ 
+  model DeviceObservation {
+  id                String           @id @default(cuid())
+  userDeviceId      String
+  userDevice        Device           @relation("DeviceDeviceObservations", fields: [userDeviceId], references: [id], onDelete: Cascade)
+  trackingSessionId String?
+  trackingSession   TrackingSession? @relation("SessionDeviceObservations", fields: [trackingSessionId], references: [id], onDelete: Cascade)
+  type              String
+  identifier        String
+  name              String?
+  rssi              Int
+  latitude          Float
+  longitude         Float
+  timestamp         DateTime         @default(now())
 
-model Alert {
+  @@index([userDeviceId, type, identifier])
+  @@index([timestamp])
+ }
+
+ model TrackedDevice {
+  id                     String        @id @default(cuid())
+  userDeviceId           String
+  userDevice             Device        @relation("DeviceTrackedDevices", fields: [userDeviceId], references: [id], onDelete: Cascade)
+  type                   String
+  identifier             String
+  lastName               String?
+  firstSeenAt            DateTime
+  lastSeenAt             DateTime
+  totalSightings         Int           @default(0)
+  distinctLocationCount  Int           @default(0)
+  suspicionScore         Float         @default(0)
+  isSuspicious           Boolean       @default(false)
+  devicePlaces           DevicePlace[]
+
+  @@unique([userDeviceId, type, identifier], name: "userDeviceId_type_identifier")
+  @@index([userDeviceId, type, identifier])
+ }
+
+ model DevicePlace {
+  id             String        @id @default(cuid())
+  trackedDeviceId String
+  trackedDevice  TrackedDevice @relation(fields: [trackedDeviceId], references: [id], onDelete: Cascade)
+  placeKey       String
+  firstSeenAt    DateTime
+  lastSeenAt     DateTime
+  count          Int           @default(0)
+
+  @@unique([trackedDeviceId, placeKey], name: "trackedDeviceId_placeKey")
+  @@index([placeKey])
+ }
+
+ model Alert {
+
   id          String   @id @default(cuid())
   userId      String   // Person who triggered the alert
   title       String   // "Emergency Alert", "Help Request", etc.
