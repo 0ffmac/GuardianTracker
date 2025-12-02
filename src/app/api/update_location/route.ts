@@ -61,6 +61,17 @@ async function processSingleLocation(
   console.log(
     `[update_location] Incoming location for userId: ${userId}, deviceId: ${deviceId}, trackingSessionId: ${trackingSessionId}`
   );
+  console.log("[DEBUG] Received location payload:", {
+    latitude,
+    longitude,
+    rawLatitude: rawBody.latitude,
+    rawLongitude: rawBody.longitude,
+    trackingSessionId,
+    userId,
+    deviceId,
+    mobileToken,
+    rawBody,
+  });
   if (typeof latitude !== "number" || typeof longitude !== "number") {
     return {
       status: 400,

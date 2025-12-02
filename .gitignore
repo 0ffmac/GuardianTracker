@@ -54,4 +54,5 @@ OfflineBatches.md
 cookies.txt
 *gitignore*
 prisma/*
+dart/
 
