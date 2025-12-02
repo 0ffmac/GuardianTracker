@@ -118,7 +118,7 @@ export const Navbar: React.FC = () => {
               ))
             : [
                 { label: 'Features', kind: 'hash', href: '#features' },
-                { label: 'Security', kind: 'route', href: '/discover' },
+                { label: 'Discover', kind: 'route', href: '/discover' },
                 { label: 'Pricing', kind: 'route', href: '/pricing' },
                 { label: 'About', kind: 'route', href: '/about' },
               ].map((link) => (
