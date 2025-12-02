@@ -29,6 +29,16 @@ export default function SettingsPage() {
   const [alertsError, setAlertsError] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"sent" | "received">("sent");
   const [alertStatus, setAlertStatus] = useState<string>("ACTIVE");
+  const [wifiDevices, setWifiDevices] = useState<any[]>([]);
+  const [bleDevices, setBleDevices] = useState<any[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [devicesError, setDevicesError] = useState<string | null>(null);
+  const [environmentLoading, setEnvironmentLoading] = useState(false);
+  const [environmentError, setEnvironmentError] = useState<string | null>(null);
+  const [environmentSummary, setEnvironmentSummary] = useState<any | null>(null);
+  const [environmentWifi, setEnvironmentWifi] = useState<any[]>([]);
+  const [environmentBle, setEnvironmentBle] = useState<any[]>([]);
+  const [environmentVisible, setEnvironmentVisible] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
 
   function showToast(message: string, type: "success" | "error" = "success") {
@@ -111,6 +121,26 @@ export default function SettingsPage() {
     fetchAlerts();
   }, [mounted, alertType, alertStatus]);
 
+  useEffect(() => {
+    if (!mounted) return;
+    async function fetchDevices() {
+      setDevicesLoading(true);
+      setDevicesError(null);
+      try {
+        const res = await fetch("/api/environment/devices");
+        if (!res.ok) throw new Error("Failed to load environment devices");
+        const data = await res.json();
+        setWifiDevices(data.wifi || []);
+        setBleDevices(data.ble || []);
+      } catch (err) {
+        setDevicesError("Failed to load nearby devices.");
+      } finally {
+        setDevicesLoading(false);
+      }
+    }
+    fetchDevices();
+  }, [mounted]);
+
 
   async function handleDeleteSession(id: string) {
     setDeleting(id);
@@ -119,10 +149,136 @@ export default function SettingsPage() {
       const res = await fetch(`/api/tracking_session/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete session");
       setTrackingSessions((prev) => prev.filter((s) => s.id !== id));
+      showToast("Session deleted");
     } catch (err) {
       setError("Failed to delete session.");
+      showToast("Failed to delete session.", "error");
     } finally {
       setDeleting(null);
+    }
+  }
+
+  async function handleDeleteAllSessions() {
+    if (trackingSessions.length === 0) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete all tracking sessions? This will remove all recorded sessions but keep your account."
+      )
+    )
+      return;
+
+    try {
+      const ids = trackingSessions.map((s) => s.id as string);
+      await Promise.all(
+        ids.map((id) =>
+          fetch(`/api/tracking_session/${id}`, { method: "DELETE" }).catch(() => null)
+        )
+      );
+      setTrackingSessions([]);
+      setSelectedSessionId(null);
+      showToast("All tracking sessions deleted");
+    } catch (err) {
+      console.error("Failed to delete all sessions", err);
+      showToast("Failed to delete all sessions", "error");
+    }
+  }
+
+  async function handleDeleteAlert(id: string) {
+    try {
+      const res = await fetch(`/api/alerts/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        showToast("Failed to delete alert", "error");
+        return;
+      }
+      setAlerts((prev) => prev.filter((a) => a.id !== id));
+      showToast("Alert deleted");
+    } catch (err) {
+      console.error("Failed to delete alert", err);
+      showToast("Failed to delete alert", "error");
+    }
+  }
+
+  async function handleDeleteAllAlerts() {
+    if (alerts.length === 0) return;
+    if (
+      !confirm(
+        "Are you sure you want to delete all alerts in this view? This will only affect your account."
+      )
+    )
+      return;
+
+    try {
+      const ids = alerts.map((a) => a.id as string);
+      await Promise.all(
+        ids.map((id) => fetch(`/api/alerts/${id}`, { method: "DELETE" }).catch(() => null))
+      );
+      setAlerts([]);
+      showToast("All alerts deleted");
+    } catch (err) {
+      console.error("Failed to delete all alerts", err);
+      showToast("Failed to delete all alerts", "error");
+    }
+  }
+
+  async function handleLoadEnvironment(sessionId: string) {
+    // Toggle visibility if we already have data
+    if (environmentSummary) {
+      setEnvironmentVisible((prev) => !prev);
+      return;
+    }
+
+    setEnvironmentLoading(true);
+    setEnvironmentError(null);
+    try {
+      const res = await fetch(`/api/tracking_session/${sessionId}/environment`);
+      if (!res.ok) throw new Error("Failed to load environment metrics");
+      const data = await res.json();
+      setEnvironmentSummary(data.summary || null);
+      setEnvironmentWifi(data.wifi || []);
+      setEnvironmentBle(data.ble || []);
+      setEnvironmentVisible(true);
+    } catch (err) {
+      console.error("Failed to load environment metrics", err);
+      setEnvironmentError("Failed to load environment metrics.");
+    } finally {
+      setEnvironmentLoading(false);
+    }
+  }
+
+  async function handleDeleteDevice(
+    kind: "wifi" | "ble",
+    id: string,
+    hasSessions: boolean
+  ) {
+    if (hasSessions) {
+      showToast(
+        kind === "wifi"
+          ? "This Wi-Fi network is part of tracking sessions. Delete those sessions first."
+          : "This Bluetooth device is part of tracking sessions. Delete those sessions first.",
+        "error"
+      );
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/environment/devices", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind, id }),
+      });
+      if (!res.ok) {
+        showToast("Failed to delete device", "error");
+        return;
+      }
+      if (kind === "wifi") {
+        setWifiDevices((prev) => prev.filter((d) => d.id !== id));
+      } else {
+        setBleDevices((prev) => prev.filter((d) => d.id !== id));
+      }
+      showToast("Device deleted");
+    } catch (err) {
+      console.error("Failed to delete device", err);
+      showToast("Failed to delete device", "error");
     }
   }
 
@@ -166,17 +322,37 @@ export default function SettingsPage() {
   async function handleDeleteContact(id: string) {
     setContactDeletingId(id);
     setContactError(null);
-
+ 
     try {
       const res = await fetch(`/api/contacts/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete contact");
       setContacts((prev) => prev.filter((c) => c.id !== id));
+      showToast("Contact removed");
     } catch (err) {
       setContactError("Failed to delete contact.");
+      showToast("Failed to delete contact.", "error");
     } finally {
       setContactDeletingId(null);
     }
   }
+
+  async function handleDeleteAllContacts() {
+    if (contacts.length === 0) return;
+    if (!confirm("Are you sure you want to delete all emergency contacts?")) return;
+
+    try {
+      const ids = contacts.map((c) => c.id as string);
+      await Promise.all(
+        ids.map((id) => fetch(`/api/contacts/${id}`, { method: "DELETE" }).catch(() => null))
+      );
+      setContacts([]);
+      showToast("All contacts removed");
+    } catch (err) {
+      console.error("Failed to delete all contacts", err);
+      showToast("Failed to delete all contacts", "error");
+    }
+  }
+
 
   async function handleDeleteAllData() {
     const targetUser = profileUser || sessionUser;
@@ -260,6 +436,15 @@ export default function SettingsPage() {
     (sum: number, alert: any) => sum + (alert.audioMessages?.length || 0),
     0
   );
+
+  useEffect(() => {
+    // Reset environment metrics when switching sessions
+    setEnvironmentSummary(null);
+    setEnvironmentWifi([]);
+    setEnvironmentBle([]);
+    setEnvironmentError(null);
+    setEnvironmentVisible(false);
+  }, [selectedSessionId]);
 
   function formatDuration(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
@@ -439,7 +624,17 @@ export default function SettingsPage() {
 
               {/* Emergency contacts */}
               <div>
-                <h3 className="text-base font-semibold mb-1">Emergency Contacts</h3>
+                <div className="flex items-center justify-between gap-3 mb-1">
+                  <h3 className="text-base font-semibold">Emergency Contacts</h3>
+                  {contacts.length > 0 && (
+                    <button
+                      className="px-3 py-1 text-[11px] rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                      onClick={handleDeleteAllContacts}
+                    >
+                      Delete all
+                    </button>
+                  )}
+                </div>
                 <p className="text-sm text-gray-300">
                   Add trusted people who can receive alerts about your location. Only existing Guardian accounts can be added for now.
                 </p>
@@ -586,7 +781,17 @@ export default function SettingsPage() {
 
           {/* Tracking sessions section */}
           <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <h2 className="text-lg font-semibold mb-2">Tracking Sessions</h2>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <h2 className="text-lg font-semibold">Tracking Sessions</h2>
+              {trackingSessions.length > 0 && (
+                <button
+                  className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                  onClick={handleDeleteAllSessions}
+                >
+                  Delete all
+                </button>
+              )}
+            </div>
             <p className="text-sm text-gray-300">
               View, inspect and delete recorded tracking sessions from your devices.
             </p>
@@ -635,10 +840,22 @@ export default function SettingsPage() {
                     </ul>
                   </div>
                   <div className="lg:col-span-2">
-                    <h3 className="text-sm font-semibold text-gray-200 mb-2">Session details</h3>
-                    {!selectedSession ? (
-                      <div className="text-sm text-gray-400">
-                        Select a session on the left to see its details.
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <h3 className="text-sm font-semibold text-gray-200">Session details</h3>
+                      {selectedSession && (
+                        <button
+                          className="px-3 py-1 text-[11px] rounded-lg bg-white/10 text-gray-100 hover:bg-white/20 border border-white/15 transition"
+                          onClick={() => handleLoadEnvironment(selectedSession.id)}
+                          disabled={environmentLoading}
+                        >
+                          {environmentLoading ? "Loading environment..." : "View environment metrics"}
+                        </button>
+                      )}
+                    </div>
+                     {!selectedSession ? (
+                       <div className="text-sm text-gray-400">
+                         Select a session on the left to see its details.
+
                       </div>
                     ) : (
                       <div className="space-y-4">
@@ -673,27 +890,100 @@ export default function SettingsPage() {
                           </div>
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                          <div className="bg-white/5 rounded-xl p-3">
-                            <div className="text-xs text-gray-400">Batches sent</div>
-                            <div className="text-sm font-medium">Coming soon</div>
-                            <div className="text-[11px] text-gray-400 mt-1">
-                              Placeholder for future batch metrics.
+                           <div className="bg-white/5 rounded-xl p-3">
+                             <div className="text-xs text-gray-400">Batches sent</div>
+                             <div className="text-sm font-medium">Coming soon</div>
+                             <div className="text-[11px] text-gray-400 mt-1">
+                               Placeholder for future batch metrics.
+                             </div>
+                           </div>
+                           <div className="bg-white/5 rounded-xl p-3">
+                             <div className="text-xs text-gray-400">Errors</div>
+                             <div className="text-sm font-medium">Coming soon</div>
+                             <div className="text-[11px] text-gray-400 mt-1">
+                               Placeholder for error stats per session.
+                             </div>
+                           </div>
+                           <div className="bg-white/5 rounded-xl p-3">
+                             <div className="text-xs text-gray-400">Map points preview</div>
+                             <div className="text-[11px] text-gray-400 mt-1">
+                               Future space for route maps or visualizations.
+                             </div>
+                           </div>
+                         </div>
+
+                        {environmentVisible && environmentSummary && (
+                          <div className="mt-4 space-y-3">
+                            <h4 className="text-xs font-semibold text-gray-300 tracking-wide uppercase">
+                              Environment metrics for this session
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div className="bg-white/5 rounded-xl p-3">
+                                <div className="text-[11px] text-gray-400">Location points</div>
+                                <div className="text-sm font-semibold">
+                                  {environmentSummary.locations ?? 0}
+                                </div>
+                              </div>
+                              <div className="bg-white/5 rounded-xl p-3">
+                                <div className="text-[11px] text-gray-400">Wi-Fi scans</div>
+                                <div className="text-sm font-semibold">
+                                  {environmentSummary.wifiScans ?? 0}
+                                </div>
+                              </div>
+                              <div className="bg-white/5 rounded-xl p-3">
+                                <div className="text-[11px] text-gray-400">Bluetooth scans</div>
+                                <div className="text-sm font-semibold">
+                                  {environmentSummary.bleScans ?? 0}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[11px] text-gray-300">
+                              <div className="bg-white/5 rounded-xl p-3">
+                                <div className="text-[11px] font-semibold text-gray-200 mb-1">
+                                  Top Wi-Fi networks
+                                </div>
+                                {environmentWifi.length === 0 ? (
+                                  <div className="text-gray-400">No Wi-Fi data for this session.</div>
+                                ) : (
+                                  <ul className="space-y-0.5 max-h-32 overflow-y-auto pr-1">
+                                    {environmentWifi.slice(0, 5).map((w: any) => (
+                                      <li key={w.bssid} className="flex justify-between gap-2">
+                                        <span className="truncate">
+                                          {w.ssid || "Hidden"}
+                                        </span>
+                                        <span className="text-gray-400">
+                                          ×{w.count ?? 0}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                              <div className="bg-white/5 rounded-xl p-3">
+                                <div className="text-[11px] font-semibold text-gray-200 mb-1">
+                                  Top Bluetooth devices
+                                </div>
+                                {environmentBle.length === 0 ? (
+                                  <div className="text-gray-400">No Bluetooth data for this session.</div>
+                                ) : (
+                                  <ul className="space-y-0.5 max-h-32 overflow-y-auto pr-1">
+                                    {environmentBle.slice(0, 5).map((b: any) => (
+                                      <li key={b.address} className="flex justify-between gap-2">
+                                        <span className="truncate">
+                                          {b.name || "Unknown"}
+                                        </span>
+                                        <span className="text-gray-400">
+                                          ×{b.count ?? 0}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="bg-white/5 rounded-xl p-3">
-                            <div className="text-xs text-gray-400">Errors</div>
-                            <div className="text-sm font-medium">Coming soon</div>
-                            <div className="text-[11px] text-gray-400 mt-1">
-                              Placeholder for error stats per session.
-                            </div>
-                          </div>
-                          <div className="bg-white/5 rounded-xl p-3">
-                            <div className="text-xs text-gray-400">Map points preview</div>
-                            <div className="text-[11px] text-gray-400 mt-1">
-                              Future space for route maps or visualizations.
-                            </div>
-                          </div>
-                        </div>
+                        )}
+
                       </div>
                     )}
                   </div>
@@ -702,9 +992,164 @@ export default function SettingsPage() {
             </div>
           </section>
 
+          {/* Nearby devices section */}
+          <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10">
+            <h2 className="text-lg font-semibold mb-2">Nearby Wi-Fi &amp; Bluetooth Devices</h2>
+            <p className="text-sm text-gray-300">
+              See which Wi-Fi networks and Bluetooth devices have been around you during tracking, how often they appeared, and clean up historical scans.
+            </p>
+            {devicesError && (
+              <div className="mt-3 text-sm text-red-400">{devicesError}</div>
+            )}
+            <div className="mt-4">
+              {devicesLoading ? (
+                <div className="text-sm text-gray-400">Loading nearby devices...</div>
+              ) : wifiDevices.length === 0 && bleDevices.length === 0 ? (
+                <div className="text-sm text-gray-400">
+                  No Wi-Fi or Bluetooth scan data yet. When you record sessions with environment scanning enabled, devices will appear here.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-200 mb-2">Wi-Fi networks</h3>
+                    <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {wifiDevices.map((device) => {
+                        const first = device.firstSeen ? new Date(device.firstSeen) : null;
+                        const last = device.lastSeen ? new Date(device.lastSeen) : null;
+                        const durationMs =
+                          first && last ? last.getTime() - first.getTime() : 0;
+                        return (
+                          <li
+                            key={device.id}
+                            className="bg-white/5 rounded-xl px-3 py-2 text-xs flex flex-col gap-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {device.ssid || "Hidden network"}
+                                </div>
+                                <div className="text-[11px] text-gray-400">
+                                  BSSID: {device.bssid}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                {device.hasSessions && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-100">
+                                    Part of sessions
+                                  </span>
+                                )}
+                                <button
+                                  className="px-2 py-0.5 text-[11px] rounded bg-red-600 text-white hover:bg-red-700 transition"
+                                  onClick={() =>
+                                    handleDeleteDevice(
+                                      "wifi",
+                                      device.id as string,
+                                      device.hasSessions
+                                    )
+                                  }
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-1 text-[11px] text-gray-300">
+                              {first && (
+                                <span>First seen: {first.toLocaleString()}</span>
+                              )}
+                              {last && (
+                                <span>Last seen: {last.toLocaleString()}</span>
+                              )}
+                              <span>Scans: {device.scanCount}</span>
+                              {durationMs > 0 && (
+                                <span>
+                                  Near you for ~{formatDuration(durationMs)}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold text-gray-200 mb-2">Bluetooth devices</h3>
+                    <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                      {bleDevices.map((device) => {
+                        const first = device.firstSeen ? new Date(device.firstSeen) : null;
+                        const last = device.lastSeen ? new Date(device.lastSeen) : null;
+                        const durationMs =
+                          first && last ? last.getTime() - first.getTime() : 0;
+                        return (
+                          <li
+                            key={device.id}
+                            className="bg-white/5 rounded-xl px-3 py-2 text-xs flex flex-col gap-1"
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {device.name || "Unknown device"}
+                                </div>
+                                <div className="text-[11px] text-gray-400">
+                                  Address: {device.address}
+                                </div>
+                              </div>
+                              <div className="flex flex-col items-end gap-1">
+                                {device.hasSessions && (
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-100">
+                                    Part of sessions
+                                  </span>
+                                )}
+                                <button
+                                  className="px-2 py-0.5 text-[11px] rounded bg-red-600 text-white hover:bg-red-700 transition"
+                                  onClick={() =>
+                                    handleDeleteDevice(
+                                      "ble",
+                                      device.id as string,
+                                      device.hasSessions
+                                    )
+                                  }
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2 mt-1 text-[11px] text-gray-300">
+                              {first && (
+                                <span>First seen: {first.toLocaleString()}</span>
+                              )}
+                              {last && (
+                                <span>Last seen: {last.toLocaleString()}</span>
+                              )}
+                              <span>Scans: {device.scanCount}</span>
+                              {durationMs > 0 && (
+                                <span>
+                                  Near you for ~{formatDuration(durationMs)}
+                                </span>
+                              )}
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
           {/* Alerts section */}
           <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-            <h2 className="text-lg font-semibold mb-2">Alerts</h2>
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <h2 className="text-lg font-semibold">Alerts</h2>
+              {alerts.length > 0 && (
+                <button
+                  className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+                  onClick={handleDeleteAllAlerts}
+                >
+                  Delete all
+                </button>
+              )}
+            </div>
             <p className="text-sm text-gray-300">
               See alerts you&apos;ve sent or received, and filter them similar to analytics dashboards.
             </p>
@@ -782,13 +1227,21 @@ export default function SettingsPage() {
                       key={alert.id}
                       className="bg-white/5 rounded-xl px-3 py-2 flex flex-col gap-1"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium">
                           {alert.title || "Alert"}
                         </div>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-gray-200">
-                          {alert.status}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-gray-200">
+                            {alert.status}
+                          </span>
+                          <button
+                            className="px-2 py-0.5 text-[11px] rounded bg-red-600 text-white hover:bg-red-700 transition"
+                            onClick={() => handleDeleteAlert(alert.id)}
+                          >
+                            Delete
+                          </button>
+                        </div>
                       </div>
                       <div className="text-xs text-gray-400">
                         {new Date(alert.createdAt).toLocaleString()}
