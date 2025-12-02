@@ -140,7 +140,7 @@ export default function DashboardPage() {
   >([]);
 
   // Nearby contacts / alerts state
-  const [nearbyRadiusKm, setNearbyRadiusKm] = useState(5);
+  const [nearbyRadiusKm, setNearbyRadiusKm] = useState(10);
   const [nearbyContacts, setNearbyContacts] = useState<
     {
       userId: string;

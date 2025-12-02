@@ -26,6 +26,21 @@ export default function PricingPage() {
     }, 1200);
     return () => clearTimeout(t);
   }, [pulse]);
+  
+  // Variants for staggered entrance animation
+  const characterVariants = {
+    hidden: { y: Math.random() * 80 - 40, x: Math.random() * 40 - 20, rotate: Math.random() * 40 - 20, opacity: 0, filter: 'blur(4px)' },
+    // FIX 1: Cast the cubic-bezier array to `any` to bypass strict TypeScript checking.
+    show: { y: 0, x: 0, rotate: 0, opacity: 1, filter: 'blur(0px)', transition: { duration: 1.1, ease: [0, 0, 0.2, 1] as any } }
+  };
+  
+  // Variants for star scaling animation
+  const starVariants = {
+    hidden: { scale: 0 },
+    // FIX 2: Removed explicit 'type: spring'. Stiffness/damping imply spring, resolving the TS error. (This was already correct)
+    show: { scale: 1, transition: { stiffness: 300, damping: 20 } }
+  };
+
   return (
     <div className="min-h-screen bg-background text-white selection:bg-gold-500/30 selection:text-gold-200">
       <Navbar />
@@ -66,81 +81,94 @@ export default function PricingPage() {
               </motion.div>
             </motion.div>
 
-            <div className="relative inline-block">
+            {/* Combined Title Block (Guardian Elite + is Free) */}
+            <div className="relative">
               <AnimatePresence mode="wait">
                 {visible && (
-                  <motion.h1
-                    key={cycle}
+                  <motion.div 
+                    key={cycle} 
+                    exit={{ opacity: 0, transition: { duration: 1.2 } }}
                     initial="hidden"
                     animate="show"
-                    exit={{ opacity: 0, transition: { duration: 1.2 } }}
-                    className="text-5xl md:text-8xl lg:text-[10rem] leading-[0.9] font-serif tracking-tight"
                     variants={{
                       hidden: {},
                       show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
                     }}
                   >
-                    {Array.from('Guardian ').map((ch, i) => (
+                    {/* 1. Guardian Elite Title (motion.h1) */}
+                    <motion.h1
+                      className="text-5xl md:text-8xl lg:text-[10rem] leading-[0.9] font-serif tracking-tight"
+                    >
+                      {Array.from('Guardian ').map((ch, i) => (
+                        <motion.span
+                          key={`g-${cycle}-${i}`}
+                          className={ch === ' ' ? 'inline-block w-6 md:w-8' : swap ? 'inline-block text-gold-gradient italic' : 'inline-block text-white' }
+                          variants={characterVariants}
+                        >
+                          {ch}
+                        </motion.span>
+                      ))}
+                      {Array.from('Elite').map((ch, i) => (
+                        <motion.span
+                          key={`e-${cycle}-${i}`}
+                          className={swap ? 'inline-block text-white' : 'inline-block text-gold-gradient italic' }
+                          variants={characterVariants}
+                        >
+                          {ch}
+                        </motion.span>
+                      ))}
+                    </motion.h1>
+
+                    {/* 2. Is Free Subtitle Line (motion.div) - Now centered and animated */}
+                    <motion.div
+                      className="mt-8 flex items-center gap-3 mx-auto justify-center"
+                      // The delayChildren here ensures this line appears after the main title has dropped in
+                      variants={{
+                        hidden: {},
+                        show: { transition: { staggerChildren: 0.05, delayChildren: 1.3 } },
+                      }}
+                    >
+                      <motion.span variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.5 } } }} className="text-base md:text-xl text-gold-200">—</motion.span>
+
+                      {/* Left Star (Before 'is Free') */}
                       <motion.span
-                        key={`g-${cycle}-${i}`}
-                        className={ch === ' ' ? 'inline-block w-6 md:w-8' : swap ? 'inline-block text-gold-gradient italic' : 'inline-block text-white' }
-                        initial={{
-                          y: Math.random() * 80 - 40,
-                          x: Math.random() * 40 - 20,
-                          rotate: Math.random() * 40 - 20,
-                          opacity: 0,
-                          filter: 'blur(4px)'
-                        }}
-                        animate={{ y: 0, x: 0, rotate: 0, opacity: 1, filter: 'blur(0px)' }}
-                        transition={{ duration: 1.1, ease: 'easeOut' }}
+                        className="inline-flex"
+                        variants={starVariants}
                       >
-                        {ch}
+                        <Stars className="w-6 h-6 md:w-8 md:h-8 text-gold-300" />
                       </motion.span>
-                    ))}
-                    {Array.from('Elite').map((ch, i) => (
+
+                      {/* 'is Free' Staggered Text */}
+                      {Array.from(' is Free').map((ch, i) => (
+                        <motion.span
+                          key={`isfree-ch-${i}`}
+                          className="text-gold-gradient text-3xl md:text-5xl font-serif inline-block"
+                          variants={{
+                            hidden: { y: 20, opacity: 0 },
+                            // FIX 1: Cast the cubic-bezier array to `any` to bypass strict TypeScript checking.
+                            show: { y: 0, opacity: 1, transition: { duration: 0.5, ease: [0, 0, 0.2, 1] as any } },
+                          }}
+                        >
+                          {ch}
+                        </motion.span>
+                      ))}
+                      
+                      {/* Right Star (After 'is Free') */}
                       <motion.span
-                        key={`e-${cycle}-${i}`}
-                        className={swap ? 'inline-block text-white' : 'inline-block text-gold-gradient italic' }
-                        initial={{
-                          y: Math.random() * 80 - 40,
-                          x: Math.random() * 40 - 20,
-                          rotate: Math.random() * 40 - 20,
-                          opacity: 0,
-                          filter: 'blur(4px)'
-                        }}
-                        animate={{ y: 0, x: 0, rotate: 0, opacity: 1, filter: 'blur(0px)' }}
-                        transition={{ duration: 1.1, ease: 'easeOut' }}
+                        className="inline-flex"
+                        variants={starVariants}
                       >
-                        {ch}
+                        <Stars className="w-6 h-6 md:w-8 md:h-8 text-gold-300" />
                       </motion.span>
-                    ))}
-                  </motion.h1>
+                      
+                      <motion.span variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { duration: 0.5 } } }} className="text-base md:text-xl text-gold-200">—</motion.span>
+                    </motion.div>
+
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
             
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, rotate: -6 }}
-              animate={{ opacity: 1, scale: 1, rotate: [ -6, 0, 6, 0 ] }}
-              transition={{ delay: 1.6, duration: 0.9 }}
-              className="mt-8 inline-flex items-center gap-3"
-            >
-              <motion.span className="text-3xl md:text-5xl font-serif">
-                <span className="text-gold-gradient">is Free</span>
-              </motion.span>
-              <motion.span
-                initial={{ scaleY: 1 }}
-                animate={{ scaleY: [1, 0.4, 1] }}
-                transition={{ delay: 2.2, duration: 0.5 }}
-                className="inline-flex"
-              >
-                <Stars className="w-6 h-6 md:w-8 md:h-8 text-gold-300" />
-              </motion.span>
-              <motion.span className="text-base md:text-xl text-gold-200">
-                — thanks to <span className="font-semibold text-gold-300">ChatGPT</span>
-              </motion.span>
-            </motion.div>
-
             {/* Simple tier card */}
             <motion.div
               initial={{ opacity: 0, y: 30 }}
