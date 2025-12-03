@@ -5,51 +5,76 @@ import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import fs from "fs/promises";
 import path from "path";
+import { google } from "googleapis";
 
 export const runtime = "nodejs";
+
+const FCM_SCOPES = ["https://www.googleapis.com/auth/firebase.messaging"];
+const FCM_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+
+async function getFcmAccessToken(): Promise<string> {
+  if (!FCM_PROJECT_ID) {
+    throw new Error("FIREBASE_PROJECT_ID is not set");
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    scopes: FCM_SCOPES,
+  });
+
+  const client = await auth.getClient();
+  const accessToken = await client.getAccessToken();
+
+  if (!accessToken) {
+    throw new Error("Unable to obtain FCM access token");
+  }
+
+  return accessToken;
+}
 
 async function sendAndroidEmergencyPush(tokens: string[], alert: any) {
   if (!tokens.length) return;
 
-  const serverKey = process.env.FIREBASE_SERVER_KEY || process.env.FCM_SERVER_KEY;
+  const accessToken = await getFcmAccessToken();
+  const url = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
 
-  if (!serverKey) {
-    console.warn("[alerts/emergency] FIREBASE_SERVER_KEY/FCM_SERVER_KEY not set; skipping push send");
-    return;
-  }
-
-  const title = `Emergency Alert from ${alert.user?.name || alert.user?.email || "Guardian"}`;
+  const title = `Emergency Alert from ${
+    alert.user?.name || alert.user?.email || "Guardian"
+  }`;
   const body = alert.description || "Tap to open emergency alert";
 
-  try {
-    const response = await fetch("https://fcm.googleapis.com/fcm/send", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `key=${serverKey}`,
-      },
-      body: JSON.stringify({
-        registration_ids: tokens,
-        priority: "high",
-        notification: {
-          title,
-          body,
-          sound: "default",
+  for (const token of tokens) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          Authorization: `Bearer ${accessToken}`,
         },
-        data: {
-          type: "EMERGENCY_ALERT",
-          alertId: alert.id,
-          fromUserId: alert.userId,
-        },
-      }),
-    });
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: {
+              title,
+              body,
+            },
+            data: {
+              type: "EMERGENCY_ALERT",
+              alertId: alert.id,
+              fromUserId: alert.userId,
+              fromUserName:
+                alert.user?.name || alert.user?.email || "Guardian",
+            },
+          },
+        }),
+      });
 
-    if (!response.ok) {
-      const text = await response.text().catch(() => "<no body>");
-      console.error("[alerts/emergency] FCM send failed", response.status, text);
+      if (!res.ok) {
+        const text = await res.text().catch(() => "<no body>");
+        console.error("[alerts/emergency] FCM v1 send failed", res.status, text);
+      }
+    } catch (err) {
+      console.error("[alerts/emergency] Error sending FCM v1 push", err);
     }
-  } catch (err) {
-    console.error("[alerts/emergency] Error sending FCM push", err);
   }
 }
 
