@@ -134,9 +134,13 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage,
   return (
     <div className="space-y-4">
       {alerts.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          <AlertTriangle className="w-12 h-12 mx-auto text-gray-600 mb-2" />
-          <p>No alerts found</p>
+        <div className="text-center py-8 text-gray-400">
+          <AlertTriangle className="w-10 h-10 mx-auto text-amber-400 mb-3" />
+          <p className="text-sm font-medium mb-1">No emergency alerts yet</p>
+          <p className="text-xs max-w-sm mx-auto">
+            When a trusted contact triggers Guardian from their mobile, active alerts
+            – including audio messages and response status – will appear here.
+          </p>
         </div>
       ) : (
         alerts.map(alert => (

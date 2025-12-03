@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { Navbar } from "@/components/Navbar";
+import { AlertTriangle } from "lucide-react";
 
 type UserWithId = { id: string; name?: string | null; email?: string | null; image?: string | null };
 
@@ -1220,8 +1221,13 @@ export default function SettingsPage() {
                  <div className="text-sm text-gray-400">Loading suspicious devices...</div>
                ) :
                suspiciousWifiDevices.length === 0 && suspiciousBleDevices.length === 0 ? (
-                 <div className="text-sm text-gray-400">
-                   No suspicious devices detected yet for this session&apos;s device.
+                 <div className="py-6 flex flex-col items-center justify-center text-sm text-gray-400">
+                   <AlertTriangle className="w-8 h-8 text-amber-400 mb-2" />
+                   <p className="mb-1">No suspicious devices detected yet.</p>
+                   <p className="text-xs text-gray-500 max-w-md text-center">
+                     As you build up tracking history, Wi-Fi and Bluetooth devices that
+                     repeatedly appear across different places near you will be highlighted here.
+                   </p>
                  </div>
                ) : (
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

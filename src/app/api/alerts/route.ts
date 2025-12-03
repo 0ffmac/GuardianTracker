@@ -50,19 +50,22 @@ export async function GET(request: Request) {
     
     if (type === "sent") {
       // Get alerts created by this user
+      const where: any = { userId };
+      // For "ALL" we don't filter by alert.status at all
+      if (status && status !== "ALL") {
+        where.status = status;
+      }
+
       alerts = await prisma.alert.findMany({
-        where: {
-          userId: userId,
-          status: status,
-        },
+        where,
         include: {
           user: {
             select: {
               id: true,
               name: true,
               email: true,
-              image: true
-            }
+              image: true,
+            },
           },
           audioMessages: {
             include: {
@@ -71,11 +74,11 @@ export async function GET(request: Request) {
                   id: true,
                   name: true,
                   email: true,
-                  image: true
-                }
-              }
+                  image: true,
+                },
+              },
             },
-            orderBy: { createdAt: "asc" }
+            orderBy: { createdAt: "asc" },
           },
           alertRecipients: {
             include: {
@@ -94,16 +97,23 @@ export async function GET(request: Request) {
       });
     } else {
       // Get alerts received by this user (as a recipient)
+      const recipientStatusFilter =
+        status && status !== "ALL"
+          ? {
+              status: {
+                in: [status, "PENDING", "READ", "RESPONDED"],
+              },
+            }
+          : {};
+
       alerts = await prisma.alert.findMany({
         where: {
           alertRecipients: {
             some: {
               contactId: userId,
-              status: {
-                in: status === "ALL" ? undefined : [status, "PENDING", "READ", "RESPONDED"]
-              }
-            }
-          }
+              ...recipientStatusFilter,
+            },
+          },
         },
         include: {
           user: {
@@ -111,8 +121,8 @@ export async function GET(request: Request) {
               id: true,
               name: true,
               email: true,
-              image: true
-            }
+              image: true,
+            },
           },
           audioMessages: {
             include: {
@@ -121,23 +131,23 @@ export async function GET(request: Request) {
                   id: true,
                   name: true,
                   email: true,
-                  image: true
-                }
-              }
+                  image: true,
+                },
+              },
             },
-            orderBy: { createdAt: "asc" }
+            orderBy: { createdAt: "asc" },
           },
           alertRecipients: {
             where: {
-              contactId: userId
+              contactId: userId,
             },
             select: {
               status: true,
               createdAt: true,
               notifiedAt: true,
-              respondedAt: true
-            }
-          }
+              respondedAt: true,
+            },
+          },
         },
         orderBy: { createdAt: "desc" },
       });

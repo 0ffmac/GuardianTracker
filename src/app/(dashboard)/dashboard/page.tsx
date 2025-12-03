@@ -493,6 +493,20 @@ export default function DashboardPage() {
     );
   }
 
+  // Derived alert metrics for mobile status
+  const now = Date.now();
+  const THIRTY_MIN_MS = 30 * 60 * 1000;
+
+  const pendingMobileAlertsCount = alerts.filter(
+    (alert) => alert.recipientStatus === "PENDING"
+  ).length;
+
+  const recentSentAlertsCount = sentAlerts.filter((alert) => {
+    const created = new Date(alert.createdAt).getTime();
+    if (Number.isNaN(created)) return false;
+    return now - created <= THIRTY_MIN_MS;
+  }).length;
+
   return (
     <div className="min-h-screen bg-background text-white selection:bg-gold-500/30 selection:text-gold-200">
       <Navbar />
@@ -595,6 +609,19 @@ export default function DashboardPage() {
                     <p className="text-gray-400 text-sm">
                       View alerts you have received from your trusted contacts or ones you have sent to them.
                     </p>
+                    {(pendingMobileAlertsCount > 0 || recentSentAlertsCount > 0) && (
+                      <p className="mt-2 text-xs text-amber-300">
+                        {pendingMobileAlertsCount > 0 && (
+                          <span>{pendingMobileAlertsCount} pending on your mobile</span>
+                        )}
+                        {pendingMobileAlertsCount > 0 && recentSentAlertsCount > 0 && (
+                          <span className="mx-1">·</span>
+                        )}
+                        {recentSentAlertsCount > 0 && (
+                          <span>{recentSentAlertsCount} sent in last 30 min</span>
+                        )}
+                      </p>
+                    )}
                   </div>
                   <div className="inline-flex rounded-full bg-black/40 border border-white/10 text-xs">
                     <button
@@ -627,122 +654,7 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              <div className="w-full md:w-80 rounded-xl border border-white/10 bg-black/20 p-4 flex flex-col gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white mb-1">Nearby Contacts</h3>
-                  <p className="text-sm text-gray-400 mb-3">
-                    See trusted contacts that are physically close to your live location.
-                  </p>
 
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <label className="flex items-center gap-2 text-xs text-gray-300">
-                      <span className="uppercase tracking-wide">Radius</span>
-                      <select
-                        value={nearbyRadiusKm}
-                        onChange={(e) => setNearbyRadiusKm(Number(e.target.value))}
-                        className="bg-black/40 border border-white/20 rounded px-2 py-1 text-xs text-gray-100"
-                      >
-                        <option value={1}>1 km</option>
-                        <option value={2}>2 km</option>
-                        <option value={5}>5 km</option>
-                        <option value={10}>10 km</option>
-                        <option value={20}>20 km</option>
-                      </select>
-                    </label>
-                    <label className="flex items-center gap-2 text-xs text-gray-300">
-                      <input
-                        type="checkbox"
-                        checked={shareWithNearbyContacts}
-                        onChange={async () => {
-                          const next = !shareWithNearbyContacts;
-                          setShareWithNearbyContacts(next);
-                          try {
-                            await fetch("/api/user/privacy", {
-                              method: "PUT",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                shareLocationWithTrustedContacts: next,
-                              }),
-                            });
-                          } catch (err) {
-                            console.error("Failed to update privacy settings", err);
-                          }
-                        }}
-                        className="h-4 w-4 text-gold-500"
-                      />
-                      <span>Share my live location</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div className="flex-1 overflow-y-auto border border-white/5 rounded-md bg-black/20 p-2">
-                  {!hasLiveData && (
-                    <p className="text-xs text-gray-500 italic">
-                      Start the mobile app to enable nearby contact detection.
-                    </p>
-                  )}
-                  {hasLiveData && nearbyContacts.length === 0 && (
-                    <p className="text-xs text-gray-500 italic">
-                      No trusted contacts within {nearbyRadiusKm} km.
-                    </p>
-                  )}
-                  {hasLiveData && nearbyContacts.length > 0 && (
-                    <ul className="space-y-1">
-                      {nearbyContacts.map((c) => (
-                        <li key={c.userId}>
-                          <button
-                            type="button"
-                            onClick={() => setSelectedNearbyContact(c)}
-                            className={`w-full flex items-center justify-between rounded px-2 py-1 text-left text-xs transition-colors ${
-                              selectedNearbyContact && selectedNearbyContact.userId === c.userId
-                                ? "bg-gold-500/20 text-gold-100"
-                                : "bg-black/30 text-gray-100 hover:bg-black/50"
-                            }`}
-                          >
-                            <span className="truncate">
-                              {c.name || c.email}
-                            </span>
-                            <span className="ml-2 text-[11px] text-gray-300">
-                              {c.distanceKm.toFixed(1)} km
-                            </span>
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-
-                {hasLiveData && currentLocation && selectedNearbyContact && (
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-300 mb-1">
-                      Selected: <span className="font-semibold">{selectedNearbyContact.name || selectedNearbyContact.email}</span>
-                    </p>
-                    <div className="w-full h-40 rounded-md overflow-hidden border border-white/10">
-                      <Map
-                        locations={[
-                          {
-                            id: "me",
-                            latitude: currentLocation.latitude,
-                            longitude: currentLocation.longitude,
-                            deviceId: currentLocation.deviceId,
-                            timestamp: currentLocation.timestamp,
-                          },
-                          {
-                            id: selectedNearbyContact.userId,
-                            latitude: selectedNearbyContact.lastLocation.latitude,
-                            longitude: selectedNearbyContact.lastLocation.longitude,
-                            deviceId: null,
-                            timestamp: selectedNearbyContact.lastLocation.timestamp as any,
-                          },
-                        ]}
-                        currentLocation={null}
-                        fitOnUpdate={true}
-                        autoZoomOnFirstPoint={false}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           </motion.div>
 
@@ -1126,6 +1038,31 @@ export default function DashboardPage() {
           );
         })()} */}
 
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.55 }}
+          className="mt-6 bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex gap-4 items-start"
+        >
+          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-white mb-1">
+              Suspicious observations
+            </h3>
+            <p className="text-sm text-gray-300">
+              Once Guardian has enough tracking history, Wi-Fi and Bluetooth
+              devices that seem to follow you across different places will be
+              surfaced here.
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              You can explore full details in Settings  Suspicious Wi-Fi &amp;
+              Bluetooth Devices.
+            </p>
+          </div>
+        </motion.div>
+
         {hasLiveData && currentLocation && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -1159,27 +1096,7 @@ export default function DashboardPage() {
           </motion.div>
         )}
 
-        {/* Alerts Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-          className="mt-6 bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-white">Emergency Alerts</h3>
-            <button
-              onClick={fetchAlerts}
-              className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg transition-colors"
-            >
-              Refresh
-            </button>
-          </div>
-          <AlertList
-            alerts={alerts}
-            onRespond={handleAlertResponse}
-          />
-        </motion.div>
+
       </main>
     </div>
   );
