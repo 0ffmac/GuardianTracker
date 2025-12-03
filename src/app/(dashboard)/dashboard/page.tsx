@@ -686,7 +686,15 @@ export default function DashboardPage() {
                     alerts={alertsView === "received" ? alerts : sentAlerts}
                     onRespond={alertsView === "received" ? handleAlertResponse : undefined}
                     showActions={alertsView === "received"}
-                    onAudioSent={alertsView === "received" ? () => { void fetchAlerts(); } : undefined}
+                    onAudioSent={
+                      alertsView === "received"
+                        ? () => {
+                            void fetchAlerts();
+                          }
+                        : () => {
+                            void fetchSentAlerts();
+                          }
+                    }
                     myUserId={myUserId}
                     onReplyHeard={alertsView === "sent" ? handleReplyHeard : undefined}
                   />

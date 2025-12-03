@@ -59,6 +59,24 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!action) {
       return NextResponse.json({ error: "Action is required" }, { status: 400 });
     }
+
+    // Special case: allow alert creator to resolve the alert thread
+    if (action === "resolve_sender") {
+      const alert = await prisma.alert.findUnique({ where: { id: alertId } });
+      if (!alert || alert.userId !== userId) {
+        return NextResponse.json({ error: "Only the alert creator can resolve this alert" }, { status: 403 });
+      }
+
+      const updatedAlert = await prisma.alert.update({
+        where: { id: alertId },
+        data: { status: "RESOLVED" },
+      });
+
+      return NextResponse.json({
+        success: true,
+        alert: updatedAlert,
+      });
+    }
     
     let newStatus = alertRecipient.status;
     let respondedAt = alertRecipient.respondedAt;
