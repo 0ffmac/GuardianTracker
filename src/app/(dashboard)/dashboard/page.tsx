@@ -168,6 +168,8 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [sentAlerts, setSentAlerts] = useState<Alert[]>([]);
   const [alertsView, setAlertsView] = useState<"received" | "sent">("received");
+  // Track alerts where you have un-listened audio replies from others
+  const [clearedReplyAlertIds, setClearedReplyAlertIds] = useState<string[]>([]);
 
   // Load persisted privacy preference on mount
   useEffect(() => {
@@ -217,6 +219,28 @@ export default function DashboardPage() {
       fetchSentAlerts();
     }
   }, [status, fetchAlerts, fetchSentAlerts]);
+
+  const myUserId = (session?.user as any)?.id as string | undefined;
+
+  const alertsWithRepliesFromOthers = myUserId
+    ? sentAlerts.filter(
+        (alert) =>
+          alert.audioMessages &&
+          alert.audioMessages.some((m) => m.sender.id !== myUserId)
+      )
+    : [];
+
+  const unreadReplyAlertIds = alertsWithRepliesFromOthers
+    .map((a) => a.id)
+    .filter((id) => !clearedReplyAlertIds.includes(id));
+
+  const unreadRepliesCount = unreadReplyAlertIds.length;
+
+  const handleReplyHeard = useCallback((alertId: string) => {
+    setClearedReplyAlertIds((prev) =>
+      prev.includes(alertId) ? prev : [...prev, alertId]
+    );
+  }, []);
 
   // Refresh alerts periodically
   useEffect(() => {
@@ -622,6 +646,13 @@ export default function DashboardPage() {
                         )}
                       </p>
                     )}
+                    {unreadRepliesCount > 0 && (
+                      <p className="mt-1 text-xs text-emerald-300">
+                        {unreadRepliesCount === 1
+                          ? "1 alert has a new audio reply from your contacts."
+                          : `${unreadRepliesCount} alerts have new audio replies from your contacts.`}
+                      </p>
+                    )}
                   </div>
                   <div className="inline-flex rounded-full bg-black/40 border border-white/10 text-xs">
                     <button
@@ -641,6 +672,11 @@ export default function DashboardPage() {
                       }`}
                     >
                       Sent
+                      {unreadRepliesCount > 0 && (
+                        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-400 text-black text-[10px] px-1.5 min-w-[1.25rem]">
+                          {unreadRepliesCount}
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -651,6 +687,8 @@ export default function DashboardPage() {
                     onRespond={alertsView === "received" ? handleAlertResponse : undefined}
                     showActions={alertsView === "received"}
                     onAudioSent={alertsView === "received" ? () => { void fetchAlerts(); } : undefined}
+                    myUserId={myUserId}
+                    onReplyHeard={alertsView === "sent" ? handleReplyHeard : undefined}
                   />
                 </div>
               </div>

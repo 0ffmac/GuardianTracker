@@ -51,9 +51,11 @@ interface AlertListProps {
   onSendMessage?: (alertId: string, message: string) => void;
   showActions?: boolean;
   onAudioSent?: (alertId: string) => void;
+  myUserId?: string;
+  onReplyHeard?: (alertId: string) => void;
 }
 
-const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage, showActions = true, onAudioSent }) => {
+const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage, showActions = true, onAudioSent, myUserId, onReplyHeard }) => {
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
   const [audioStates, setAudioStates] = useState<Record<string, { isPlaying: boolean; audioRef: HTMLAudioElement | null }>>({});
 
@@ -184,7 +186,12 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage,
                       {alert.audioMessages.map(audio => (
                         <div key={audio.id} className="flex items-center gap-2 bg-black/20 p-2 rounded-lg">
                           <button
-                            onClick={() => handleAudioPlay(audio.id, audio.contentUrl)}
+                            onClick={() => {
+                              handleAudioPlay(audio.id, audio.contentUrl);
+                              if (myUserId && onReplyHeard && audio.sender.id !== myUserId) {
+                                onReplyHeard(alert.id);
+                              }
+                            }}
                             className="p-1.5 bg-white/10 rounded-lg hover:bg-white/20 transition-colors"
                             aria-label={audioStates[audio.id]?.isPlaying ? "Pause" : "Play"}
                           >
