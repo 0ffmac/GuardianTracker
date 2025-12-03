@@ -193,32 +193,50 @@ export async function POST(request: Request) {
     }
 
     // Get the contacts who have added this user as an emergency contact
-    // This means other people have added this user as their emergency contact
+    // ("trusted by" – people who chose me as their emergency contact)
     const contactsWhoTrustMe = await prisma.trustedContact.findMany({
       where: {
-        contactId: userId, // The logged in user is the emergency contact
-        status: "ACCEPTED", // Only to accepted contacts
+        contactId: userId,
+        status: "ACCEPTED",
       },
       select: {
-        ownerId: true, // The person who added this user as contact
+        ownerId: true,
       },
     });
 
-    // Create alert recipients for each trusted contact
-    let recipientUserIds: string[] = [];
-    if (contactsWhoTrustMe.length > 0) {
-      for (const contact of contactsWhoTrustMe) {
-        await prisma.alertRecipient.create({
-          data: {
-            alertId: alert.id,
-            contactId: contact.ownerId, // The person who added this user as contact
-            status: "PENDING",
-            notifiedAt: new Date(),
-          },
-        });
-        recipientUserIds.push(contact.ownerId);
-      }
+    // Also get the contacts I have added as my emergency contacts
+    const myContacts = await prisma.trustedContact.findMany({
+      where: {
+        ownerId: userId,
+        status: "ACCEPTED",
+      },
+      select: {
+        contactId: true,
+      },
+    });
+
+    // Union both sets so alerts go to everyone in my emergency network
+    const recipientSet = new Set<string>();
+    for (const c of contactsWhoTrustMe) {
+      recipientSet.add(c.ownerId);
     }
+    for (const c of myContacts) {
+      recipientSet.add(c.contactId);
+    }
+
+    let recipientUserIds: string[] = [];
+    for (const recipientId of recipientSet) {
+      await prisma.alertRecipient.create({
+        data: {
+          alertId: alert.id,
+          contactId: recipientId,
+          status: "PENDING",
+          notifiedAt: new Date(),
+        },
+      });
+      recipientUserIds.push(recipientId);
+    }
+
 
     // Look up Android push tokens for all recipients and send FCM notification
     try {
