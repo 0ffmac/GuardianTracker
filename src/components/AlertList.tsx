@@ -50,9 +50,10 @@ interface AlertListProps {
   onRespond?: (alertId: string, action: string) => void;
   onSendMessage?: (alertId: string, message: string) => void;
   showActions?: boolean;
+  onAudioSent?: (alertId: string) => void;
 }
 
-const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage, showActions = true }) => {
+const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage, showActions = true, onAudioSent }) => {
   const [expandedAlert, setExpandedAlert] = useState<string | null>(null);
   const [audioStates, setAudioStates] = useState<Record<string, { isPlaying: boolean; audioRef: HTMLAudioElement | null }>>({});
 
@@ -251,7 +252,14 @@ const AlertList: React.FC<AlertListProps> = ({ alerts, onRespond, onSendMessage,
                         {/* Audio Recording Interface */}
                         <div className="mt-3 pt-3 border-t border-white/10">
                           <p className="text-xs text-gray-400 mb-2">Send audio response:</p>
-                          <AudioRecorder alertId={alert.id} />
+                          <AudioRecorder
+                            alertId={alert.id}
+                            onSent={() => {
+                              if (onAudioSent) {
+                                onAudioSent(alert.id);
+                              }
+                            }}
+                          />
                         </div>
                       </>
                     )}

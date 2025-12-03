@@ -5,9 +5,11 @@ import { Mic, MicOff, Send, Play, Pause } from 'lucide-react';
 
 interface AudioRecorderProps {
   alertId: string;
+  onSent?: () => void;
 }
+ 
+const AudioRecorder: React.FC<AudioRecorderProps> = ({ alertId, onSent }) => {
 
-const AudioRecorder: React.FC<AudioRecorderProps> = ({ alertId }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -106,6 +108,9 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ alertId }) => {
         console.log('Audio message sent successfully:', result);
         setAudioBlob(null);
         alert('Audio message sent successfully!');
+        if (onSent) {
+          onSent();
+        }
       } else {
         const error = await response.json();
         console.error('Error sending audio:', error);
