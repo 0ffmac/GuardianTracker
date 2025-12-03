@@ -22,12 +22,14 @@ async function getFcmAccessToken(): Promise<string> {
   });
 
   const client = await auth.getClient();
-  const accessToken = await client.getAccessToken();
+  const accessTokenObj = await client.getAccessToken();
+  const accessToken = accessTokenObj?.token;
 
   if (!accessToken) {
     throw new Error("Unable to obtain FCM access token");
   }
 
+  console.log('Access token obtained for FCM', accessToken);
   return accessToken;
 }
 
