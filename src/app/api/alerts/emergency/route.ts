@@ -8,6 +8,51 @@ import path from "path";
 
 export const runtime = "nodejs";
 
+async function sendAndroidEmergencyPush(tokens: string[], alert: any) {
+  if (!tokens.length) return;
+
+  const serverKey = process.env.FIREBASE_SERVER_KEY || process.env.FCM_SERVER_KEY;
+
+  if (!serverKey) {
+    console.warn("[alerts/emergency] FIREBASE_SERVER_KEY/FCM_SERVER_KEY not set; skipping push send");
+    return;
+  }
+
+  const title = `Emergency Alert from ${alert.user?.name || alert.user?.email || "Guardian"}`;
+  const body = alert.description || "Tap to open emergency alert";
+
+  try {
+    const response = await fetch("https://fcm.googleapis.com/fcm/send", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `key=${serverKey}`,
+      },
+      body: JSON.stringify({
+        registration_ids: tokens,
+        priority: "high",
+        notification: {
+          title,
+          body,
+          sound: "default",
+        },
+        data: {
+          type: "EMERGENCY_ALERT",
+          alertId: alert.id,
+          fromUserId: alert.userId,
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const text = await response.text().catch(() => "<no body>");
+      console.error("[alerts/emergency] FCM send failed", response.status, text);
+    }
+  } catch (err) {
+    console.error("[alerts/emergency] Error sending FCM push", err);
+  }
+}
+
 export async function POST(request: Request) {
   try {
     let userId: string;
@@ -160,6 +205,7 @@ export async function POST(request: Request) {
     });
 
     // Create alert recipients for each trusted contact
+    let recipientUserIds: string[] = [];
     if (contactsWhoTrustMe.length > 0) {
       for (const contact of contactsWhoTrustMe) {
         await prisma.alertRecipient.create({
@@ -170,7 +216,37 @@ export async function POST(request: Request) {
             notifiedAt: new Date(),
           },
         });
+        recipientUserIds.push(contact.ownerId);
       }
+    }
+
+    // Look up Android push tokens for all recipients and send FCM notification
+    try {
+      if (recipientUserIds.length > 0) {
+        const pushTokens = await (prisma as any).pushToken.findMany({
+          where: {
+            userId: { in: recipientUserIds },
+            platform: "android",
+          },
+        });
+
+        const distinctTokens: string[] = [];
+        const seen = new Set<string>();
+        for (const t of pushTokens || []) {
+          const token = (t as any).token as string | undefined;
+          if (token && !seen.has(token)) {
+            seen.add(token);
+            distinctTokens.push(token);
+          }
+        }
+
+        if (distinctTokens.length > 0) {
+          await sendAndroidEmergencyPush(distinctTokens, alert);
+        }
+
+      }
+    } catch (err) {
+      console.error("[alerts/emergency] Failed to send push notifications", err);
     }
 
     return NextResponse.json({

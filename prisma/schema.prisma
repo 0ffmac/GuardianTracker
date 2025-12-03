@@ -31,6 +31,7 @@ model User {
   devices          Device[]
   locations        Location[]
   mobileTokens     MobileSession[]
+  pushTokens       PushToken[]
   sessions         Session[]
   trackingSessions TrackingSession[]
   trustedContacts  TrustedContact[] @relation("OwnerContacts")
@@ -268,22 +269,37 @@ model AlertRecipient {
   @@unique([alertId, contactId])
 }
 
-model AudioMessage {
-  id         String   @id @default(cuid())
-  alertId    String
-  senderId   String   // Who sent the audio message
-  receiverId String?  // Who is the intended recipient (nullable for broadcast)
-  contentUrl String   // URL to the audio file
-  contentType String  @default("audio/webm") // MIME type
-  duration   Float?   // Duration in seconds
-  status     String   @default("SENT") // SENT, DELIVERED, READ
-  createdAt  DateTime @default(now())
-
-  alert    Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
-  sender   User  @relation("AudioSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiver User? @relation("AudioReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-
-  @@index([alertId])
-  @@index([senderId])
-  @@index([receiverId])
-}
+ model AudioMessage {
+   id         String   @id @default(cuid())
+   alertId    String
+   senderId   String   // Who sent the audio message
+   receiverId String?  // Who is the intended recipient (nullable for broadcast)
+   contentUrl String   // URL to the audio file
+   contentType String  @default("audio/webm") // MIME type
+   duration   Float?   // Duration in seconds
+   status     String   @default("SENT") // SENT, DELIVERED, READ
+   createdAt  DateTime @default(now())
+ 
+   alert    Alert @relation(fields: [alertId], references: [id], onDelete: Cascade)
+   sender   User  @relation("AudioSender", fields: [senderId], references: [id], onDelete: Cascade)
+   receiver User? @relation("AudioReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+ 
+   @@index([alertId])
+   @@index([senderId])
+   @@index([receiverId])
+ }
+ 
+ model PushToken {
+   id        String   @id @default(cuid())
+   userId    String
+   deviceId  String
+   token     String   @unique
+   platform  String
+   createdAt DateTime @default(now())
+   updatedAt DateTime @updatedAt
+ 
+   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+ 
+   @@index([userId])
+   @@index([deviceId])
+ }
