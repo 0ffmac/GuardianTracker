@@ -26,6 +26,28 @@ interface TrackingSession {
   locations: Location[];
 }
 
+interface WifiDevicePoint {
+  bssid: string;
+  ssid: string | null;
+  latitude: number;
+  longitude: number;
+  count: number;
+  avgRssi: number | null;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+interface BleDevicePoint {
+  address: string;
+  name: string | null;
+  latitude: number;
+  longitude: number;
+  count: number;
+  avgRssi: number | null;
+  firstSeen: string;
+  lastSeen: string;
+}
+
 export default function DashboardMapPage() {
   const [hasMounted, setHasMounted] = useState(false);
   useEffect(() => {
@@ -39,6 +61,11 @@ export default function DashboardMapPage() {
   const [snappedGeoJson, setSnappedGeoJson] = useState<any | null>(null);
   const [osrmConfidence, setOsrmConfidence] = useState<number | null>(null);
   const [showSnapped, setShowSnapped] = useState(true);
+
+  const [wifiDevices, setWifiDevices] = useState<WifiDevicePoint[]>([]);
+  const [bleDevices, setBleDevices] = useState<BleDevicePoint[]>([]);
+  const [showWifiDevices, setShowWifiDevices] = useState(true);
+  const [showBleDevices, setShowBleDevices] = useState(true);
 
   const handleExportWigle = () => {
     if (!selectedSessionId) return;
@@ -77,6 +104,8 @@ export default function DashboardMapPage() {
       setLocations([]);
       setSnappedGeoJson(null);
       setOsrmConfidence(null);
+      setWifiDevices([]);
+      setBleDevices([]);
       return;
     }
 
@@ -85,8 +114,48 @@ export default function DashboardMapPage() {
     setSnappedGeoJson(null);
     setOsrmConfidence(null);
 
+    // Fetch Wi-Fi/BLE devices for this session for map visualization
+    (async () => {
+      try {
+        const res = await fetch(`/api/tracking_session/${selectedSessionId}/devices_for_map`);
+        if (!res.ok) {
+          setWifiDevices([]);
+          setBleDevices([]);
+          return;
+        }
+        const data = await res.json();
+        const wifi: WifiDevicePoint[] = (data.wifi || []).map((w: any) => ({
+          bssid: w.bssid,
+          ssid: w.ssid ?? null,
+          latitude: w.latitude,
+          longitude: w.longitude,
+          count: w.count ?? 0,
+          avgRssi: w.avgRssi ?? null,
+          firstSeen: w.firstSeen,
+          lastSeen: w.lastSeen,
+        }));
+        const ble: BleDevicePoint[] = (data.ble || []).map((b: any) => ({
+          address: b.address,
+          name: b.name ?? null,
+          latitude: b.latitude,
+          longitude: b.longitude,
+          count: b.count ?? 0,
+          avgRssi: b.avgRssi ?? null,
+          firstSeen: b.firstSeen,
+          lastSeen: b.lastSeen,
+        }));
+        setWifiDevices(wifi);
+        setBleDevices(ble);
+      } catch (e) {
+        console.error("Failed to load devices_for_map", e);
+        setWifiDevices([]);
+        setBleDevices([]);
+      }
+    })();
+
     // Fetch snapped polyline if enough points
     if (session && session.locations.length >= 2) {
+
       const points = session.locations.map((loc) => ({
         lat: loc.latitude,
         lon: loc.longitude,
@@ -338,7 +407,7 @@ export default function DashboardMapPage() {
               Export all to Wigle
             </button>
           </div>
-          <div className="mt-4 flex items-center gap-4">
+          <div className="mt-4 flex flex-wrap items-center gap-4">
             <label className="flex items-center cursor-pointer">
               <input
                 type="checkbox"
@@ -351,10 +420,28 @@ export default function DashboardMapPage() {
               </span>
             </label>
             {showSnapped && osrmConfidence !== null && (
-              <span className="ml-4 px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
+              <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
                 OSRM confidence: {(osrmConfidence * 100).toFixed(1)}%
               </span>
             )}
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showWifiDevices}
+                onChange={() => setShowWifiDevices((v) => !v)}
+                className="form-checkbox h-5 w-5 text-sky-500"
+              />
+              <span className="ml-2 text-gold-100 font-medium">Show Wi-Fi devices</span>
+            </label>
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showBleDevices}
+                onChange={() => setShowBleDevices((v) => !v)}
+                className="form-checkbox h-5 w-5 text-purple-500"
+              />
+              <span className="ml-2 text-gold-100 font-medium">Show Bluetooth devices</span>
+            </label>
           </div>
         </div>
 
@@ -366,6 +453,8 @@ export default function DashboardMapPage() {
               fitOnUpdate
               autoZoomOnFirstPoint
               snappedGeoJson={showSnapped ? snappedGeoJson : null}
+              wifiDevices={showWifiDevices ? wifiDevices : []}
+              bleDevices={showBleDevices ? bleDevices : []}
             />
           )}
         </div>

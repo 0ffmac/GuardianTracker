@@ -13,12 +13,36 @@ interface Location {
   timestamp: string;
 }
 
+interface WifiDevicePoint {
+  bssid: string;
+  ssid: string | null;
+  latitude: number;
+  longitude: number;
+  count: number;
+  avgRssi: number | null;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+interface BleDevicePoint {
+  address: string;
+  name: string | null;
+  latitude: number;
+  longitude: number;
+  count: number;
+  avgRssi: number | null;
+  firstSeen: string;
+  lastSeen: string;
+}
+
 interface MapProps {
   locations: Location[];
   currentLocation: Location | null;
   fitOnUpdate?: boolean;
   autoZoomOnFirstPoint?: boolean;
   snappedGeoJson?: any | null;
+  wifiDevices?: WifiDevicePoint[];
+  bleDevices?: BleDevicePoint[];
 }
 
 // Helper function to define the custom pulsing marker icon
@@ -49,7 +73,15 @@ const getCustomIcon = () => L.divIcon({
   iconAnchor: [16, 16],
 });
 
-export default function Map({ locations, currentLocation, fitOnUpdate = true, autoZoomOnFirstPoint = false, snappedGeoJson }: MapProps) {
+export default function Map({
+  locations,
+  currentLocation,
+  fitOnUpdate = true,
+  autoZoomOnFirstPoint = false,
+  snappedGeoJson,
+  wifiDevices = [],
+  bleDevices = [],
+}: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
   const baseLayersRef = useRef<{ street?: L.TileLayer; satellite?: L.TileLayer }>({});
@@ -113,6 +145,7 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
 
     if (locations.length === 0) return;
 
+
     let bounds: L.LatLngBoundsExpression | null = null;
 
     // Draw snapped polyline if available
@@ -162,8 +195,60 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
         map.setView(lastLatLng, 10);
       }
     }
+
+    // Wi-Fi device markers
+    if (Array.isArray(wifiDevices)) {
+      wifiDevices.forEach((d) => {
+        const latLng: L.LatLngExpression = [d.latitude, d.longitude];
+        L.circleMarker(latLng, {
+          radius: 6,
+          color: "#38bdf8",
+          weight: 1,
+          fillColor: "#0ea5e9",
+          fillOpacity: 0.85,
+        })
+          .addTo(layerGroup)
+          .bindPopup(
+            `<strong>Wi-Fi</strong><br />SSID: ${d.ssid || "(hidden)"}<br />BSSID: ${d.bssid}<br />Samples: ${d.count}<br />Avg RSSI: ${
+              d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
+            }<br /><small>${
+              d.firstSeen ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />` : ""
+            }${d.lastSeen ? `Last: ${new Date(d.lastSeen).toLocaleString()}` : ""}</small>`
+          );
+      });
+    }
+
+    // BLE device markers
+    if (Array.isArray(bleDevices)) {
+      bleDevices.forEach((d) => {
+        const latLng: L.LatLngExpression = [d.latitude, d.longitude];
+        L.circleMarker(latLng, {
+          radius: 6,
+          color: "#a855f7",
+          weight: 1,
+          fillColor: "#c4b5fd",
+          fillOpacity: 0.85,
+        })
+          .addTo(layerGroup)
+          .bindPopup(
+            `<strong>Bluetooth</strong><br />Name: ${d.name || "(unknown)"}<br />Address: ${d.address}<br />Samples: ${d.count}<br />Avg RSSI: ${
+              d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
+            }<br /><small>${
+              d.firstSeen ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />` : ""
+            }${d.lastSeen ? `Last: ${new Date(d.lastSeen).toLocaleString()}` : ""}</small>`
+          );
+      });
+    }
     // If fitOnUpdate is false, do not change zoom/center unless autoZoomOnFirstPoint triggers above
-  }, [locations, currentLocation, fitOnUpdate, snappedGeoJson, autoZoomOnFirstPoint]);
+  }, [
+    locations,
+    currentLocation,
+    fitOnUpdate,
+    snappedGeoJson,
+    autoZoomOnFirstPoint,
+    wifiDevices,
+    bleDevices,
+  ]);
 
   // Toggle between street and satellite base layers
   useEffect(() => {
@@ -209,7 +294,7 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
           setMapStyle((prev) => (prev === "street" ? "satellite" : "street"))
         }
         title={mapStyle === "street" ? "Switch to satellite view" : "Switch to map view"}
-        className="absolute top-2 left-2 z-[1000] bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1 text-xs shadow-lg focus:outline-none"
+        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1 text-xs shadow-lg focus:outline-none"
         style={{ pointerEvents: "auto" }}
       >
         {mapStyle === "street" ? "Satellite" : "Map"}
