@@ -20,9 +20,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   if (!trackingSession) {
     return NextResponse.json({ error: "Tracking session not found" }, { status: 404 });
   }
-  // Delete all locations associated with this session
-  await prisma.location.deleteMany({ where: { trackingSessionId, userId } });
-  // Delete the session itself
+  // Delete only the session itself; keep locations and their Wi-Fi/BLE scans
   await prisma.trackingSession.delete({ where: { id: trackingSessionId } });
   return NextResponse.json({ success: true });
 }

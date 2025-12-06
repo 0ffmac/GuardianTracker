@@ -136,7 +136,7 @@ model Location {
   deviceId          String?
   device            Device?          @relation("DeviceLocations", fields: [deviceId], references: [id], onDelete: Cascade)
   trackingSessionId String?
-  trackingSession   TrackingSession? @relation("SessionLocations", fields: [trackingSessionId], references: [id], onDelete: Cascade)
+  trackingSession   TrackingSession? @relation("SessionLocations", fields: [trackingSessionId], references: [id], onDelete: SetNull)
   wifiScans         WifiScan[]
   bleScans          BleScan[]
 
