@@ -98,26 +98,11 @@ export default function DashboardMapPage() {
     fetchLocationHistory();
   }, []);
 
-  // Update locations + snapped route when selected session changes
+  // Load Wi-Fi/BLE devices positions globally (all sessions) for map visualization
   useEffect(() => {
-    if (!selectedSessionId) {
-      setLocations([]);
-      setSnappedGeoJson(null);
-      setOsrmConfidence(null);
-      setWifiDevices([]);
-      setBleDevices([]);
-      return;
-    }
-
-    const session = trackingSessions.find((s) => s.id === selectedSessionId);
-    setLocations(session ? session.locations : []);
-    setSnappedGeoJson(null);
-    setOsrmConfidence(null);
-
-    // Fetch Wi-Fi/BLE devices for this session for map visualization
-    (async () => {
+    const fetchDevicesForMap = async () => {
       try {
-        const res = await fetch(`/api/tracking_session/${selectedSessionId}/devices_for_map`);
+        const res = await fetch("/api/environment/devices_for_map");
         if (!res.ok) {
           setWifiDevices([]);
           setBleDevices([]);
@@ -147,13 +132,31 @@ export default function DashboardMapPage() {
         setWifiDevices(wifi);
         setBleDevices(ble);
       } catch (e) {
-        console.error("Failed to load devices_for_map", e);
+        console.error("Failed to load global devices_for_map", e);
         setWifiDevices([]);
         setBleDevices([]);
       }
-    })();
+    };
+
+    fetchDevicesForMap();
+  }, []);
+
+  // Update locations + snapped route when selected session changes
+  useEffect(() => {
+    if (!selectedSessionId) {
+      setLocations([]);
+      setSnappedGeoJson(null);
+      setOsrmConfidence(null);
+      return;
+    }
+
+    const session = trackingSessions.find((s) => s.id === selectedSessionId);
+    setLocations(session ? session.locations : []);
+    setSnappedGeoJson(null);
+    setOsrmConfidence(null);
 
     // Fetch snapped polyline if enough points
+
     if (session && session.locations.length >= 2) {
 
       const points = session.locations.map((loc) => ({
