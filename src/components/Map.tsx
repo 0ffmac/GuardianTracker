@@ -87,6 +87,9 @@ export default function Map({
   const baseLayersRef = useRef<{ street?: L.TileLayer; satellite?: L.TileLayer }>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapStyle, setMapStyle] = useState<"street" | "satellite">("street");
+  const [selecting, setSelecting] = useState(false);
+  const selectionRectRef = useRef<L.Rectangle | null>(null);
+  const selectionStartRef = useRef<L.LatLng | null>(null);
 
   // 1. Map Initialization (Runs once)
   useEffect(() => {
@@ -273,6 +276,69 @@ export default function Map({
     }
   }, [mapStyle]);
 
+  // Selection mode: drag rectangle to zoom
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    const onMouseDown = (e: L.LeafletMouseEvent) => {
+      if (!selecting) return;
+      selectionStartRef.current = e.latlng;
+      if (selectionRectRef.current) {
+        map.removeLayer(selectionRectRef.current);
+        selectionRectRef.current = null;
+      }
+      map.dragging.disable();
+    };
+
+    const onMouseMove = (e: L.LeafletMouseEvent) => {
+      if (!selecting) return;
+      if (!selectionStartRef.current) return;
+      const bounds = L.latLngBounds(selectionStartRef.current, e.latlng);
+      if (!selectionRectRef.current) {
+        selectionRectRef.current = L.rectangle(bounds, {
+          color: "#fbbf24",
+          weight: 1,
+          fillColor: "#facc15",
+          fillOpacity: 0.15,
+        }).addTo(map);
+      } else {
+        selectionRectRef.current.setBounds(bounds);
+      }
+    };
+
+    const finishSelection = () => {
+      if (!selecting) return;
+      map.dragging.enable();
+      if (selectionRectRef.current) {
+        const bounds = selectionRectRef.current.getBounds();
+        map.fitBounds(bounds, { padding: [40, 40] });
+        map.removeLayer(selectionRectRef.current);
+        selectionRectRef.current = null;
+      }
+      selectionStartRef.current = null;
+      setSelecting(false);
+    };
+
+    map.on("mousedown", onMouseDown);
+    map.on("mousemove", onMouseMove);
+    map.on("mouseup", finishSelection);
+    map.on("mouseleave", finishSelection as any);
+
+    return () => {
+      map.off("mousedown", onMouseDown);
+      map.off("mousemove", onMouseMove);
+      map.off("mouseup", finishSelection);
+      map.off("mouseleave", finishSelection as any);
+      map.dragging.enable();
+      if (selectionRectRef.current) {
+        map.removeLayer(selectionRectRef.current);
+        selectionRectRef.current = null;
+      }
+      selectionStartRef.current = null;
+    };
+  }, [selecting]);
+
   // Map container JSX (This MUST have a defined height from the parent component)
   // Fullscreen logic
   function handleFullscreen() {
@@ -288,17 +354,30 @@ export default function Map({
 
   return (
     <div className="relative w-full h-full rounded-xl">
-      <button
-        type="button"
-        onClick={() =>
-          setMapStyle((prev) => (prev === "street" ? "satellite" : "street"))
-        }
-        title={mapStyle === "street" ? "Switch to satellite view" : "Switch to map view"}
-        className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1 text-xs shadow-lg focus:outline-none"
-        style={{ pointerEvents: "auto" }}
-      >
-        {mapStyle === "street" ? "Satellite" : "Map"}
-      </button>
+      <div className="absolute bottom-3 left-1/2 -translate-x-1/2 z-[1000] flex gap-2">
+        <button
+          type="button"
+          onClick={() =>
+            setMapStyle((prev) => (prev === "street" ? "satellite" : "street"))
+          }
+          title={mapStyle === "street" ? "Switch to satellite view" : "Switch to map view"}
+          className="bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1 text-xs shadow-lg focus:outline-none"
+          style={{ pointerEvents: "auto" }}
+        >
+          {mapStyle === "street" ? "Satellite" : "Map"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setSelecting((v) => !v)}
+          title="Draw a box to zoom"
+          className={`bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1 text-xs shadow-lg focus:outline-none border ${
+            selecting ? "border-amber-300" : "border-transparent"
+          }`}
+          style={{ pointerEvents: "auto" }}
+        >
+          {selecting ? "Cancel select" : "Select area"}
+        </button>
+      </div>
       <button
         onClick={handleFullscreen}
         title="Maximize Map"
