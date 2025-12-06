@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -52,7 +52,9 @@ const getCustomIcon = () => L.divIcon({
 export default function Map({ locations, currentLocation, fitOnUpdate = true, autoZoomOnFirstPoint = false, snappedGeoJson }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
+  const baseLayersRef = useRef<{ street?: L.TileLayer; satellite?: L.TileLayer }>({});
   const containerRef = useRef<HTMLDivElement>(null);
+  const [mapStyle, setMapStyle] = useState<"street" | "satellite">("street");
 
   // 1. Map Initialization (Runs once)
   useEffect(() => {
@@ -63,12 +65,25 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
 
     mapRef.current = L.map(containerRef.current).setView(defaultCenter, 6);
 
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+    const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 21,
       attribution: "© OpenStreetMap contributors",
-    }).addTo(mapRef.current);
+    });
+
+    const satellite = L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        maxZoom: 21,
+        attribution:
+          "Tiles © Esri — Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community",
+      }
+    );
+
+    street.addTo(mapRef.current);
+    baseLayersRef.current = { street, satellite };
 
     layerGroupRef.current = L.layerGroup().addTo(mapRef.current);
+
 
     // Inject CSS for the pulsing effect
     const style = document.createElement("style");
@@ -150,9 +165,33 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
     // If fitOnUpdate is false, do not change zoom/center unless autoZoomOnFirstPoint triggers above
   }, [locations, currentLocation, fitOnUpdate, snappedGeoJson, autoZoomOnFirstPoint]);
 
+  // Toggle between street and satellite base layers
+  useEffect(() => {
+    const map = mapRef.current;
+    const baseLayers = baseLayersRef.current;
+    if (!map || !baseLayers.street || !baseLayers.satellite) return;
+
+    if (mapStyle === "street") {
+      if (map.hasLayer(baseLayers.satellite)) {
+        map.removeLayer(baseLayers.satellite);
+      }
+      if (!map.hasLayer(baseLayers.street)) {
+        baseLayers.street.addTo(map);
+      }
+    } else {
+      if (map.hasLayer(baseLayers.street)) {
+        map.removeLayer(baseLayers.street);
+      }
+      if (!map.hasLayer(baseLayers.satellite)) {
+        baseLayers.satellite.addTo(map);
+      }
+    }
+  }, [mapStyle]);
+
   // Map container JSX (This MUST have a defined height from the parent component)
   // Fullscreen logic
   function handleFullscreen() {
+
     if (containerRef.current) {
       if (document.fullscreenElement) {
         document.exitFullscreen();
@@ -164,6 +203,17 @@ export default function Map({ locations, currentLocation, fitOnUpdate = true, au
 
   return (
     <div className="relative w-full h-full rounded-xl">
+      <button
+        type="button"
+        onClick={() =>
+          setMapStyle((prev) => (prev === "street" ? "satellite" : "street"))
+        }
+        title={mapStyle === "street" ? "Switch to satellite view" : "Switch to map view"}
+        className="absolute top-2 left-2 z-[1000] bg-black/60 hover:bg-black/80 text-white rounded-full px-3 py-1 text-xs shadow-lg focus:outline-none"
+        style={{ pointerEvents: "auto" }}
+      >
+        {mapStyle === "street" ? "Satellite" : "Map"}
+      </button>
       <button
         onClick={handleFullscreen}
         title="Maximize Map"
