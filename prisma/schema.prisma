@@ -26,8 +26,13 @@ model User {
   updatedAt        DateTime         @updatedAt
   // Privacy / preferences
   shareLocationWithTrustedContacts Boolean @default(true)
+  /// If true, use Google 3D Maps on the dashboard when an API key is configured
+  useGoogle3DMaps               Boolean @default(false)
+  /// Optional per-user Google Maps API key (restrict via HTTP referrer in Google Cloud)
+  googleMapsApiKey              String?
+ 
+   accounts         Account[]
 
-  accounts         Account[]
   devices          Device[]
   locations        Location[]
   mobileTokens     MobileSession[]
