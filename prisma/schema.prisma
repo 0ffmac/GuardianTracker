@@ -36,11 +36,17 @@ model User {
   trackingSessions TrackingSession[]
   trustedContacts  TrustedContact[] @relation("OwnerContacts")
   trustedBy        TrustedContact[] @relation("ContactUsers")
-  alerts           Alert[]          // Alerts created by this user
-  alertRecipients  AlertRecipient[] // Alerts this user has received
-  sentAudioMessages AudioMessage[]  @relation("AudioSender") // Audio messages sent by this user
-  receivedAudioMessages AudioMessage[] @relation("AudioReceiver") // Audio messages received by this user
-}
+   alerts           Alert[]          // Alerts created by this user
+   alertRecipients  AlertRecipient[] // Alerts this user has received
+   sentAudioMessages AudioMessage[]  @relation("AudioSender") // Audio messages sent by this user
+   receivedAudioMessages AudioMessage[] @relation("AudioReceiver") // Audio messages received by this user
+
+   // WebRTC call relations
+   outgoingCalls CallSession[] @relation("CallerSessions")
+   incomingCalls CallSession[] @relation("CalleeSessions")
+   callIceCandidates CallIceCandidate[] @relation("UserCallIceCandidates")
+ }
+
 
 model TrustedContact {
   id        String   @id @default(cuid())
@@ -48,6 +54,11 @@ model TrustedContact {
   contactId String
   status    String   @default("PENDING")
   createdAt DateTime @default(now())
+
+  /// If true, this contact should receive emergency alerts
+  receiveEmergencyAlerts Boolean @default(true)
+  /// If true, this contact can be used for direct calls/messages
+  allowCallsAndMessages Boolean @default(true)
 
   owner   User @relation("OwnerContacts", fields: [ownerId], references: [id], onDelete: Cascade)
   contact User @relation("ContactUsers", fields: [contactId], references: [id], onDelete: Cascade)
@@ -289,17 +300,53 @@ model AlertRecipient {
    @@index([receiverId])
  }
  
- model PushToken {
-   id        String   @id @default(cuid())
-   userId    String
-   deviceId  String
-   token     String   @unique
-   platform  String
-   createdAt DateTime @default(now())
-   updatedAt DateTime @updatedAt
- 
-   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
-   @@index([userId])
-   @@index([deviceId])
- }
+  model PushToken {
+    id        String   @id @default(cuid())
+    userId    String
+    deviceId  String
+    token     String   @unique
+    platform  String
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+  
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+    @@index([userId])
+    @@index([deviceId])
+  }
+
+  /// WebRTC call session for 1:1 audio/video
+  model CallSession {
+    id        String   @id @default(cuid())
+    callerId  String
+    calleeId  String
+    status    String   @default("RINGING") // RINGING, IN_PROGRESS, ENDED, DECLINED, MISSED
+    offerSdp  String?
+    answerSdp String?
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+
+    caller User @relation("CallerSessions", fields: [callerId], references: [id], onDelete: Cascade)
+    callee User @relation("CalleeSessions", fields: [calleeId], references: [id], onDelete: Cascade)
+    iceCandidates CallIceCandidate[]
+
+    @@index([callerId])
+    @@index([calleeId])
+  }
+
+  /// Individual ICE candidates exchanged between peers
+  model CallIceCandidate {
+    id        String   @id @default(cuid())
+    callId    String
+    fromUserId String
+    candidate String
+    sdpMid    String?
+    sdpMLineIndex Int?
+    createdAt DateTime @default(now())
+
+    call   CallSession @relation(fields: [callId], references: [id], onDelete: Cascade)
+    fromUser User      @relation("UserCallIceCandidates", fields: [fromUserId], references: [id], onDelete: Cascade)
+
+    @@index([callId])
+    @@index([fromUserId])
+  }
