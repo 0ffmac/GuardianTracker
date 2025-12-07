@@ -862,13 +862,73 @@ export default function SettingsPage() {
                           key={c.id}
                           className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2"
                         >
-                          <div>
+                          <div className="flex-1 mr-3">
                             <div className="text-sm font-medium">
                               {c.contact?.name || c.contact?.email || "Contact"}
                             </div>
                             {c.contact?.email && (
                               <div className="text-xs text-gray-400">{c.contact.email}</div>
                             )}
+                            <div className="mt-1 flex flex-col sm:flex-row sm:items-center sm:gap-4 text-[11px] text-gray-200">
+                              <label className="inline-flex items-center gap-2 mb-1 sm:mb-0">
+                                <input
+                                  type="checkbox"
+                                  checked={c.receiveEmergencyAlerts ?? true}
+                                  onChange={async (e) => {
+                                    const next = e.target.checked;
+                                    setContacts((prev) =>
+                                      prev.map((x) =>
+                                        x.id === c.id ? { ...x, receiveEmergencyAlerts: next } : x
+                                      )
+                                    );
+                                    try {
+                                      const res = await fetch(`/api/contacts/${c.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ receiveEmergencyAlerts: next }),
+                                      });
+                                      if (!res.ok) {
+                                        showToast("Failed to update emergency alerts setting", "error");
+                                      }
+                                    } catch (err) {
+                                      console.error("Failed to update receiveEmergencyAlerts", err);
+                                      showToast("Failed to update emergency alerts setting", "error");
+                                    }
+                                  }}
+                                  className="h-4 w-4 text-gold-500"
+                                />
+                                <span>Emergency alerts</span>
+                              </label>
+                              <label className="inline-flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={c.allowCallsAndMessages ?? true}
+                                  onChange={async (e) => {
+                                    const next = e.target.checked;
+                                    setContacts((prev) =>
+                                      prev.map((x) =>
+                                        x.id === c.id ? { ...x, allowCallsAndMessages: next } : x
+                                      )
+                                    );
+                                    try {
+                                      const res = await fetch(`/api/contacts/${c.id}`, {
+                                        method: "PATCH",
+                                        headers: { "Content-Type": "application/json" },
+                                        body: JSON.stringify({ allowCallsAndMessages: next }),
+                                      });
+                                      if (!res.ok) {
+                                        showToast("Failed to update calls/messages setting", "error");
+                                      }
+                                    } catch (err) {
+                                      console.error("Failed to update allowCallsAndMessages", err);
+                                      showToast("Failed to update calls/messages setting", "error");
+                                    }
+                                  }}
+                                  className="h-4 w-4 text-gold-500"
+                                />
+                                <span>Calls &amp; messages</span>
+                              </label>
+                            </div>
                           </div>
                           <button
                             className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs"
