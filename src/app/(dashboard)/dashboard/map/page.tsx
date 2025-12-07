@@ -5,8 +5,10 @@ import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { MapPin, Clock, TrendingUp, Activity, CalendarDays } from "lucide-react";
-
+ 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
+const Google3DMap = dynamic(() => import("@/components/Google3DMap"), { ssr: false });
+
 
 // Map imported directly; render only when hasMounted to avoid SSR issues.
 
@@ -67,6 +69,9 @@ export default function DashboardMapPage() {
   const [showWifiDevices, setShowWifiDevices] = useState(true);
   const [showBleDevices, setShowBleDevices] = useState(true);
 
+  const [useGoogle3DMaps, setUseGoogle3DMaps] = useState(false);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
+
   const handleExportWigle = () => {
     if (!selectedSessionId) return;
     const url = `/api/export/wigle?trackingSessionId=${encodeURIComponent(selectedSessionId)}`;
@@ -97,6 +102,27 @@ export default function DashboardMapPage() {
     };
     fetchLocationHistory();
   }, []);
+
+  // Load per-user map settings (Google 3D preference + API key)
+  useEffect(() => {
+    if (!hasMounted) return;
+    const fetchMapSettings = async () => {
+      try {
+        const res = await fetch("/api/user/maps");
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.useGoogle3DMaps === "boolean") {
+          setUseGoogle3DMaps(data.useGoogle3DMaps);
+        }
+        if (typeof data.googleMapsApiKey === "string") {
+          setGoogleMapsApiKey(data.googleMapsApiKey || null);
+        }
+      } catch (err) {
+        console.error("[dashboard-map] Failed to load map settings", err);
+      }
+    };
+    fetchMapSettings();
+  }, [hasMounted]);
 
   // Load Wi-Fi/BLE devices positions globally (all sessions) for map visualization
   useEffect(() => {
@@ -450,15 +476,28 @@ export default function DashboardMapPage() {
 
         <div className="h-[500px] rounded-xl overflow-hidden mt-4">
           {hasMounted && (
-            <Map
-              locations={locations}
-              currentLocation={locations[locations.length - 1] || null}
-              fitOnUpdate
-              autoZoomOnFirstPoint
-              snappedGeoJson={showSnapped ? snappedGeoJson : null}
-              wifiDevices={showWifiDevices ? wifiDevices : []}
-              bleDevices={showBleDevices ? bleDevices : []}
-            />
+            useGoogle3DMaps && googleMapsApiKey ? (
+              <Google3DMap
+                apiKey={googleMapsApiKey}
+                locations={locations}
+                currentLocation={locations[locations.length - 1] || null}
+                fitOnUpdate
+                autoZoomOnFirstPoint
+                snappedGeoJson={showSnapped ? snappedGeoJson : null}
+                wifiDevices={showWifiDevices ? wifiDevices : []}
+                bleDevices={showBleDevices ? bleDevices : []}
+              />
+            ) : (
+              <Map
+                locations={locations}
+                currentLocation={locations[locations.length - 1] || null}
+                fitOnUpdate
+                autoZoomOnFirstPoint
+                snappedGeoJson={showSnapped ? snappedGeoJson : null}
+                wifiDevices={showWifiDevices ? wifiDevices : []}
+                bleDevices={showBleDevices ? bleDevices : []}
+              />
+            )
           )}
         </div>
 

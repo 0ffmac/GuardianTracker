@@ -50,23 +50,61 @@ export async function PATCH(
   }
   const trustedContactId = params.id;
 
-  const { status } = await request.json().catch(() => ({} as any));
-  if (!status || (status !== "ACCEPTED" && status !== "DECLINED")) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
-  }
+  const body = await request.json().catch(() => ({} as any));
+  const { status, receiveEmergencyAlerts, allowCallsAndMessages } = body;
 
-  // Only the contact themselves can accept/decline being an emergency contact.
   const record = await prisma.trustedContact.findUnique({ where: { id: trustedContactId } });
-  if (!record || record.contactId !== userId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  if (!record) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
-  const updated = await prisma.trustedContact.update({
-    where: { id: trustedContactId },
-    data: { status },
-  });
+  const isContact = record.contactId === userId;
+  const isOwner = record.ownerId === userId;
 
-  return NextResponse.json({ contact: updated });
+  // Contact can ACCEPT/DECLINE being a trusted contact
+  if (status !== undefined) {
+    if (!isContact) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    if (status !== "ACCEPTED" && status !== "DECLINED") {
+      return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    }
+
+    const updated = await prisma.trustedContact.update({
+      where: { id: trustedContactId },
+      data: { status },
+    });
+
+    return NextResponse.json({ contact: updated });
+  }
+
+  // Owner can toggle emergency alerts vs calls/messages settings
+  const hasFlagUpdate =
+    typeof receiveEmergencyAlerts === "boolean" ||
+    typeof allowCallsAndMessages === "boolean";
+
+  if (hasFlagUpdate) {
+    if (!isOwner) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const data: any = {};
+    if (typeof receiveEmergencyAlerts === "boolean") {
+      data.receiveEmergencyAlerts = receiveEmergencyAlerts;
+    }
+    if (typeof allowCallsAndMessages === "boolean") {
+      data.allowCallsAndMessages = allowCallsAndMessages;
+    }
+
+    const updated = await prisma.trustedContact.update({
+      where: { id: trustedContactId },
+      data,
+    });
+
+    return NextResponse.json({ contact: updated });
+  }
+
+  return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
 }
 
 export async function DELETE(

@@ -24,6 +24,11 @@ export default function SettingsPage() {
   const [contactDeletingId, setContactDeletingId] = useState<string | null>(null);
   const [inviteUpdatingId, setInviteUpdatingId] = useState<string | null>(null);
   const [shareLocationWithTrustedContacts, setShareLocationWithTrustedContacts] = useState<boolean | null>(null);
+  const [useGoogle3DMaps, setUseGoogle3DMaps] = useState(false);
+  const [googleMapsApiKey, setGoogleMapsApiKey] = useState("");
+  const [mapSettingsLoading, setMapSettingsLoading] = useState(false);
+  const [mapSettingsError, setMapSettingsError] = useState<string | null>(null);
+  const [mapSettingsSaving, setMapSettingsSaving] = useState(false);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [alertsLoading, setAlertsLoading] = useState(false);
@@ -126,9 +131,36 @@ export default function SettingsPage() {
     fetchAlerts();
   }, [mounted, alertType, alertStatus]);
 
-  useEffect(() => {
-    if (!mounted) return;
-    async function fetchDevices() {
+   useEffect(() => {
+     if (!mounted) return;
+     async function fetchMapSettings() {
+       setMapSettingsLoading(true);
+       setMapSettingsError(null);
+       try {
+         const res = await fetch("/api/user/maps");
+         if (res.ok) {
+           const data = await res.json();
+           if (typeof data.useGoogle3DMaps === "boolean") {
+             setUseGoogle3DMaps(data.useGoogle3DMaps);
+           }
+           if (typeof data.googleMapsApiKey === "string") {
+             setGoogleMapsApiKey(data.googleMapsApiKey || "");
+           }
+         }
+       } catch (err) {
+         console.error("Failed to load map settings", err);
+         setMapSettingsError("Failed to load map settings.");
+       } finally {
+         setMapSettingsLoading(false);
+       }
+     }
+     fetchMapSettings();
+   }, [mounted]);
+
+   useEffect(() => {
+     if (!mounted) return;
+     async function fetchDevices() {
+
       setDevicesLoading(true);
       setDevicesError(null);
       try {
@@ -203,7 +235,42 @@ export default function SettingsPage() {
     }
   }
 
-  async function handleDeleteAllAlerts() {
+   async function handleSaveMapSettings(e: React.FormEvent) {
+     e.preventDefault();
+     setMapSettingsSaving(true);
+     setMapSettingsError(null);
+     try {
+       const trimmedKey = googleMapsApiKey.trim();
+       const res = await fetch("/api/user/maps", {
+         method: "PUT",
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+           useGoogle3DMaps: useGoogle3DMaps && trimmedKey.length > 0,
+           googleMapsApiKey: trimmedKey,
+         }),
+       });
+       const data = await res.json().catch(() => ({}));
+       if (!res.ok) {
+         const message = data?.error || "Failed to save map settings.";
+         setMapSettingsError(message);
+         showToast(message, "error");
+         return;
+       }
+       const nextUseGoogle = !!data.useGoogle3DMaps && !!data.googleMapsApiKey;
+       setUseGoogle3DMaps(nextUseGoogle);
+       setGoogleMapsApiKey(data.googleMapsApiKey || "");
+       showToast("Map settings saved");
+     } catch (err) {
+       console.error("Failed to save map settings", err);
+       setMapSettingsError("Failed to save map settings.");
+       showToast("Failed to save map settings.", "error");
+     } finally {
+       setMapSettingsSaving(false);
+     }
+   }
+
+   async function handleDeleteAllAlerts() {
+
     if (alerts.length === 0) return;
     if (
       !confirm(
@@ -689,9 +756,64 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="h-px bg-white/10" />
+               <div className="h-px bg-white/10" />
+ 
+               {/* Map experience */}
+               <div>
+                 <h3 className="text-base font-semibold mb-1">Map Experience</h3>
+                 <p className="text-sm text-gray-300">
+                   Choose between the built-in map and Google 3D Maps when you provide your own API key.
+                 </p>
+                 <form
+                   onSubmit={handleSaveMapSettings}
+                   className="mt-3 space-y-3 max-w-xl"
+                 >
+                   <div>
+                     <label className="block text-xs text-gray-300 mb-1">Google Maps API key</label>
+                     <input
+                       type="text"
+                       value={googleMapsApiKey}
+                       onChange={(e) => setGoogleMapsApiKey(e.target.value)}
+                       className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                       placeholder="Paste your Google Maps API key"
+                     />
+                     <p className="mt-1 text-[11px] text-gray-400">
+                       Restrict this key by HTTP referrer in your Google Cloud Console. It is stored only for your account.
+                     </p>
+                   </div>
+                   <label className="flex items-center gap-2 text-xs text-gray-200">
+                     <input
+                       type="checkbox"
+                       checked={useGoogle3DMaps && !!googleMapsApiKey.trim()}
+                       onChange={(e) => setUseGoogle3DMaps(e.target.checked)}
+                       className="h-4 w-4 text-gold-500"
+                       disabled={!googleMapsApiKey.trim()}
+                     />
+                     <span>
+                       Use Google 3D Maps on the dashboard when this key is set
+                       {!googleMapsApiKey.trim() ? " (add a key first)" : ""}
+                     </span>
+                   </label>
+                   {mapSettingsError && (
+                     <div className="text-xs text-red-400">{mapSettingsError}</div>
+                   )}
+                   <button
+                     type="submit"
+                     className="px-4 py-2 bg-gold-500 text-black rounded-lg hover:bg-gold-400 transition text-sm font-semibold disabled:opacity-60"
+                     disabled={mapSettingsSaving || mapSettingsLoading}
+                   >
+                     {mapSettingsSaving ? "Saving..." : "Save map settings"}
+                   </button>
+                   {mapSettingsLoading && (
+                     <div className="text-xs text-gray-400">Loading saved map settings...</div>
+                   )}
+                 </form>
+               </div>
+ 
+               <div className="h-px bg-white/10" />
+ 
+               {/* Emergency contacts */}
 
-              {/* Emergency contacts */}
               <div>
                 <div className="flex items-center justify-between gap-3 mb-1">
                   <h3 className="text-base font-semibold">Emergency Contacts</h3>

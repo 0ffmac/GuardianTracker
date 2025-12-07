@@ -225,6 +225,7 @@ export async function POST(request: Request) {
       where: {
         contactId: userId,
         status: "ACCEPTED",
+        receiveEmergencyAlerts: true,
       },
       select: {
         ownerId: true,
@@ -236,6 +237,7 @@ export async function POST(request: Request) {
       where: {
         ownerId: userId,
         status: "ACCEPTED",
+        receiveEmergencyAlerts: true,
       },
       select: {
         contactId: true,
