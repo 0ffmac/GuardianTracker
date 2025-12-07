@@ -167,10 +167,7 @@ export async function POST(request: Request) {
           const message = {
             message: {
               token: t.token,
-              notification: {
-                title,
-                body: "Incoming call",
-              },
+              // Data-only message so the app/CallKit controls UI and ringtone
               data: {
                 type: "incoming_call",
                 callId: call.id,
