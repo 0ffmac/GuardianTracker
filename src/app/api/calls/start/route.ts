@@ -94,6 +94,109 @@ export async function POST(request: Request) {
       },
     });
 
+    // Fire-and-forget push notification to callee using FCM v1 if configured
+    (async () => {
+      try {
+        const projectId = process.env.FIREBASE_PROJECT_ID;
+        const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+        const rawPrivateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+        if (!projectId || !clientEmail || !rawPrivateKey) {
+          return;
+        }
+
+        const privateKey = rawPrivateKey.replace(/\\n/g, "\n");
+
+        const tokens = await (prisma as any).pushToken.findMany({
+          where: { userId: calleeId },
+          select: { token: true, platform: true },
+        });
+
+        if (!tokens.length) {
+          return;
+        }
+
+        const caller = await prisma.user.findUnique({
+          where: { id: callerId },
+          select: { name: true, email: true },
+        });
+
+        const title = caller?.name || caller?.email || "Incoming Guardian call";
+
+        // Build JWT for OAuth2 token
+        const now = Math.floor(Date.now() / 1000);
+        const tokenPayload = {
+          iss: clientEmail,
+          sub: clientEmail,
+          aud: "https://oauth2.googleapis.com/token",
+          scope: "https://www.googleapis.com/auth/firebase.messaging",
+          iat: now,
+          exp: now + 3600,
+        };
+
+        const assertion = jwt.sign(tokenPayload, privateKey, {
+          algorithm: "RS256",
+        });
+
+        const oauthRes = await fetch("https://oauth2.googleapis.com/token", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+            assertion,
+          }),
+        });
+
+        if (!oauthRes.ok) {
+          console.error("[/api/calls/start] Failed to obtain FCM access token", await oauthRes.text());
+          return;
+        }
+
+        const oauthJson = (await oauthRes.json()) as any;
+        const accessToken = oauthJson.access_token as string | undefined;
+
+        if (!accessToken) {
+          console.error("[/api/calls/start] No access_token in FCM OAuth response");
+          return;
+        }
+
+        const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
+
+        for (const t of tokens as any[]) {
+          const message = {
+            message: {
+              token: t.token,
+              notification: {
+                title,
+                body: "Incoming call",
+              },
+              data: {
+                type: "incoming_call",
+                callId: call.id,
+                callerId,
+                calleeId,
+                offerSdp,
+                callerName: caller?.name || "",
+              },
+            },
+          };
+
+          await fetch(fcmUrl, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify(message),
+          });
+        }
+      } catch (pushError) {
+        console.error("[/api/calls/start] Error sending incoming-call push (v1):", pushError);
+      }
+    })();
+
     return NextResponse.json({
       callId: call.id,
       status: call.status,
