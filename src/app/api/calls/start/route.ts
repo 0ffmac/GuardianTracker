@@ -127,7 +127,6 @@ export async function POST(request: Request) {
         const now = Math.floor(Date.now() / 1000);
         const tokenPayload = {
           iss: clientEmail,
-          sub: clientEmail,
           aud: "https://oauth2.googleapis.com/token",
           scope: "https://www.googleapis.com/auth/firebase.messaging",
           iat: now,
