@@ -23,6 +23,7 @@ interface Location {
 interface TrackingSession {
   id: string;
   name: string | null;
+  quality?: "GOOD" | "REGULAR" | "BAD" | null;
   startTime: string;
   endTime: string;
   locations: Location[];
@@ -68,6 +69,8 @@ export default function DashboardMapPage() {
   const [bleDevices, setBleDevices] = useState<BleDevicePoint[]>([]);
   const [showWifiDevices, setShowWifiDevices] = useState(true);
   const [showBleDevices, setShowBleDevices] = useState(true);
+  const [sessionQualityFilter, setSessionQualityFilter] = useState<"ALL" | "GOOD" | "REGULAR" | "BAD">("ALL");
+  const [sessionSearch, setSessionSearch] = useState("");
 
   const [useGoogle3DMaps, setUseGoogle3DMaps] = useState(false);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
@@ -89,7 +92,15 @@ export default function DashboardMapPage() {
     const fetchLocationHistory = async () => {
       const res = await fetch("/api/locations");
       const data = await res.json();
-      const sessions: TrackingSession[] = (data.trackingSessions || []) as TrackingSession[];
+      const rawSessions: any[] = data.trackingSessions || [];
+      const sessions: TrackingSession[] = rawSessions.map((s) => ({
+        id: s.id,
+        name: s.name ?? null,
+        quality: s.quality ?? null,
+        startTime: s.startTime,
+        endTime: s.endTime,
+        locations: (s.locations || []) as Location[],
+      }));
       setTrackingSessions(sessions);
 
       if (sessions.length === 0) {
@@ -208,6 +219,22 @@ export default function DashboardMapPage() {
     }
   }, [selectedSessionId, trackingSessions]);
 
+  // When the quality filter changes, ensure the selected session is still visible
+  useEffect(() => {
+    if (filteredTrackingSessions.length === 0) {
+      setSelectedSessionId(null);
+      return;
+    }
+    if (!selectedSessionId) {
+      setSelectedSessionId(filteredTrackingSessions[0].id);
+      return;
+    }
+    const exists = filteredTrackingSessions.some((s) => s.id === selectedSessionId);
+    if (!exists) {
+      setSelectedSessionId(filteredTrackingSessions[0].id);
+    }
+  }, [filteredTrackingSessions, selectedSessionId]);
+
   // Check for suspicious devices near the last known location of this session's primary device
   useEffect(() => {
     if (!hasMounted) return;
@@ -269,6 +296,26 @@ export default function DashboardMapPage() {
       cancelled = true;
     };
   }, [hasMounted, locations]);
+
+  const filteredTrackingSessions = useMemo(() => {
+    let base = trackingSessions;
+
+    if (sessionQualityFilter !== "ALL") {
+      base = base.filter((s) => {
+        const q = s.quality ?? "REGULAR";
+        return q === sessionQualityFilter;
+      });
+    }
+
+    const term = sessionSearch.trim().toLowerCase();
+    if (!term) return base;
+
+    return base.filter((s) => {
+      const name = (s.name || "").toLowerCase();
+      const dateLabel = new Date(s.startTime).toLocaleString().toLowerCase();
+      return name.includes(term) || dateLabel.includes(term);
+    });
+  }, [trackingSessions, sessionQualityFilter, sessionSearch]);
 
   // Stats for the selected session
   const stats = useMemo(() => {
@@ -415,17 +462,31 @@ export default function DashboardMapPage() {
                 Session:
               </label>
               <select
-                id="session-select"
-                value={selectedSessionId || ""}
-                onChange={(e) => setSelectedSessionId(e.target.value)}
-                className="w-full md:w-64 p-3 bg-gold-900/40 border border-gold-400/30 rounded-lg text-gold-100 appearance-none cursor-pointer focus:ring-gold-500 focus:border-gold-500 font-semibold"
-              >
-                {trackingSessions.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name || `Session ${new Date(s.startTime).toLocaleString()}`}
-                  </option>
-                ))}
-              </select>
+                 id="session-select"
+                  value={selectedSessionId || ""}
+                  onChange={(e) => setSelectedSessionId(e.target.value || null)}
+                  className="w-full md:w-64 p-3 bg-gold-900/40 border border-gold-400/30 rounded-lg text-gold-100 appearance-none cursor-pointer focus:ring-gold-500 focus:border-gold-500 font-semibold"
+                >
+                 {filteredTrackingSessions.map((s) => {
+
+                   const baseLabel = s.name || `Session ${new Date(s.startTime).toLocaleString()}`;
+                   let qualityPrefix = "";
+                   if (s.quality === "GOOD") {
+                     qualityPrefix = "[Good] ";
+                   } else if (s.quality === "BAD") {
+                     qualityPrefix = "[Not good] ";
+                   } else if (s.quality === "REGULAR") {
+                     qualityPrefix = "[Regular] ";
+                   }
+                   return (
+                     <option key={s.id} value={s.id}>
+                       {qualityPrefix}
+                       {baseLabel}
+                     </option>
+                   );
+                 })}
+               </select>
+
             </div>
             <button
               type="button"
@@ -449,29 +510,53 @@ export default function DashboardMapPage() {
               </span>
             </label>
             {showSnapped && osrmConfidence !== null && (
-              <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
-                OSRM confidence: {(osrmConfidence * 100).toFixed(1)}%
-              </span>
-            )}
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showWifiDevices}
-                onChange={() => setShowWifiDevices((v) => !v)}
-                className="form-checkbox h-5 w-5 text-sky-500"
-              />
-              <span className="ml-2 text-gold-100 font-medium">Show Wi-Fi devices</span>
-            </label>
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showBleDevices}
-                onChange={() => setShowBleDevices((v) => !v)}
-                className="form-checkbox h-5 w-5 text-purple-500"
-              />
-              <span className="ml-2 text-gold-100 font-medium">Show Bluetooth devices</span>
-            </label>
-          </div>
+               <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
+                 OSRM confidence: {(osrmConfidence * 100).toFixed(1)}%
+               </span>
+             )}
+             <label className="flex items-center cursor-pointer">
+               <input
+                 type="checkbox"
+                 checked={showWifiDevices}
+                 onChange={() => setShowWifiDevices((v) => !v)}
+                 className="form-checkbox h-5 w-5 text-sky-500"
+               />
+               <span className="ml-2 text-gold-100 font-medium">Show Wi-Fi devices</span>
+             </label>
+             <label className="flex items-center cursor-pointer">
+               <input
+                 type="checkbox"
+                 checked={showBleDevices}
+                 onChange={() => setShowBleDevices((v) => !v)}
+                 className="form-checkbox h-5 w-5 text-purple-500"
+               />
+               <span className="ml-2 text-gold-100 font-medium">Show Bluetooth devices</span>
+             </label>
+             <div className="flex items-center gap-2 text-sm">
+               <span className="text-gold-100 font-medium">Quality</span>
+               <select
+                 value={sessionQualityFilter}
+                 onChange={(e) => setSessionQualityFilter(e.target.value as "ALL" | "GOOD" | "REGULAR" | "BAD")}
+                 className="bg-gold-900/40 border border-gold-400/40 rounded-lg px-3 py-1 text-xs text-gold-100 focus:outline-none focus:ring-gold-500 focus:border-gold-500"
+               >
+                 <option value="ALL">All tracks</option>
+                 <option value="GOOD">Good (green)</option>
+                 <option value="REGULAR">Regular (orange)</option>
+                 <option value="BAD">Not good (red)</option>
+               </select>
+             </div>
+             <div className="flex items-center gap-2 text-sm">
+               <span className="text-gold-100 font-medium">Search</span>
+               <input
+                 type="text"
+                 value={sessionSearch}
+                 onChange={(e) => setSessionSearch(e.target.value)}
+                 placeholder="Name or date"
+                 className="bg-gold-900/40 border border-gold-400/40 rounded-lg px-3 py-1 text-xs text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-gold-500 focus:border-gold-500"
+               />
+             </div>
+           </div>
+
         </div>
 
         <div className="h-[500px] rounded-xl overflow-hidden mt-4">

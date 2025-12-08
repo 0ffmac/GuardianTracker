@@ -43,6 +43,10 @@ export default function SettingsPage() {
   const [environmentLoading, setEnvironmentLoading] = useState(false);
   const [environmentError, setEnvironmentError] = useState<string | null>(null);
   const [environmentSummary, setEnvironmentSummary] = useState<any | null>(null);
+  const [sessionNameDraft, setSessionNameDraft] = useState("");
+  const [sessionQualityDraft, setSessionQualityDraft] = useState<"GOOD" | "REGULAR" | "BAD">("REGULAR");
+  const [sessionMetaSaving, setSessionMetaSaving] = useState(false);
+  const [sessionMetaError, setSessionMetaError] = useState<string | null>(null);
   const [environmentWifi, setEnvironmentWifi] = useState<any[]>([]);
   const [environmentBle, setEnvironmentBle] = useState<any[]>([]);
   const [environmentVisible, setEnvironmentVisible] = useState(false);
@@ -293,6 +297,45 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSaveSessionMeta(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedSession) return;
+
+    setSessionMetaSaving(true);
+    setSessionMetaError(null);
+
+    try {
+      const res = await fetch(`/api/tracking_session/${selectedSession.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: sessionNameDraft.trim() || null,
+          quality: sessionQualityDraft,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const message = (data as any)?.error || "Failed to save session details.";
+        setSessionMetaError(message);
+        showToast(message, "error");
+        return;
+      }
+
+      const updated = (data as any).trackingSession || data;
+      setTrackingSessions((prev) =>
+        prev.map((s) => (s.id === updated.id ? { ...s, ...updated } : s))
+      );
+      showToast("Session details saved");
+    } catch (err) {
+      console.error("Failed to save session details", err);
+      setSessionMetaError("Failed to save session details.");
+      showToast("Failed to save session details.", "error");
+    } finally {
+      setSessionMetaSaving(false);
+    }
+  }
+
   async function handleLoadEnvironment(sessionId: string) {
     // Toggle visibility if we already have data
     if (environmentSummary) {
@@ -491,6 +534,23 @@ export default function SettingsPage() {
       : trackingSessions[0] || null;
 
   const selectedSessionLocations = selectedSession?.locations || [];
+
+  useEffect(() => {
+    if (!selectedSession) {
+      setSessionNameDraft("");
+      setSessionQualityDraft("REGULAR");
+      setSessionMetaError(null);
+      return;
+    }
+    setSessionNameDraft(selectedSession.name || "");
+    const q = (selectedSession as any).quality ?? "REGULAR";
+    if (q === "GOOD" || q === "REGULAR" || q === "BAD") {
+      setSessionQualityDraft(q);
+    } else {
+      setSessionQualityDraft("REGULAR");
+    }
+    setSessionMetaError(null);
+  }, [selectedSession?.id]);
 
   const sessionStart = selectedSession
     ? new Date(selectedSession.startTime)
@@ -1093,24 +1153,58 @@ export default function SettingsPage() {
                   <div className="space-y-2">
                     <h3 className="text-sm font-semibold text-gray-200 mb-1">Sessions</h3>
                     <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                      {trackingSessions.map((session) => (
-                        <li
-                          key={session.id}
-                          className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer border ${
-                            selectedSession && selectedSession.id === session.id
-                              ? "bg-white/10 border-gold-400/70"
-                              : "bg-white/5 border-white/10 hover:bg-white/10"
-                          }`}
-                          onClick={() => setSelectedSessionId(session.id)}
-                        >
-                          <div className="mr-3">
-                            <div className="text-sm font-medium">
-                              {session.name || "Session"}
-                            </div>
-                            <div className="text-xs text-gray-400">
-                              {new Date(session.startTime).toLocaleString()}
-                            </div>
-                          </div>
+                      {trackingSessions.map((session) => {
+                         const quality = (session as any).quality;
+                         const dotClass =
+                           quality === "GOOD"
+                             ? "bg-emerald-400"
+                             : quality === "BAD"
+                             ? "bg-red-500"
+                             : quality === "REGULAR"
+                             ? "bg-amber-400"
+                             : "bg-gray-500";
+                         const qualityLabel =
+                           quality === "GOOD"
+                             ? "Good"
+                             : quality === "BAD"
+                             ? "Not good"
+                             : quality === "REGULAR"
+                             ? "Regular"
+                             : null;
+                         return (
+                           <li
+                             key={session.id}
+                             className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer border ${
+                               selectedSession && selectedSession.id === session.id
+                                 ? "bg-white/10 border-gold-400/70"
+                                 : "bg-white/5 border-white/10 hover:bg-white/10"
+                             }`}
+                             onClick={() => setSelectedSessionId(session.id)}
+                           >
+                             <div className="mr-3 flex items-center gap-2">
+                               <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                               <div>
+                                 <div className="text-sm font-medium">
+                                   {session.name || "Session"}
+                                 </div>
+                                 <div className="text-xs text-gray-400">
+                                   {new Date(session.startTime).toLocaleString()}
+                                 </div>
+                                 {qualityLabel && (
+                                   <div className="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] text-black" style={{
+                                     backgroundColor:
+                                       quality === "GOOD"
+                                         ? "#22c55e"
+                                         : quality === "BAD"
+                                         ? "#ef4444"
+                                         : "#f97316",
+                                   }}>
+                                     {qualityLabel}
+                                   </div>
+                                 )}
+                               </div>
+                             </div>
+
                           <button
                             className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs"
                             onClick={(e) => {
@@ -1147,11 +1241,36 @@ export default function SettingsPage() {
                       <div className="space-y-4">
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                           <div className="bg-white/5 rounded-xl p-3">
-                            <div className="text-xs text-gray-400">Name</div>
-                            <div className="text-sm font-medium">
-                              {selectedSession.name || "Session"}
-                            </div>
-                          </div>
+                             <div className="text-xs text-gray-400 mb-1">Name</div>
+                             <div className="flex items-center justify-between gap-2">
+                               <div className="text-sm font-medium">
+                                 {selectedSession.name || "Session"}
+                               </div>
+                               {(() => {
+                                 const quality = (selectedSession as any).quality;
+                                 if (!quality) return null;
+                                 let label = "";
+                                 let cls = "";
+                                 if (quality === "GOOD") {
+                                   label = "Good track";
+                                   cls = "bg-emerald-600 text-emerald-50";
+                                 } else if (quality === "BAD") {
+                                   label = "Not good";
+                                   cls = "bg-red-600 text-red-50";
+                                 } else if (quality === "REGULAR") {
+                                   label = "Regular";
+                                   cls = "bg-amber-500 text-black";
+                                 }
+                                 if (!label) return null;
+                                 return (
+                                   <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
+                                     {label}
+                                   </span>
+                                 );
+                               })()}
+                             </div>
+                           </div>
+
                           <div className="bg-white/5 rounded-xl p-3">
                             <div className="text-xs text-gray-400">Duration</div>
                             <div className="text-sm font-medium">
@@ -1174,8 +1293,77 @@ export default function SettingsPage() {
                                 : "No device info"}
                             </div>
                           </div>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                         </div>
+
+                         <form
+                           onSubmit={handleSaveSessionMeta}
+                           className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4"
+                         >
+                           <div className="bg-white/5 rounded-xl p-3 sm:col-span-2">
+                             <div className="text-xs text-gray-400 mb-1">Edit session name / tag</div>
+                             <input
+                               type="text"
+                               value={sessionNameDraft}
+                               onChange={(e) => setSessionNameDraft(e.target.value)}
+                               className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                               placeholder="e.g. Morning commute, City test drive"
+                             />
+                             <div className="text-[11px] text-gray-400 mt-1">
+                               Give this track a short label to make it easier to find later.
+                             </div>
+                           </div>
+                           <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2">
+                             <div className="text-xs text-gray-400">Quality rating</div>
+                             <div className="flex flex-wrap gap-2">
+                               <button
+                                 type="button"
+                                 onClick={() => setSessionQualityDraft("GOOD")}
+                                 className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition ${
+                                   sessionQualityDraft === "GOOD"
+                                     ? "bg-emerald-600 text-emerald-50 border-emerald-300"
+                                     : "bg-black/30 text-emerald-200 border-emerald-500/40 hover:bg-emerald-700/40"
+                                 }`}
+                               >
+                                 Good (green)
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => setSessionQualityDraft("REGULAR")}
+                                 className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition ${
+                                   sessionQualityDraft === "REGULAR"
+                                     ? "bg-amber-500 text-black border-amber-300"
+                                     : "bg-black/30 text-amber-200 border-amber-500/40 hover:bg-amber-700/40"
+                                 }`}
+                               >
+                                 Regular (orange)
+                               </button>
+                               <button
+                                 type="button"
+                                 onClick={() => setSessionQualityDraft("BAD")}
+                                 className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition ${
+                                   sessionQualityDraft === "BAD"
+                                     ? "bg-red-600 text-red-50 border-red-300"
+                                     : "bg-black/30 text-red-200 border-red-500/40 hover:bg-red-700/40"
+                                 }`}
+                               >
+                                 Not good (red)
+                               </button>
+                             </div>
+                             {sessionMetaError && (
+                               <div className="text-[11px] text-red-400">{sessionMetaError}</div>
+                             )}
+                             <button
+                               type="submit"
+                               className="mt-1 px-3 py-1.5 bg-gold-500 text-black rounded-lg hover:bg-gold-400 transition text-[11px] font-semibold disabled:opacity-60"
+                               disabled={sessionMetaSaving}
+                             >
+                               {sessionMetaSaving ? "Saving..." : "Save tag & rating"}
+                             </button>
+                           </div>
+                         </form>
+
+                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
                            <div className="bg-white/5 rounded-xl p-3">
                              <div className="text-xs text-gray-400">Batches sent</div>
                              <div className="text-sm font-medium">Coming soon</div>
@@ -1197,6 +1385,7 @@ export default function SettingsPage() {
                              </div>
                            </div>
                          </div>
+
 
                         {environmentVisible && environmentSummary && (
                           <div className="mt-4 space-y-3">

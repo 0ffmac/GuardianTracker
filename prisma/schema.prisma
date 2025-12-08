@@ -190,13 +190,14 @@ model BleScan {
  model TrackingSession {
   id        String     @id @default(cuid())
   name      String?
+  quality   String     @default("REGULAR")
   startTime DateTime
   endTime   DateTime
   userId    String
   user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   locations         Location[]         @relation("SessionLocations")
   deviceObservations DeviceObservation[] @relation("SessionDeviceObservations")
-
+ 
   @@index([userId])
  }
  

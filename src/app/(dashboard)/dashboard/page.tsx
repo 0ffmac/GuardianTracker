@@ -41,6 +41,7 @@ interface Location {
 interface TrackingSession {
   id: string;
   name: string | null;
+  quality?: "GOOD" | "REGULAR" | "BAD" | null;
   startTime: string;
   endTime: string;
   locations: Location[];
@@ -316,7 +317,8 @@ export default function DashboardPage() {
         const locs: Location[] = session.locations || [];
         return {
           id: session.id,
-          name: session.name,
+          name: session.name ?? null,
+          quality: session.quality ?? null,
           startTime: session.startTime,
           endTime: session.endTime,
           locations: locs,
