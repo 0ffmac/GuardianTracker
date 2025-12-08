@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { MapPin, Clock, TrendingUp, Activity, CalendarDays, DownloadCloud, Bluetooth } from "lucide-react";
+import { MapPin, Clock, TrendingUp, Activity, CalendarDays, DownloadCloud, Bluetooth, ChevronDown } from "lucide-react";
  
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const Google3DMap = dynamic(() => import("@/components/Google3DMap"), { ssr: false });
@@ -482,30 +482,35 @@ export default function DashboardMapPage() {
               >
                 Session
               </label>
-              <select
-                id="session-select"
-                value={selectedSessionId || ""}
-                onChange={(e) => setSelectedSessionId(e.target.value || null)}
-                className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500 font-semibold"
-              >
-                {filteredTrackingSessions.map((s) => {
-                  const baseLabel = s.name || `Session ${new Date(s.startTime).toLocaleString()}`;
-                  let qualityPrefix = "";
-                  if (s.quality === "GOOD") {
-                    qualityPrefix = "[Good] ";
-                  } else if (s.quality === "BAD") {
-                    qualityPrefix = "[Not good] ";
-                  } else if (s.quality === "REGULAR") {
-                    qualityPrefix = "[Regular] ";
-                  }
-                  return (
-                    <option key={s.id} value={s.id}>
-                      {qualityPrefix}
-                      {baseLabel}
-                    </option>
-                  );
-                })}
-              </select>
+              <div className="relative mt-1">
+                {selectedSession?.quality && (
+                  <span
+                    className={`pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-2.5 w-2.5 rounded-full ${
+                      selectedSession.quality === 'GOOD'
+                        ? 'bg-emerald-400'
+                        : selectedSession.quality === 'BAD'
+                        ? 'bg-red-500'
+                        : 'bg-amber-400'
+                    }`}
+                  />
+                )}
+                <select
+                  id="session-select"
+                  value={selectedSessionId || ""}
+                  onChange={(e) => setSelectedSessionId(e.target.value || null)}
+                  className="w-full rounded-lg bg-gold-900/40 border border-gold-400/40 pl-8 pr-8 py-2 text-sm text-gold-100 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500 font-semibold"
+                >
+                  {filteredTrackingSessions.map((s) => {
+                    const baseLabel = s.name || `Session ${new Date(s.startTime).toLocaleString()}`;
+                    return (
+                      <option key={s.id} value={s.id}>
+                        {baseLabel}
+                      </option>
+                    );
+                  })}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-gold-300" />
+              </div>
             </div>
 
             {/* Quality box */}
