@@ -1154,69 +1154,73 @@ export default function SettingsPage() {
                     <h3 className="text-sm font-semibold text-gray-200 mb-1">Sessions</h3>
                     <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
                       {trackingSessions.map((session) => {
-                         const quality = (session as any).quality;
-                         const dotClass =
-                           quality === "GOOD"
-                             ? "bg-emerald-400"
-                             : quality === "BAD"
-                             ? "bg-red-500"
-                             : quality === "REGULAR"
-                             ? "bg-amber-400"
-                             : "bg-gray-500";
-                         const qualityLabel =
-                           quality === "GOOD"
-                             ? "Good"
-                             : quality === "BAD"
-                             ? "Not good"
-                             : quality === "REGULAR"
-                             ? "Regular"
-                             : null;
-                         return (
-                           <li
-                             key={session.id}
-                             className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer border ${
-                               selectedSession && selectedSession.id === session.id
-                                 ? "bg-white/10 border-gold-400/70"
-                                 : "bg-white/5 border-white/10 hover:bg-white/10"
-                             }`}
-                             onClick={() => setSelectedSessionId(session.id)}
-                           >
-                             <div className="mr-3 flex items-center gap-2">
-                               <span className={`h-2 w-2 rounded-full ${dotClass}`} />
-                               <div>
-                                 <div className="text-sm font-medium">
-                                   {session.name || "Session"}
-                                 </div>
-                                 <div className="text-xs text-gray-400">
-                                   {new Date(session.startTime).toLocaleString()}
-                                 </div>
-                                 {qualityLabel && (
-                                   <div className="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] text-black" style={{
-                                     backgroundColor:
-                                       quality === "GOOD"
-                                         ? "#22c55e"
-                                         : quality === "BAD"
-                                         ? "#ef4444"
-                                         : "#f97316",
-                                   }}>
-                                     {qualityLabel}
-                                   </div>
-                                 )}
-                               </div>
-                             </div>
-
-                          <button
-                            className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteSession(session.id);
-                            }}
-                            disabled={deleting === session.id}
+                        const quality = (session as any).quality;
+                        const dotClass =
+                          quality === "GOOD"
+                            ? "bg-emerald-400"
+                            : quality === "BAD"
+                            ? "bg-red-500"
+                            : quality === "REGULAR"
+                            ? "bg-amber-400"
+                            : "bg-gray-500";
+                        const qualityLabel =
+                          quality === "GOOD"
+                            ? "Good"
+                            : quality === "BAD"
+                            ? "Not good"
+                            : quality === "REGULAR"
+                            ? "Regular"
+                            : null;
+                        return (
+                          <li
+                            key={session.id}
+                            className={`flex items-center justify-between rounded-xl px-3 py-2 cursor-pointer border ${
+                              selectedSession && selectedSession.id === session.id
+                                ? "bg-white/10 border-gold-400/70"
+                                : "bg-white/5 border-white/10 hover:bg-white/10"
+                            }`}
+                            onClick={() => setSelectedSessionId(session.id)}
                           >
-                            {deleting === session.id ? "Deleting..." : "Delete"}
-                          </button>
-                        </li>
-                      ))}
+                            <div className="mr-3 flex items-center gap-2">
+                              <span className={`h-2 w-2 rounded-full ${dotClass}`} />
+                              <div>
+                                <div className="text-sm font-medium">
+                                  {session.name || "Session"}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {new Date(session.startTime).toLocaleString()}
+                                </div>
+                                {qualityLabel && (
+                                  <div
+                                    className="mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[10px] text-black"
+                                    style={{
+                                      backgroundColor:
+                                        quality === "GOOD"
+                                          ? "#22c55e"
+                                          : quality === "BAD"
+                                          ? "#ef4444"
+                                          : "#f97316",
+                                    }}
+                                  >
+                                    {qualityLabel}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <button
+                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteSession(session.id);
+                              }}
+                              disabled={deleting === session.id}
+                            >
+                              {deleting === session.id ? "Deleting..." : "Delete"}
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   </div>
                   <div className="lg:col-span-2">

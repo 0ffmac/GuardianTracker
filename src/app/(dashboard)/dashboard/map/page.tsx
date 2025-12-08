@@ -219,22 +219,6 @@ export default function DashboardMapPage() {
     }
   }, [selectedSessionId, trackingSessions]);
 
-  // When the quality filter changes, ensure the selected session is still visible
-  useEffect(() => {
-    if (filteredTrackingSessions.length === 0) {
-      setSelectedSessionId(null);
-      return;
-    }
-    if (!selectedSessionId) {
-      setSelectedSessionId(filteredTrackingSessions[0].id);
-      return;
-    }
-    const exists = filteredTrackingSessions.some((s) => s.id === selectedSessionId);
-    if (!exists) {
-      setSelectedSessionId(filteredTrackingSessions[0].id);
-    }
-  }, [filteredTrackingSessions, selectedSessionId]);
-
   // Check for suspicious devices near the last known location of this session's primary device
   useEffect(() => {
     if (!hasMounted) return;
@@ -316,6 +300,22 @@ export default function DashboardMapPage() {
       return name.includes(term) || dateLabel.includes(term);
     });
   }, [trackingSessions, sessionQualityFilter, sessionSearch]);
+
+  // When the quality or search filter changes, ensure the selected session is still visible
+  useEffect(() => {
+    if (filteredTrackingSessions.length === 0) {
+      setSelectedSessionId(null);
+      return;
+    }
+    if (!selectedSessionId) {
+      setSelectedSessionId(filteredTrackingSessions[0].id);
+      return;
+    }
+    const exists = filteredTrackingSessions.some((s) => s.id === selectedSessionId);
+    if (!exists) {
+      setSelectedSessionId(filteredTrackingSessions[0].id);
+    }
+  }, [filteredTrackingSessions, selectedSessionId]);
 
   // Stats for the selected session
   const stats = useMemo(() => {
