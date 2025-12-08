@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { MapPin, Clock, TrendingUp, Activity, CalendarDays } from "lucide-react";
+import { MapPin, Clock, TrendingUp, Activity, CalendarDays, DownloadCloud, Bluetooth } from "lucide-react";
  
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const Google3DMap = dynamic(() => import("@/components/Google3DMap"), { ssr: false });
@@ -360,6 +360,23 @@ export default function DashboardMapPage() {
     return { distance, duration, points, deviceIds, start, end };
   }, [locations]);
 
+  const selectedSession =
+    trackingSessions.find((s) => s.id === selectedSessionId) || null;
+
+  let togglePillActiveBg = "bg-gold-500";
+  let toggleRingActive = "ring-2 ring-gold-400/40";
+
+  if (selectedSession?.quality === "GOOD") {
+    togglePillActiveBg = "bg-emerald-400";
+    toggleRingActive = "ring-2 ring-emerald-500/40";
+  } else if (selectedSession?.quality === "REGULAR") {
+    togglePillActiveBg = "bg-amber-400";
+    toggleRingActive = "ring-2 ring-amber-400/40";
+  } else if (selectedSession?.quality === "BAD") {
+    togglePillActiveBg = "bg-red-500";
+    toggleRingActive = "ring-2 ring-red-500/40";
+  }
+
   return (
     <div className="min-h-screen bg-background text-white">
       <Navbar />
@@ -406,7 +423,7 @@ export default function DashboardMapPage() {
                 <p className="text-xs uppercase tracking-wide text-blue-400">Devices</p>
                 <div className="flex items-center gap-2 mt-1">
                   {stats.deviceIds.length === 0 ? (
-                    <span className="text-blue-100">60</span>
+                    <span className="text-blue-100">60</span>
                   ) : (
                     stats.deviceIds.map((id) => (
                       <span
@@ -450,113 +467,170 @@ export default function DashboardMapPage() {
             <div className="text-sm text-red-50">
               Potential stalker devices detected nearby: {" "}
               <span className="font-semibold">{nearbySuspiciousCount}</span>. {" "}
-              See details in Settings 20 Suspicious devices.
+              See details in Settings → Suspicious devices.
             </div>
           </div>
         )}
 
         <div className="mt-4 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <label htmlFor="session-select" className="mr-2">
-                Session:
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-stretch">
+            {/* Session box */}
+            <div className="md:col-span-2 flex flex-col justify-between bg-gold-900/30 border border-gold-400/30 rounded-xl px-3 py-2">
+              <label
+                htmlFor="session-select"
+                className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
+              >
+                Session
               </label>
               <select
-                 id="session-select"
-                  value={selectedSessionId || ""}
-                  onChange={(e) => setSelectedSessionId(e.target.value || null)}
-                  className="w-full md:w-64 p-3 bg-gold-900/40 border border-gold-400/30 rounded-lg text-gold-100 appearance-none cursor-pointer focus:ring-gold-500 focus:border-gold-500 font-semibold"
-                >
-                 {filteredTrackingSessions.map((s) => {
-
-                   const baseLabel = s.name || `Session ${new Date(s.startTime).toLocaleString()}`;
-                   let qualityPrefix = "";
-                   if (s.quality === "GOOD") {
-                     qualityPrefix = "[Good] ";
-                   } else if (s.quality === "BAD") {
-                     qualityPrefix = "[Not good] ";
-                   } else if (s.quality === "REGULAR") {
-                     qualityPrefix = "[Regular] ";
-                   }
-                   return (
-                     <option key={s.id} value={s.id}>
-                       {qualityPrefix}
-                       {baseLabel}
-                     </option>
-                   );
-                 })}
-               </select>
-
+                id="session-select"
+                value={selectedSessionId || ""}
+                onChange={(e) => setSelectedSessionId(e.target.value || null)}
+                className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500 font-semibold"
+              >
+                {filteredTrackingSessions.map((s) => {
+                  const baseLabel = s.name || `Session ${new Date(s.startTime).toLocaleString()}`;
+                  let qualityPrefix = "";
+                  if (s.quality === "GOOD") {
+                    qualityPrefix = "[Good] ";
+                  } else if (s.quality === "BAD") {
+                    qualityPrefix = "[Not good] ";
+                  } else if (s.quality === "REGULAR") {
+                    qualityPrefix = "[Regular] ";
+                  }
+                  return (
+                    <option key={s.id} value={s.id}>
+                      {qualityPrefix}
+                      {baseLabel}
+                    </option>
+                  );
+                })}
+              </select>
             </div>
+
+            {/* Quality box */}
+            <div className="flex flex-col justify-between bg-gold-900/30 border border-gold-400/30 rounded-xl px-3 py-2">
+              <label
+                htmlFor="quality-filter"
+                className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
+              >
+                Quality
+              </label>
+              <select
+                id="quality-filter"
+                value={sessionQualityFilter}
+                onChange={(e) => setSessionQualityFilter(e.target.value as "ALL" | "GOOD" | "REGULAR" | "BAD")}
+                className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+              >
+                <option value="ALL">All tracks</option>
+                <option value="GOOD">Good (green)</option>
+                <option value="REGULAR">Regular (orange)</option>
+                <option value="BAD">Not good (red)</option>
+              </select>
+            </div>
+
+            {/* Search box */}
+            <div className="flex flex-col justify-between bg-gold-900/30 border border-gold-400/30 rounded-xl px-3 py-2">
+              <label
+                htmlFor="search-input"
+                className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
+              >
+                Search
+              </label>
+              <input
+                id="search-input"
+                type="text"
+                value={sessionSearch}
+                onChange={(e) => setSessionSearch(e.target.value)}
+                placeholder="Name or date"
+                className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4 flex justify-end gap-3">
+            {/* Route button */}
+            <button
+              type="button"
+              onClick={() => setShowSnapped((v) => !v)}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                showSnapped ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+              }`}
+              title="Toggle snapped route"
+            >
+              <svg
+                className="w-5 h-5 text-black"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                />
+              </svg>
+            </button>
+
+            {/* Wi-Fi button */}
+            <button
+              type="button"
+              onClick={() => setShowWifiDevices((v) => !v)}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                showWifiDevices ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+              }`}
+              title="Toggle Wi-Fi devices"
+            >
+              <svg
+                className="w-5 h-5 text-black"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0"
+                />
+              </svg>
+            </button>
+
+            {/* Bluetooth button */}
+            <button
+              type="button"
+              onClick={() => setShowBleDevices((v) => !v)}
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                showBleDevices ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+              }`}
+              title="Toggle Bluetooth devices"
+            >
+              <Bluetooth className="w-5 h-5 text-black" />
+            </button>
+
+            {/* Export button */}
             <button
               type="button"
               onClick={handleExportWigle}
               disabled={!selectedSessionId}
-              className="inline-flex items-center justify-center px-4 py-2 rounded-lg bg-gold-500 hover:bg-gold-400 text-black text-sm font-semibold shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gold-500 hover:bg-gold-400 text-black shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Export all to Wigle"
             >
-              Export all to Wigle
+              <span className="sr-only">Export all to Wigle</span>
+              <DownloadCloud className="w-5 h-5" />
             </button>
           </div>
-          <div className="mt-4 flex flex-wrap items-center gap-4">
-            <label className="flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showSnapped}
-                onChange={() => setShowSnapped((v) => !v)}
-                className="form-checkbox h-5 w-5 text-green-500"
-              />
-              <span className="ml-2 text-gold-100 font-medium">
-                Show snapped (map-matched) route
-              </span>
-            </label>
-            {showSnapped && osrmConfidence !== null && (
-               <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
-                 OSRM confidence: {(osrmConfidence * 100).toFixed(1)}%
-               </span>
-             )}
-             <label className="flex items-center cursor-pointer">
-               <input
-                 type="checkbox"
-                 checked={showWifiDevices}
-                 onChange={() => setShowWifiDevices((v) => !v)}
-                 className="form-checkbox h-5 w-5 text-sky-500"
-               />
-               <span className="ml-2 text-gold-100 font-medium">Show Wi-Fi devices</span>
-             </label>
-             <label className="flex items-center cursor-pointer">
-               <input
-                 type="checkbox"
-                 checked={showBleDevices}
-                 onChange={() => setShowBleDevices((v) => !v)}
-                 className="form-checkbox h-5 w-5 text-purple-500"
-               />
-               <span className="ml-2 text-gold-100 font-medium">Show Bluetooth devices</span>
-             </label>
-             <div className="flex items-center gap-2 text-sm">
-               <span className="text-gold-100 font-medium">Quality</span>
-               <select
-                 value={sessionQualityFilter}
-                 onChange={(e) => setSessionQualityFilter(e.target.value as "ALL" | "GOOD" | "REGULAR" | "BAD")}
-                 className="bg-gold-900/40 border border-gold-400/40 rounded-lg px-3 py-1 text-xs text-gold-100 focus:outline-none focus:ring-gold-500 focus:border-gold-500"
-               >
-                 <option value="ALL">All tracks</option>
-                 <option value="GOOD">Good (green)</option>
-                 <option value="REGULAR">Regular (orange)</option>
-                 <option value="BAD">Not good (red)</option>
-               </select>
-             </div>
-             <div className="flex items-center gap-2 text-sm">
-               <span className="text-gold-100 font-medium">Search</span>
-               <input
-                 type="text"
-                 value={sessionSearch}
-                 onChange={(e) => setSessionSearch(e.target.value)}
-                 placeholder="Name or date"
-                 className="bg-gold-900/40 border border-gold-400/40 rounded-lg px-3 py-1 text-xs text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-gold-500 focus:border-gold-500"
-               />
-             </div>
-           </div>
 
+
+           {showSnapped && osrmConfidence !== null && (
+
+            <div className="mt-3">
+              <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
+                OSRM confidence: {(osrmConfidence * 100).toFixed(1)}%
+              </span>
+            </div>
+          )}
         </div>
 
         <div className="h-[500px] rounded-xl overflow-hidden mt-4">
@@ -586,44 +660,7 @@ export default function DashboardMapPage() {
           )}
         </div>
 
-        <div className="mt-6 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20 overflow-x-auto">
-          <h2 className="text-xl font-semibold mb-4">Points for Selected Session</h2>
-          {locations.length === 0 ? (
-            <p className="text-sm text-gold-300/80">
-              No points recorded for this session yet.
-            </p>
-          ) : (
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="text-left text-gold-300/80 border-b border-gold-400/30">
-                  <th className="py-2 pr-4">#</th>
-                  <th className="py-2 pr-4">Time</th>
-                  <th className="py-2 pr-4">Latitude</th>
-                  <th className="py-2 pr-4">Longitude</th>
-                </tr>
-              </thead>
-              <tbody>
-                {locations.map((loc, index) => (
-                  <tr
-                    key={loc.id}
-                    className="border-b border-gold-400/10 last:border-b-0"
-                  >
-                    <td className="py-1 pr-4 text-gold-100">{index + 1}</td>
-                    <td className="py-1 pr-4 text-gold-100">
-                      {new Date(loc.timestamp).toLocaleString()}
-                    </td>
-                    <td className="py-1 pr-4 text-gold-100 font-mono text-xs">
-                      {loc.latitude.toFixed(6)}
-                    </td>
-                    <td className="py-1 pr-4 text-gold-100 font-mono text-xs">
-                      {loc.longitude.toFixed(6)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </div>
+        <div className="mt-6 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20"></div>
       </main>
       <Footer />
     </div>

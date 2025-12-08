@@ -80,10 +80,42 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     return NextResponse.json({ error: "No valid fields to update" }, { status: 400 });
   }
 
-  const updated = await prisma.trackingSession.update({
-    where: { id: trackingSessionId },
-    data: updateData,
-  });
+  try {
+    const updated = await prisma.trackingSession.update({
+      where: { id: trackingSessionId },
+      data: updateData,
+    });
 
-  return NextResponse.json({ trackingSession: updated });
+    return NextResponse.json({ trackingSession: updated });
+  } catch (err: any) {
+    const message = typeof err?.message === "string" ? err.message : "Failed to update tracking session";
+
+    // If this deployment doesnt yet have the `quality` column,
+    // Prisma will throw an "Unknown argument `quality`" ValidationError.
+    // In that case, retry without `quality` so the rest of the update succeeds.
+    if (message.includes("Unknown argument `quality`")) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { quality, ...rest } = updateData;
+      if (Object.keys(rest).length === 0) {
+        return NextResponse.json({ error: "Tracking session quality is not supported on this deployment yet." }, { status: 400 });
+      }
+
+      try {
+        const updatedWithoutQuality = await prisma.trackingSession.update({
+          where: { id: trackingSessionId },
+          data: rest,
+        });
+        return NextResponse.json({
+          trackingSession: updatedWithoutQuality,
+          warning: "quality field is not available on this deployment; updated other fields only.",
+        });
+      } catch (innerErr: any) {
+        const innerMessage =
+          typeof innerErr?.message === "string" ? innerErr.message : "Failed to update tracking session";
+        return NextResponse.json({ error: innerMessage }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
