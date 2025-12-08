@@ -115,11 +115,13 @@ export async function DELETE(
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const ownerId = userId;
   const trustedContactId = params.id;
 
   await prisma.trustedContact.deleteMany({
-    where: { id: trustedContactId, ownerId },
+    where: {
+      id: trustedContactId,
+      OR: [{ ownerId: userId }, { contactId: userId }],
+    },
   });
 
   return NextResponse.json({ success: true });

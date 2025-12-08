@@ -23,6 +23,7 @@ export default function SettingsPage() {
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactDeletingId, setContactDeletingId] = useState<string | null>(null);
   const [inviteUpdatingId, setInviteUpdatingId] = useState<string | null>(null);
+  const [trustedDeletingId, setTrustedDeletingId] = useState<string | null>(null);
   const [shareLocationWithTrustedContacts, setShareLocationWithTrustedContacts] = useState<boolean | null>(null);
   const [useGoogle3DMaps, setUseGoogle3DMaps] = useState(false);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState("");
@@ -461,6 +462,24 @@ export default function SettingsPage() {
       console.error(err);
     } finally {
       setInviteUpdatingId(null);
+    }
+  }
+
+  async function handleDeleteTrustedBy(id: string) {
+    setTrustedDeletingId(id);
+    try {
+      const res = await fetch(`/api/contacts/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        showToast("Failed to remove contact", "error");
+        return;
+      }
+      setTrustedBy((prev) => prev.filter((t) => t.id !== id));
+      showToast("Contact removed");
+    } catch (err) {
+      console.error("Failed to delete trusted contact", err);
+      showToast("Failed to remove contact", "error");
+    } finally {
+      setTrustedDeletingId(null);
     }
   }
 
@@ -997,29 +1016,45 @@ export default function SettingsPage() {
                                 <button
                                   className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition text-xs"
                                   onClick={() => handleInviteStatus(t.id, "ACCEPTED")}
-                                  disabled={inviteUpdatingId === t.id}
+                                  disabled={inviteUpdatingId === t.id || trustedDeletingId === t.id}
                                 >
                                   {inviteUpdatingId === t.id ? "Accepting..." : "Accept"}
                                 </button>
                                 <button
                                   className="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition text-xs"
                                   onClick={() => handleInviteStatus(t.id, "DECLINED")}
-                                  disabled={inviteUpdatingId === t.id}
+                                  disabled={inviteUpdatingId === t.id || trustedDeletingId === t.id}
                                 >
                                   {inviteUpdatingId === t.id ? "Declining..." : "Decline"}
                                 </button>
                               </>
                             )}
                             {t.status === "ACCEPTED" && (
-                              <span className="px-2 py-1 rounded-full bg-emerald-900/60 text-emerald-200 text-[11px] font-semibold">
-                                Accepted
-                              </span>
+                              <>
+                                <span className="px-2 py-1 rounded-full bg-emerald-900/60 text-emerald-200 text-[11px] font-semibold">
+                                  Accepted
+                                </span>
+                                <button
+                                  className="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition text-xs"
+                                  onClick={() => handleInviteStatus(t.id, "DECLINED")}
+                                  disabled={inviteUpdatingId === t.id || trustedDeletingId === t.id}
+                                >
+                                  {inviteUpdatingId === t.id ? "Revoking..." : "Revoke emergency"}
+                                </button>
+                              </>
                             )}
                             {t.status === "DECLINED" && (
                               <span className="px-2 py-1 rounded-full bg-neutral-800/80 text-neutral-300 text-[11px] font-semibold">
                                 Declined
                               </span>
                             )}
+                            <button
+                              className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs"
+                              onClick={() => handleDeleteTrustedBy(t.id)}
+                              disabled={trustedDeletingId === t.id || inviteUpdatingId === t.id}
+                            >
+                              {trustedDeletingId === t.id ? "Removing..." : "Remove"}
+                            </button>
                           </div>
                         </li>
                       ))}
