@@ -764,7 +764,7 @@ export default function SettingsPage() {
                       <input
                         name="name"
                         defaultValue={effectiveUser.name || ""}
-                        className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                        className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                         placeholder="Your name"
                       />
                     </div>
@@ -774,7 +774,7 @@ export default function SettingsPage() {
                         type="email"
                         name="email"
                         defaultValue={effectiveUser.email || ""}
-                        className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                        className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                         placeholder="you@example.com"
                       />
                     </div>
@@ -783,7 +783,7 @@ export default function SettingsPage() {
                       <input
                         name="image"
                         defaultValue={effectiveUser.image || ""}
-                        className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                        className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                         placeholder="https://..."
                       />
                     </div>
@@ -853,7 +853,7 @@ export default function SettingsPage() {
                        type="text"
                        value={googleMapsApiKey}
                        onChange={(e) => setGoogleMapsApiKey(e.target.value)}
-                       className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                       className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                        placeholder="Paste your Google Maps API key"
                      />
                      <p className="mt-1 text-[11px] text-gray-400">
@@ -914,7 +914,7 @@ export default function SettingsPage() {
                 >
                   <input
                     type="email"
-                    className="flex-1 px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                    className="flex-1 px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                     placeholder="Contact's email address"
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
@@ -1309,7 +1309,7 @@ export default function SettingsPage() {
                                type="text"
                                value={sessionNameDraft}
                                onChange={(e) => setSessionNameDraft(e.target.value)}
-                               className="w-full px-3 py-2 rounded-lg bg-white/90 text-black text-sm focus:outline-none"
+                               className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                                placeholder="e.g. Morning commute, City test drive"
                              />
                              <div className="text-[11px] text-gray-400 mt-1">
@@ -1761,7 +1761,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-gray-300">Type</span>
                 <select
-                  className="bg-white/90 text-black text-sm rounded-lg px-2 py-1"
+                  className="bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 rounded-lg px-2 py-1 appearance-none focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                   value={alertType}
                   onChange={(e) => setAlertType(e.target.value as "sent" | "received")}
                 >
@@ -1772,7 +1772,7 @@ export default function SettingsPage() {
               <div className="flex items-center gap-2 text-sm">
                 <span className="text-gray-300">Status</span>
                 <select
-                  className="bg-white/90 text-black text-sm rounded-lg px-2 py-1"
+                  className="bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 rounded-lg px-2 py-1 appearance-none focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                   value={alertStatus}
                   onChange={(e) => setAlertStatus(e.target.value)}
                 >
