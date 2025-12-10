@@ -2,8 +2,8 @@
 
 import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo } from "react";
-import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
+
 import { Footer } from "@/components/Footer";
 import { MapPin, Clock, TrendingUp, Activity, CalendarDays, DownloadCloud, Bluetooth, ChevronDown } from "lucide-react";
  
@@ -77,18 +77,34 @@ export default function DashboardMapPage() {
   const [useGoogle3DMaps, setUseGoogle3DMaps] = useState(false);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
 
-  const searchParams = useSearchParams();
-  const focusKind = searchParams.get("focusKind");
-  const focusKey = searchParams.get("focusKey");
- 
-   const handleExportWigle = () => {
+  const [focusKind, setFocusKind] = useState<"wifi" | "ble" | null>(null);
+  const [focusKey, setFocusKey] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const kind = params.get("focusKind");
+      const key = params.get("focusKey");
+      if (kind === "wifi" || kind === "ble") {
+        setFocusKind(kind);
+      }
+      if (key) {
+        setFocusKey(key);
+      }
+    } catch {
+      // ignore malformed URLs
+    }
+  }, []);
+
+  const handleExportWigle = () => {
     if (!selectedSessionId) return;
     const url = `/api/export/wigle?trackingSessionId=${encodeURIComponent(selectedSessionId)}`;
     if (typeof window !== "undefined") {
       window.open(url, "_blank");
     }
   };
+
 
   const [nearbySuspiciousCount, setNearbySuspiciousCount] = useState<number | null>(null);
   const [nearbySuspiciousLoading, setNearbySuspiciousLoading] = useState(false);
