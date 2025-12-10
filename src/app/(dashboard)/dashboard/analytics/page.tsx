@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Navbar } from "@/components/Navbar";
-import { BarChart3, Bell, ShieldAlert, AlertTriangle, Activity } from "lucide-react";
+import { BarChart3, Bell, ShieldAlert, AlertTriangle, Activity, Filter } from "lucide-react";
 
 interface AlertsAnalytics {
   range: { from: string; to: string };
@@ -48,6 +48,51 @@ interface AlertSummary {
   createdAt: string;
 }
 
+interface TrackingSession {
+  id: string;
+  name?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  quality?: "GOOD" | "REGULAR" | "BAD" | null;
+}
+
+interface EnvironmentDeviceWifi {
+  kind: "wifi";
+  id: string;
+  ssid: string | null;
+  bssid: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  scanCount: number;
+  hasSessions: boolean;
+}
+
+interface EnvironmentDeviceBle {
+  kind: "ble";
+  id: string;
+  name: string | null;
+  address: string;
+  firstSeen: string | null;
+  lastSeen: string | null;
+  scanCount: number;
+  hasSessions: boolean;
+}
+
+interface SessionEnvironment {
+  wifi: {
+    ssid: string | null;
+    bssid: string | null;
+    count: number;
+    avgRssi: number | null;
+  }[];
+  ble: {
+    name: string | null;
+    address: string | null;
+    count: number;
+    avgRssi: number | null;
+  }[];
+}
+
 function formatShortDate(value: string) {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
@@ -82,6 +127,21 @@ export default function DashboardAnalyticsPage() {
   const [selectedAlertId, setSelectedAlertId] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [trackingSessions, setTrackingSessions] = useState<TrackingSession[]>([]);
+  const [sessionsLoading, setSessionsLoading] = useState(false);
+  const [sessionsError, setSessionsError] = useState<string | null>(null);
+  const [selectedSessionIds, setSelectedSessionIds] = useState<string[]>([]);
+  const [sessionEnvironments, setSessionEnvironments] = useState<
+    Record<string, SessionEnvironment>
+  >({});
+  const [envWifiDevices, setEnvWifiDevices] = useState<EnvironmentDeviceWifi[]>([]);
+  const [envBleDevices, setEnvBleDevices] = useState<EnvironmentDeviceBle[]>([]);
+  const [envDevicesLoading, setEnvDevicesLoading] = useState(false);
+  const [envDevicesError, setEnvDevicesError] = useState<string | null>(null);
+  const [sessionSearch, setSessionSearch] = useState("");
+  const [deviceKindFilter, setDeviceKindFilter] = useState<"all" | "wifi" | "ble">("all");
+  const [hideTrusted, setHideTrusted] = useState(true);
 
   // Compute range and previous period
   const { fromIso, toIso, prevFromIso, prevToIso } = useMemo(() => {
@@ -188,6 +248,135 @@ export default function DashboardAnalyticsPage() {
     void fetchAnalytics();
   }, [fromIso, toIso, daysBack, selectedAlertId, alertTypeFilter, compare, prevFromIso, prevToIso]);
 
+  useEffect(() => {
+    const fetchSessionsAndDevices = async () => {
+      setSessionsLoading(true);
+      setEnvDevicesLoading(true);
+      setSessionsError(null);
+      setEnvDevicesError(null);
+      try {
+        const [sessionsRes, devicesRes] = await Promise.all([
+          fetch("/api/locations"),
+          fetch("/api/environment/devices"),
+        ]);
+
+        if (!sessionsRes.ok) {
+          throw new Error("Failed to load tracking sessions");
+        }
+        if (!devicesRes.ok) {
+          throw new Error("Failed to load environment devices");
+        }
+
+        const sessionsData = await sessionsRes.json();
+        const devicesData = await devicesRes.json();
+
+        const sessions: TrackingSession[] = (sessionsData.trackingSessions || []).map(
+          (s: any) => ({
+            id: String(s.id),
+            name: s.name ?? null,
+            startTime: s.startTime ?? null,
+            endTime: s.endTime ?? null,
+            quality: (s as any).quality ?? null,
+          })
+        );
+
+        setTrackingSessions(sessions);
+
+        const wifiDevices: EnvironmentDeviceWifi[] = (devicesData.wifi || [])
+          .map((w: any) => ({
+            kind: "wifi" as const,
+            id: String(w.id ?? w.bssid ?? ""),
+            ssid: w.ssid ?? null,
+            bssid: w.bssid ?? w.id ?? "",
+            firstSeen: w.firstSeen ?? null,
+            lastSeen: w.lastSeen ?? null,
+            scanCount: w.scanCount ?? 0,
+            hasSessions: Boolean(w.hasSessions),
+          }))
+          .filter((w: EnvironmentDeviceWifi) => w.bssid);
+
+        const bleDevices: EnvironmentDeviceBle[] = (devicesData.ble || [])
+          .map((b: any) => ({
+            kind: "ble" as const,
+            id: String(b.id ?? b.address ?? ""),
+            name: b.name ?? null,
+            address: b.address ?? b.id ?? "",
+            firstSeen: b.firstSeen ?? null,
+            lastSeen: b.lastSeen ?? null,
+            scanCount: b.scanCount ?? 0,
+            hasSessions: Boolean(b.hasSessions),
+          }))
+          .filter((b: EnvironmentDeviceBle) => b.address);
+
+        setEnvWifiDevices(wifiDevices);
+        setEnvBleDevices(bleDevices);
+      } catch (err: any) {
+        console.error("Failed to load sessions/devices", err);
+        setSessionsError("Failed to load tracking sessions.");
+        setEnvDevicesError("Failed to load environment devices.");
+      } finally {
+        setSessionsLoading(false);
+        setEnvDevicesLoading(false);
+      }
+    };
+
+    void fetchSessionsAndDevices();
+  }, []);
+
+  useEffect(() => {
+    const missing = selectedSessionIds.filter((id) => !sessionEnvironments[id]);
+
+    if (missing.length === 0) return;
+    let cancelled = false;
+
+    const fetchEnvironments = async () => {
+      try {
+        const results = await Promise.all(
+          missing.map(async (id) => {
+            const res = await fetch(`/api/tracking_session/${id}/environment`);
+            if (!res.ok) {
+              throw new Error("Failed to load session environment");
+            }
+            const data = await res.json();
+            const env: SessionEnvironment = {
+              wifi: (data.wifi || []).map((w: any) => ({
+                ssid: w.ssid ?? null,
+                bssid: w.bssid ?? null,
+                count: w.count ?? 0,
+                avgRssi: w.avgRssi ?? null,
+              })),
+              ble: (data.ble || []).map((b: any) => ({
+                name: b.name ?? null,
+                address: b.address ?? null,
+                count: b.count ?? 0,
+                avgRssi: b.avgRssi ?? null,
+              })),
+            };
+            return { id, env };
+          })
+        );
+
+        if (cancelled) return;
+
+        setSessionEnvironments((prev) => {
+          const next = { ...prev } as Record<string, SessionEnvironment>;
+          for (const { id, env } of results) {
+            next[id] = env;
+          }
+          return next;
+        });
+      } catch (err) {
+        console.error("Failed to load one or more session environments", err);
+      }
+    };
+
+    void fetchEnvironments();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedSessionIds, sessionEnvironments]);
+
   const maxBucketTotal = useMemo(() => {
     if (!alertsAnalytics) return 0;
     return alertsAnalytics.timeBuckets.reduce(
@@ -196,7 +385,177 @@ export default function DashboardAnalyticsPage() {
     );
   }, [alertsAnalytics]);
 
+  const sessionsInRange = useMemo(() => {
+    if (trackingSessions.length === 0) return [] as TrackingSession[];
+    if (!alertsAnalytics) return trackingSessions;
+
+    const from = new Date(alertsAnalytics.range.from);
+    const to = new Date(alertsAnalytics.range.to);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      return trackingSessions;
+    }
+
+    return trackingSessions.filter((s) => {
+      const start = s.startTime ? new Date(s.startTime) : null;
+      const end = s.endTime ? new Date(s.endTime) : null;
+      if (!start && !end) return true;
+      const effectiveStart = start || end;
+      const effectiveEnd = end || start;
+      if (!effectiveStart || !effectiveEnd) return false;
+      return effectiveEnd >= from && effectiveStart <= to;
+    });
+  }, [trackingSessions, alertsAnalytics]);
+
+  const filteredSessions = useMemo(() => {
+    const base = sessionsInRange;
+    if (!sessionSearch.trim()) return base;
+    const q = sessionSearch.trim().toLowerCase();
+    return base.filter((s) => {
+      const name = (s.name || "").toLowerCase();
+      const start = s.startTime
+        ? new Date(s.startTime).toLocaleString().toLowerCase()
+        : "";
+      return name.includes(q) || start.includes(q);
+    });
+  }, [sessionsInRange, sessionSearch]);
+
+  const trustedWifiKeys = useMemo(
+    () => new Set(envWifiDevices.map((w) => w.bssid)),
+    [envWifiDevices]
+  );
+  const trustedBleKeys = useMemo(
+    () => new Set(envBleDevices.map((b) => b.address)),
+    [envBleDevices]
+  );
+
+  type OverlapDevice = {
+    kind: "wifi" | "ble";
+    key: string;
+    label: string;
+    totalCount: number;
+    sessionCount: number;
+    sessions: { id: string; name: string; count: number }[];
+    isTrusted: boolean;
+    trustedSourceLabel?: string | null;
+  };
+
+  const { overlapDevices, suspiciousOverlapCount } = useMemo(() => {
+    const wifiMap = new Map<string, OverlapDevice & { sessionIds: Set<string> }>();
+    const bleMap = new Map<string, OverlapDevice & { sessionIds: Set<string> }>();
+
+    const getSessionName = (id: string) => {
+      const s = trackingSessions.find((ts) => ts.id === id);
+      if (!s) return "Session";
+      const base = s.name || "Session";
+      if (!s.startTime) return base;
+      try {
+        const d = new Date(s.startTime);
+        if (Number.isNaN(d.getTime())) return base;
+        return `${base} – ${d.toLocaleString()}`;
+      } catch {
+        return base;
+      }
+    };
+
+    for (const sessionId of selectedSessionIds) {
+      const env = sessionEnvironments[sessionId];
+      if (!env) continue;
+
+      env.wifi.forEach((w) => {
+        const key = w.bssid || w.ssid;
+        if (!key) return;
+        const envMatch = envWifiDevices.find((env) => env.bssid === key);
+        const existing = wifiMap.get(key) || {
+          kind: "wifi" as const,
+          key,
+          label: w.ssid || w.bssid || "Wi‑Fi network",
+          totalCount: 0,
+          sessionCount: 0,
+          sessions: [],
+          isTrusted: trustedWifiKeys.has(key),
+          trustedSourceLabel: envMatch ? envMatch.ssid || envMatch.bssid : null,
+          sessionIds: new Set<string>(),
+        };
+        if (!existing.sessionIds.has(sessionId)) {
+          existing.sessionIds.add(sessionId);
+          existing.sessionCount = existing.sessionIds.size;
+          existing.sessions.push({
+            id: sessionId,
+            name: getSessionName(sessionId),
+            count: w.count ?? 0,
+          });
+        } else {
+          const sEntry = existing.sessions.find((s) => s.id === sessionId);
+          if (sEntry) sEntry.count += w.count ?? 0;
+        }
+        existing.totalCount += w.count ?? 0;
+        existing.isTrusted = existing.isTrusted || trustedWifiKeys.has(key);
+        wifiMap.set(key, existing);
+      });
+
+      env.ble.forEach((b) => {
+        const key = b.address || b.name;
+        if (!key) return;
+        const envMatch = envBleDevices.find((env) => env.address === key);
+        const existing = bleMap.get(key) || {
+          kind: "ble" as const,
+          key,
+          label: b.name || b.address || "Bluetooth device",
+          totalCount: 0,
+          sessionCount: 0,
+          sessions: [],
+          isTrusted: trustedBleKeys.has(key),
+          trustedSourceLabel: envMatch ? envMatch.name || envMatch.address : null,
+          sessionIds: new Set<string>(),
+        };
+        if (!existing.sessionIds.has(sessionId)) {
+          existing.sessionIds.add(sessionId);
+          existing.sessionCount = existing.sessionIds.size;
+          existing.sessions.push({
+            id: sessionId,
+            name: getSessionName(sessionId),
+            count: b.count ?? 0,
+          });
+        } else {
+          const sEntry = existing.sessions.find((s) => s.id === sessionId);
+          if (sEntry) sEntry.count += b.count ?? 0;
+        }
+        existing.totalCount += b.count ?? 0;
+        existing.isTrusted = existing.isTrusted || trustedBleKeys.has(key);
+        bleMap.set(key, existing);
+      });
+    }
+
+    const all: OverlapDevice[] = [
+      ...Array.from(wifiMap.values()),
+      ...Array.from(bleMap.values()),
+    ].filter((d) => d.sessionCount >= 2);
+
+    const suspiciousCount = all.filter((d) => !d.isTrusted).length;
+
+    all.sort((a, b) => b.sessionCount - a.sessionCount || b.totalCount - a.totalCount);
+
+    return { overlapDevices: all, suspiciousOverlapCount: suspiciousCount };
+  }, [
+    selectedSessionIds,
+    sessionEnvironments,
+    trackingSessions,
+    trustedWifiKeys,
+    trustedBleKeys,
+    envWifiDevices,
+    envBleDevices,
+  ]);
+
+  const filteredOverlapDevices = useMemo(() => {
+    return overlapDevices.filter((d) => {
+      if (deviceKindFilter !== "all" && d.kind !== deviceKindFilter) return false;
+      if (hideTrusted && d.isTrusted) return false;
+      return true;
+    });
+  }, [overlapDevices, deviceKindFilter, hideTrusted]);
+
   const totalSuspicious = suspiciousAnalytics?.topDevices.length || 0;
+
   const totalSeenNearAlert = suspiciousAnalytics?.topDevices.filter((d) => d.seenNearAlert)
     .length || 0;
 
@@ -217,7 +576,7 @@ export default function DashboardAnalyticsPage() {
   return (
     <div className="min-h-screen bg-background text-white">
       <Navbar />
-      <main className="max-w-7xl mx-auto px-6 py-8 pt-24">
+      <main className="max-w-7xl mx-auto px-6 py-10 pt-32">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
           <div>
             <p className="text-sm text-gray-400">Analytics & Threat Intelligence</p>
@@ -557,6 +916,268 @@ export default function DashboardAnalyticsPage() {
             </div>
           </section>
         </div>
+
+        {/* Session correlation section */}
+        <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-300">
+                <Filter className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold">Sessions correlation radar</h2>
+                <p className="text-xs text-gray-400 max-w-xl">
+                  Search across tracking sessions for Wi‑Fi and Bluetooth devices that follow you
+                  between different places in this time range. Known devices from your environment
+                  are marked so you can focus on potential stalker hardware.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-col items-start lg:items-end gap-2 text-xs text-gray-300">
+              <div className="flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span>{filteredSessions.length} sessions in range</span>
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+                  <span>{filteredOverlapDevices.length} devices across ≥2 sessions</span>
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-red-400/40">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  <span>{suspiciousOverlapCount} flagged as non‑trusted</span>
+                </span>
+              </div>
+              {(sessionsLoading || envDevicesLoading) && (
+                <span className="text-[11px] text-gray-400">Loading sessions & environment…</span>
+              )}
+              {(sessionsError || envDevicesError) && (
+                <span className="text-[11px] text-red-400">
+                  {sessionsError || envDevicesError}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-6">
+            {/* Left: Cloudflare-like session filter */}
+            <div className="space-y-4 text-xs">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  Session filter
+                </p>
+                <input
+                  type="text"
+                  value={sessionSearch}
+                  onChange={(e) => setSessionSearch(e.target.value)}
+                  placeholder="Search by name, coffee shop, restaurant, club…"
+                  className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-[11px] text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gold-500"
+                />
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {["cafe", "coffee", "restaurant", "bar", "club", "home"].map((token) => (
+                    <button
+                      key={token}
+                      type="button"
+                      onClick={() =>
+                        setSessionSearch((prev) =>
+                          prev.toLowerCase().includes(token)
+                            ? prev
+                            : prev
+                            ? `${prev} ${token}`
+                            : token
+                        )
+                      }
+                      className="px-2 py-1 rounded-full border border-white/10 bg-black/30 text-[11px] text-gray-200 hover:bg-white/10 transition-colors"
+                    >
+                      {token}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  Sessions in this range
+                </p>
+                {filteredSessions.length === 0 ? (
+                  <p className="text-[11px] text-gray-500">
+                    No sessions match this analytics time window yet.
+                  </p>
+                ) : (
+                  <ul className="space-y-1 max-h-56 overflow-y-auto pr-1">
+                    {filteredSessions.map((s) => {
+                      const isActive = selectedSessionIds.includes(s.id);
+                      const quality = s.quality;
+                      const dotClass =
+                        quality === "GOOD"
+                          ? "bg-emerald-400"
+                          : quality === "BAD"
+                          ? "bg-red-500"
+                          : quality === "REGULAR"
+                          ? "bg-amber-400"
+                          : "bg-gray-500";
+                      return (
+                        <li key={s.id}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedSessionIds((prev) =>
+                                prev.includes(s.id)
+                                  ? prev.filter((id) => id !== s.id)
+                                  : [...prev, s.id]
+                              );
+                            }}
+                            className={`w-full flex items-start justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                              isActive
+                                ? "bg-white/10 border-gold-400/70"
+                                : "bg-white/5 border-white/10 hover:bg-white/10"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2">
+                              <span className={`mt-1 h-2 w-2 rounded-full ${dotClass}`} />
+                              <div>
+                                <div className="text-[11px] font-semibold text-gray-100">
+                                  {s.name || "Session"}
+                                </div>
+                                <div className="text-[10px] text-gray-400">
+                                  {s.startTime
+                                    ? new Date(s.startTime).toLocaleString()
+                                    : "Unknown time"}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-[10px] text-gray-400">
+                              {isActive ? "Selected" : "Tap to include"}
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+
+              <div className="border-t border-white/10 pt-3">
+                <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                  Device kind
+                </p>
+                <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/10 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setDeviceKindFilter("all")}
+                    className={`px-2 py-1 rounded-full text-[11px] ${
+                      deviceKindFilter === "all" ? "bg-white text-black" : "text-gray-300"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeviceKindFilter("wifi")}
+                    className={`px-2 py-1 rounded-full text-[11px] ${
+                      deviceKindFilter === "wifi" ? "bg-white text-black" : "text-gray-300"
+                    }`}
+                  >
+                    Wi‑Fi
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeviceKindFilter("ble")}
+                    className={`px-2 py-1 rounded-full text-[11px] ${
+                      deviceKindFilter === "ble" ? "bg-white text-black" : "text-gray-300"
+                    }`}
+                  >
+                    Bluetooth
+                  </button>
+                </div>
+
+                <label className="mt-3 flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={hideTrusted}
+                    onChange={(e) => setHideTrusted(e.target.checked)}
+                    className="h-3 w-3"
+                  />
+                  <span className="text-[11px]">
+                    Hide networks and devices already known in my environment
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Right: Overlapping devices table */}
+            <div className="overflow-x-auto">
+              {selectedSessionIds.length < 2 ? (
+                <p className="text-sm text-gray-400">
+                  Select at least two sessions on the left to see devices that follow you between
+                  different places (for example a coffee shop, a restaurant and later a club).
+                </p>
+              ) : filteredOverlapDevices.length === 0 ? (
+                <p className="text-sm text-gray-400">
+                  No overlapping devices found for the current filters. Try including more sessions
+                  or showing trusted devices as well.
+                </p>
+              ) : (
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-400 border-b border-white/10 text-[11px]">
+                      <th className="py-2 pr-4">Device</th>
+                      <th className="py-2 pr-4">Kind</th>
+                      <th className="py-2 pr-4">Sessions</th>
+                      <th className="py-2 pr-4">Total sightings</th>
+                      <th className="py-2 pr-4">Trusted</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOverlapDevices.map((d) => (
+                      <tr
+                        key={d.kind + d.key}
+                        className="border-b border-white/5 last:border-b-0 text-xs"
+                      >
+                        <td className="py-1 pr-4 text-gray-100">{d.label}</td>
+                        <td className="py-1 pr-4 text-gray-300">
+                          {d.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"}
+                        </td>
+                        <td className="py-1 pr-4">
+                          <div className="flex flex-wrap gap-1">
+                            {d.sessions.map((s) => (
+                              <span
+                                key={s.id}
+                                className="inline-flex items-center rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-gray-100 border border-white/10"
+                              >
+                                <span className="truncate max-w-[140px]">{s.name}</span>
+                                <span className="ml-1 text-gray-400">×{s.count}</span>
+                              </span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="py-1 pr-4 text-gray-100">{d.totalCount}</td>
+                        <td className="py-1 pr-4">
+                          {d.isTrusted ? (
+                            <div className="inline-flex flex-wrap items-center gap-1">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] text-emerald-200 border border-emerald-400/40">
+                                known
+                              </span>
+                              {d.trustedSourceLabel && (
+                                <span className="text-[10px] text-emerald-200">
+                                  {d.trustedSourceLabel}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-red-500/15 px-2 py-0.5 text-[10px] text-red-200 border border-red-400/40">
+                              possible tracker
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </section>
 
         {/* Suspicious devices table */}
         <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-red-400/20 mb-10">
