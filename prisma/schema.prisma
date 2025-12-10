@@ -46,10 +46,6 @@ model User {
    sentAudioMessages AudioMessage[]  @relation("AudioSender") // Audio messages sent by this user
    receivedAudioMessages AudioMessage[] @relation("AudioReceiver") // Audio messages received by this user
 
-   // WebRTC call relations
-   outgoingCalls CallSession[] @relation("CallerSessions")
-   incomingCalls CallSession[] @relation("CalleeSessions")
-   callIceCandidates CallIceCandidate[] @relation("UserCallIceCandidates")
  }
 
 
@@ -321,38 +317,3 @@ model AlertRecipient {
     @@index([deviceId])
   }
 
-  /// WebRTC call session for 1:1 audio/video
-  model CallSession {
-    id        String   @id @default(cuid())
-    callerId  String
-    calleeId  String
-    status    String   @default("RINGING") // RINGING, IN_PROGRESS, ENDED, DECLINED, MISSED
-    offerSdp  String?
-    answerSdp String?
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
-
-    caller User @relation("CallerSessions", fields: [callerId], references: [id], onDelete: Cascade)
-    callee User @relation("CalleeSessions", fields: [calleeId], references: [id], onDelete: Cascade)
-    iceCandidates CallIceCandidate[]
-
-    @@index([callerId])
-    @@index([calleeId])
-  }
-
-  /// Individual ICE candidates exchanged between peers
-  model CallIceCandidate {
-    id        String   @id @default(cuid())
-    callId    String
-    fromUserId String
-    candidate String
-    sdpMid    String?
-    sdpMLineIndex Int?
-    createdAt DateTime @default(now())
-
-    call   CallSession @relation(fields: [callId], references: [id], onDelete: Cascade)
-    fromUser User      @relation("UserCallIceCandidates", fields: [fromUserId], references: [id], onDelete: Cascade)
-
-    @@index([callId])
-    @@index([fromUserId])
-  }
