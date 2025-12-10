@@ -326,9 +326,47 @@ export default function DashboardMapPage() {
 
   // Stats for the selected session
   const stats = useMemo(() => {
-@@
-   }, [locations]);
- 
+    if (!locations || locations.length === 0) return null;
+
+    const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
+    };
+
+    let distance = 0;
+    for (let i = 1; i < locations.length; i++) {
+      distance += haversine(
+        locations[i - 1].latitude,
+        locations[i - 1].longitude,
+        locations[i].latitude,
+        locations[i].longitude
+      );
+    }
+
+    const duration = Math.floor(
+      (new Date(locations[locations.length - 1].timestamp).getTime() -
+        new Date(locations[0].timestamp).getTime()) /
+        1000 /
+        60
+    );
+
+    const points = locations.length;
+    const deviceIds = Array.from(new Set(locations.map((l) => l.deviceId).filter(Boolean)));
+    const start = locations[0].timestamp;
+    const end = locations[locations.length - 1].timestamp;
+
+    return { distance, duration, points, deviceIds, start, end };
+  }, [locations]);
+
   const focusedWifiDevices = useMemo(() => {
     if (focusKind !== "wifi" || !focusKey) return wifiDevices;
     return wifiDevices.filter((d) => d.bssid === focusKey);
@@ -339,8 +377,9 @@ export default function DashboardMapPage() {
     return bleDevices.filter((d) => d.address === focusKey);
   }, [bleDevices, focusKind, focusKey]);
 
-   const selectedSession =
-     trackingSessions.find((s) => s.id === selectedSessionId) || null;
+  const selectedSession =
+    trackingSessions.find((s) => s.id === selectedSessionId) || null;
+
 
 
   let togglePillActiveBg = "bg-gold-500";
