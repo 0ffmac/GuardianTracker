@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function formatTimestamp(date: Date): string {
   // WiGLE expects SQL-style UTC timestamps: YYYY-MM-DD HH:MM:SS
