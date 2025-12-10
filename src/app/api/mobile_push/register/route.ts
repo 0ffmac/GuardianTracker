@@ -4,7 +4,12 @@ import jwt from "jsonwebtoken";
 
 export const runtime = "nodejs";
 
-async function getAuthContextFromRequest(request: Request): Promise<{ userId: string | null; deviceId: string | null }> {
+interface AuthContext {
+  userId: string | null;
+  deviceId: string | null;
+}
+
+async function getAuthContextFromRequest(request: Request): Promise<AuthContext> {
   const authHeader = request.headers.get("Authorization");
 
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -44,29 +49,44 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "fcmToken is required" }, { status: 400 });
     }
 
-    // Upsert by token so that if FCM rotates tokens we always have a single record per physical token.
-    const pushToken = await (prisma as any).pushToken.upsert({
-      where: { token },
-      update: {
-        userId,
-        deviceId,
-        platform,
-      },
-      create: {
-        userId,
-        deviceId,
-        token,
-        platform,
-      },
-    });
+    try {
+      // Upsert by token so that if FCM rotates tokens we always have a single record per physical token.
+      const pushToken = await (prisma as any).pushToken.upsert({
+        where: { token },
+        update: {
+          userId,
+          deviceId,
+          platform,
+        },
+        create: {
+          userId,
+          deviceId,
+          token,
+          platform,
+        },
+      });
 
-    return NextResponse.json({
-      success: true,
-      pushToken: {
-        id: pushToken.id,
-        platform: pushToken.platform,
-      },
-    });
+      return NextResponse.json({
+        success: true,
+        pushToken: {
+          id: pushToken.id,
+          platform: pushToken.platform,
+        },
+      });
+    } catch (err: any) {
+      // Map foreign key violations (e.g. user was deleted) to a controlled 400
+      if (err?.code === "P2003") {
+        console.warn(
+          "[/api/mobile_push/register] Foreign key error for user/device when saving push token",
+          { userId, deviceId }
+        );
+        return NextResponse.json(
+          { error: "Invalid user or device for push token" },
+          { status: 400 }
+        );
+      }
+      throw err;
+    }
   } catch (error) {
     console.error("Error registering mobile push token:", error);
     return NextResponse.json(
