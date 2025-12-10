@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { MapPin, Clock, TrendingUp, Activity, CalendarDays, DownloadCloud, Bluetooth, ChevronDown } from "lucide-react";
@@ -76,7 +77,12 @@ export default function DashboardMapPage() {
   const [useGoogle3DMaps, setUseGoogle3DMaps] = useState(false);
   const [googleMapsApiKey, setGoogleMapsApiKey] = useState<string | null>(null);
 
-  const handleExportWigle = () => {
+  const searchParams = useSearchParams();
+  const focusKind = searchParams.get("focusKind");
+  const focusKey = searchParams.get("focusKey");
+ 
+   const handleExportWigle = () => {
+
     if (!selectedSessionId) return;
     const url = `/api/export/wigle?trackingSessionId=${encodeURIComponent(selectedSessionId)}`;
     if (typeof window !== "undefined") {
@@ -320,49 +326,22 @@ export default function DashboardMapPage() {
 
   // Stats for the selected session
   const stats = useMemo(() => {
-    if (!locations || locations.length === 0) return null;
+@@
+   }, [locations]);
+ 
+  const focusedWifiDevices = useMemo(() => {
+    if (focusKind !== "wifi" || !focusKey) return wifiDevices;
+    return wifiDevices.filter((d) => d.bssid === focusKey);
+  }, [wifiDevices, focusKind, focusKey]);
 
-    const haversine = (lat1: number, lon1: number, lat2: number, lon2: number) => {
-      const R = 6371;
-      const dLat = ((lat2 - lat1) * Math.PI) / 180;
-      const dLon = ((lon2 - lon1) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((lat1 * Math.PI) / 180) *
-          Math.cos((lat2 * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return R * c;
-    };
+  const focusedBleDevices = useMemo(() => {
+    if (focusKind !== "ble" || !focusKey) return bleDevices;
+    return bleDevices.filter((d) => d.address === focusKey);
+  }, [bleDevices, focusKind, focusKey]);
 
-    let distance = 0;
-    for (let i = 1; i < locations.length; i++) {
-      distance += haversine(
-        locations[i - 1].latitude,
-        locations[i - 1].longitude,
-        locations[i].latitude,
-        locations[i].longitude
-      );
-    }
+   const selectedSession =
+     trackingSessions.find((s) => s.id === selectedSessionId) || null;
 
-    const duration = Math.floor(
-      (new Date(locations[locations.length - 1].timestamp).getTime() -
-        new Date(locations[0].timestamp).getTime()) /
-        1000 /
-        60
-    );
-
-    const points = locations.length;
-    const deviceIds = Array.from(new Set(locations.map((l) => l.deviceId).filter(Boolean)));
-    const start = locations[0].timestamp;
-    const end = locations[locations.length - 1].timestamp;
-
-    return { distance, duration, points, deviceIds, start, end };
-  }, [locations]);
-
-  const selectedSession =
-    trackingSessions.find((s) => s.id === selectedSessionId) || null;
 
   let togglePillActiveBg = "bg-gold-500";
   let toggleRingActive = "ring-2 ring-gold-400/40";
@@ -644,15 +623,22 @@ export default function DashboardMapPage() {
             <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
             <span>GPS</span>
           </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
-            <span>Wi-Fi</span>
-          </span>
+@@
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
             <span>Hybrid (GPS + Wi-Fi)</span>
           </span>
++          {focusKey && focusKind && (
++            <span className="inline-flex items-center gap-1 text-amber-200">
++              <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
++              <span>
++                Focused from analytics: {focusKind === "wifi" ? "Wi‑Fi" : "Bluetooth"} {" "}
++                <span className="font-mono">{focusKey}</span>
++              </span>
++            </span>
++          )}
         </div>
+
 
         <div className="h-[500px] rounded-xl overflow-hidden mt-4">
           {hasMounted && (
@@ -664,8 +650,8 @@ export default function DashboardMapPage() {
                 fitOnUpdate
                 autoZoomOnFirstPoint
                 snappedGeoJson={showSnapped ? snappedGeoJson : null}
-                wifiDevices={showWifiDevices ? wifiDevices : []}
-                bleDevices={showBleDevices ? bleDevices : []}
+                wifiDevices={showWifiDevices ? focusedWifiDevices : []}
+                bleDevices={showBleDevices ? focusedBleDevices : []}
               />
             ) : (
               <Map
@@ -674,8 +660,8 @@ export default function DashboardMapPage() {
                 fitOnUpdate
                 autoZoomOnFirstPoint
                 snappedGeoJson={showSnapped ? snappedGeoJson : null}
-                wifiDevices={showWifiDevices ? wifiDevices : []}
-                bleDevices={showBleDevices ? bleDevices : []}
+                wifiDevices={showWifiDevices ? focusedWifiDevices : []}
+                bleDevices={showBleDevices ? focusedBleDevices : []}
               />
             )
           )}

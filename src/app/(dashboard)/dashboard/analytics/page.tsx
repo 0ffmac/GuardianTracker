@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { BarChart3, Bell, ShieldAlert, AlertTriangle, Activity, Filter } from "lucide-react";
 
@@ -142,6 +143,8 @@ export default function DashboardAnalyticsPage() {
   const [sessionSearch, setSessionSearch] = useState("");
   const [deviceKindFilter, setDeviceKindFilter] = useState<"all" | "wifi" | "ble">("all");
   const [hideTrusted, setHideTrusted] = useState(true);
+
+  const router = useRouter();
 
   // Compute range and previous period
   const { fromIso, toIso, prevFromIso, prevToIso } = useMemo(() => {
@@ -439,6 +442,14 @@ export default function DashboardAnalyticsPage() {
     trustedSourceLabel?: string | null;
   };
 
+  const openDeviceOnMap = (device: OverlapDevice) => {
+    const params = new URLSearchParams({
+      focusKind: device.kind,
+      focusKey: device.key,
+    });
+    router.push(`/dashboard/map?${params.toString()}`);
+  };
+
   const { overlapDevices, suspiciousOverlapCount } = useMemo(() => {
     const wifiMap = new Map<string, OverlapDevice & { sessionIds: Set<string> }>();
     const bleMap = new Map<string, OverlapDevice & { sessionIds: Set<string> }>();
@@ -554,7 +565,33 @@ export default function DashboardAnalyticsPage() {
     });
   }, [overlapDevices, deviceKindFilter, hideTrusted]);
 
+  const radarDevices = useMemo(() => {
+    const max = 5;
+    if (filteredOverlapDevices.length === 0) return [] as OverlapDevice[];
+    const suspicious = filteredOverlapDevices.filter((d) => !d.isTrusted);
+    const trustedList = filteredOverlapDevices.filter((d) => d.isTrusted);
+    const ordered = [...suspicious, ...trustedList].slice(0, max);
+    return ordered;
+  }, [filteredOverlapDevices]);
+
+  const radarStats = useMemo(
+    () => {
+      if (radarDevices.length === 0) {
+        return { maxSessionCount: 1, maxTotalCount: 1 };
+      }
+      let maxSessionCount = 1;
+      let maxTotalCount = 1;
+      radarDevices.forEach((d) => {
+        if (d.sessionCount > maxSessionCount) maxSessionCount = d.sessionCount;
+        if (d.totalCount > maxTotalCount) maxTotalCount = d.totalCount;
+      });
+      return { maxSessionCount, maxTotalCount };
+    },
+    [radarDevices]
+  );
+ 
   const totalSuspicious = suspiciousAnalytics?.topDevices.length || 0;
+
 
   const totalSeenNearAlert = suspiciousAnalytics?.topDevices.filter((d) => d.seenNearAlert)
     .length || 0;
@@ -1105,8 +1142,68 @@ export default function DashboardAnalyticsPage() {
               </div>
             </div>
 
-            {/* Right: Overlapping devices table */}
-            <div className="overflow-x-auto">
+            {/* Right: radar + overlapping devices table */}
+            <div className="space-y-4">
+              <div className="relative mx-auto aspect-square max-w-xs rounded-full border border-white/15 bg-black/40 overflow-hidden">
+                {/* Concentric rings */}
+                <div className="absolute inset-6 rounded-full border border-white/5" />
+                <div className="absolute inset-12 rounded-full border border-white/5" />
+                <div className="absolute inset-20 rounded-full border border-white/5" />
+
+                {/* Center: your device */}
+                <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
+                  <span className="w-3 h-3 rounded-full bg-gold-400 shadow-[0_0_18px_rgba(212,175,55,0.8)]" />
+                  <span className="text-[10px] text-gray-300">You</span>
+                </div>
+
+                {/* Simple radial layout for up to 5 devices */}
+                {radarDevices.map((d, index) => {
+                  const angle = (index / Math.max(radarDevices.length, 1)) * 2 * Math.PI;
+                  const baseRadius = 22;
+                  const extraRadius =
+                    ((d.sessionCount || 1) / (radarStats.maxSessionCount || 1)) * 16;
+                  const radius = baseRadius + extraRadius;
+                  const x = 50 + radius * Math.cos(angle);
+                  const y = 50 + radius * Math.sin(angle);
+                  const sizeBase = 8;
+                  const sizeExtra =
+                    ((d.totalCount || 1) / (radarStats.maxTotalCount || 1)) * 6;
+                  const size = sizeBase + sizeExtra;
+                  const colorClass = d.isTrusted ? "bg-emerald-400" : "bg-red-400";
+                  return (
+                    <button
+                      type="button"
+                      key={d.kind + d.key}
+                      onClick={() => openDeviceOnMap(d)}
+                      className="absolute flex flex-col items-center cursor-pointer focus:outline-none"
+                      style={{
+                        left: `${x}%`,
+                        top: `${y}%`,
+                        transform: "translate(-50%, -50%)",
+                      }}
+                    >
+                      <span
+                        className={`rounded-full shadow-[0_0_14px_rgba(0,0,0,0.6)] ${colorClass}`}
+                        style={{ width: size, height: size }}
+                      />
+                      <span className="mt-1 max-w-[120px] truncate text-[9px] text-gray-200">
+                        {d.label}
+                      </span>
+                    </button>
+                  );
+                })}
+
+                {/* Crosshair lines */}
+                <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/5" />
+                <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/5" />
+              </div>
+              <p className="text-[11px] text-gray-400 text-center">
+                Each dot is a device seen in at least two of the selected sessions. Distance from
+                center roughly follows how often it appears across sessions; size reflects total
+                sightings. Red means not in your known environment; green is already known.
+              </p>
+
+              <div className="overflow-x-auto">
               {selectedSessionIds.length < 2 ? (
                 <p className="text-sm text-gray-400">
                   Select at least two sessions on the left to see devices that follow you between
@@ -1129,11 +1226,13 @@ export default function DashboardAnalyticsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredOverlapDevices.map((d) => (
-                      <tr
-                        key={d.kind + d.key}
-                        className="border-b border-white/5 last:border-b-0 text-xs"
-                      >
+                      {filteredOverlapDevices.map((d) => (
+                        <tr
+                          key={d.kind + d.key}
+                          onClick={() => openDeviceOnMap(d)}
+                          className="border-b border-white/5 last:border-b-0 text-xs cursor-pointer hover:bg-white/5"
+                        >
+
                         <td className="py-1 pr-4 text-gray-100">{d.label}</td>
                         <td className="py-1 pr-4 text-gray-300">
                           {d.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"}
@@ -1172,12 +1271,14 @@ export default function DashboardAnalyticsPage() {
                         </td>
                       </tr>
                     ))}
-                  </tbody>
-                </table>
-              )}
+                    </tbody>
+                  </table>
+                )}
+              </div>
             </div>
-          </div>
-        </section>
+           </div>
+         </section>
+
 
         {/* Suspicious devices table */}
         <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-red-400/20 mb-10">
