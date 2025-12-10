@@ -2,18 +2,20 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, useScroll } from 'framer-motion';
-import { Shield, LogOut } from 'lucide-react'; // Added LogOut for clarity
+import { Shield, LogOut, Menu, X } from 'lucide-react';
 import { Button } from './ui/Button';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from "next-auth/react";
 
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const { scrollY } = useScroll();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   const router = useRouter();
+  const pathname = usePathname();
   // 1. Next-Auth Session and Status Check
   const { data: session, status } = useSession();
   const isLoggedIn = status === 'authenticated';
@@ -44,6 +46,8 @@ export const Navbar: React.FC = () => {
     });
   }, [scrollY]);
 
+  const isDashboard = pathname?.startsWith('/dashboard');
+
   // 5. Load latest profile avatar for navbar
   useEffect(() => {
     if (!isLoggedIn || !session?.user) {
@@ -69,10 +73,24 @@ export const Navbar: React.FC = () => {
 
     loadProfile();
   }, [isLoggedIn, session?.user]);
-
-  const isDashboard = typeof window !== 'undefined' && window.location.pathname.startsWith('/dashboard');
-
+ 
+  const dashboardLinks = [
+    { href: '/dashboard', label: 'Overview' },
+    { href: '/dashboard/map', label: 'Map' },
+    { href: '/dashboard/metrics', label: 'Metrics' },
+    { href: '/dashboard/analytics', label: 'Analytics' },
+    { href: '/dashboard/settings', label: 'Settings' },
+  ];
+ 
+  const marketingLinks = [
+    { label: 'Features', kind: 'hash' as const, href: '#features' },
+    { label: 'Discover', kind: 'route' as const, href: '/discover' },
+    { label: 'Pricing', kind: 'route' as const, href: '/pricing' },
+    { label: 'About', kind: 'route' as const, href: '/about' },
+  ];
+ 
   return (
+
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
@@ -100,12 +118,7 @@ export const Navbar: React.FC = () => {
         {/* Desktop Links */}
         <div className="hidden md:flex items-center gap-10">
           {isDashboard
-            ? [
-                { href: '/dashboard', label: 'Overview' },
-                { href: '/dashboard/map', label: 'Map' },
-                { href: '/dashboard/metrics', label: 'Metrics' },
-                { href: '/dashboard/settings', label: 'Settings' },
-              ].map((link) => (
+            ? dashboardLinks.map((link) => (
                 <button
                   key={link.href}
                   onClick={() => router.push(link.href)}
@@ -115,12 +128,7 @@ export const Navbar: React.FC = () => {
                   <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
                 </button>
               ))
-            : [
-                { label: 'Features', kind: 'hash', href: '#features' },
-                { label: 'Discover', kind: 'route', href: '/discover' },
-                { label: 'Pricing', kind: 'route', href: '/pricing' },
-                { label: 'About', kind: 'route', href: '/about' },
-              ].map((link) => (
+            : marketingLinks.map((link) =>
                 link.kind === 'route' ? (
                   <button
                     key={link.label}
@@ -140,7 +148,7 @@ export const Navbar: React.FC = () => {
                     <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
                   </a>
                 )
-              ))}
+              )}
         </div>
 
         {/* Actions */}
@@ -192,8 +200,61 @@ export const Navbar: React.FC = () => {
               {isLoggedIn ? 'Dashboard' : 'Get Started'}
             </Button>
           </div>
+
+          {/* Mobile menu toggle */}
+          <button
+            type="button"
+            className="md:hidden p-2 rounded-lg border border-white/10 text-gray-200 hover:bg-white/5"
+            onClick={() => setMobileOpen((open) => !open)}
+          >
+            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
         </div>
       </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div className="md:hidden mt-2 px-4">
+          <div className="max-w-7xl mx-auto bg-black/80 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
+            {(isDashboard ? dashboardLinks : marketingLinks).map((link) => (
+              link.kind === 'route' || !('kind' in link) ? (
+                <button
+                  key={link.href}
+                  onClick={() => {
+                    router.push(link.href as string);
+                    setMobileOpen(false);
+                  }}
+                  className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
+                >
+                  {'label' in link ? link.label : (link as any).label}
+                </button>
+              ) : (
+                <a
+                  key={link.href}
+                  href={link.href as string}
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
+                >
+                  {link.label}
+                </a>
+              )
+            ))}
+
+            <div className="border-t border-white/10 pt-3 mt-1 flex flex-col gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  handleCtaAction();
+                  setMobileOpen(false);
+                }}
+                className="!py-2 !px-4 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white w-full"
+              >
+                {isLoggedIn ? 'Dashboard' : 'Get Started'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </motion.nav>
   );
 };
