@@ -662,21 +662,25 @@ export default function DashboardMapPage() {
             <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
             <span>GPS</span>
           </span>
-@@
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
+            <span>Wi-Fi</span>
+          </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
             <span>Hybrid (GPS + Wi-Fi)</span>
           </span>
-+          {focusKey && focusKind && (
-+            <span className="inline-flex items-center gap-1 text-amber-200">
-+              <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-+              <span>
-+                Focused from analytics: {focusKind === "wifi" ? "Wi‑Fi" : "Bluetooth"} {" "}
-+                <span className="font-mono">{focusKey}</span>
-+              </span>
-+            </span>
-+          )}
+          {focusKey && focusKind && (
+            <span className="inline-flex items-center gap-1 text-amber-200">
+              <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
+              <span>
+                Focused from analytics: {focusKind === "wifi" ? "Wi‑Fi" : "Bluetooth"} {" "}
+                <span className="font-mono">{focusKey}</span>
+              </span>
+            </span>
+          )}
         </div>
+
 
 
         <div className="h-[500px] rounded-xl overflow-hidden mt-4">
