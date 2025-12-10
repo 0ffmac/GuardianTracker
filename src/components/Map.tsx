@@ -11,6 +11,7 @@ interface Location {
   longitude: number;
   deviceId: string | null;
   timestamp: string;
+  source?: "gps" | "wifi" | "hybrid" | null;
 }
 
 interface WifiDevicePoint {
@@ -46,32 +47,45 @@ interface MapProps {
 }
 
 // Helper function to define the custom pulsing marker icon
-const getCustomIcon = () => L.divIcon({
-  className: "custom-marker-container",
-  html: `
-    <div style="
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      border: 3px solid white;
-      border-radius: 50%;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      animation: pulse 2s infinite;
-    ">
+const getCustomIcon = (source?: "gps" | "wifi" | "hybrid" | null) => {
+  let gradient = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"; // default
+  let shadow = "rgba(102, 126, 234, 0.5)";
+
+  if (source === "wifi") {
+    gradient = "linear-gradient(135deg, #f97316 0%, #ea580c 100%)"; // orange
+    shadow = "rgba(234, 88, 12, 0.5)";
+  } else if (source === "hybrid") {
+    gradient = "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)"; // green
+    shadow = "rgba(34, 197, 94, 0.5)";
+  }
+
+  return L.divIcon({
+    className: "custom-marker-container",
+    html: `
       <div style="
-        width: 12px;
-        height: 12px;
-        background: white;
+        width: 32px;
+        height: 32px;
+        background: ${gradient};
+        border: 3px solid white;
         border-radius: 50%;
-      "></div>
-    </div>
-  `,
-  iconSize: [32, 32],
-  iconAnchor: [16, 16],
-});
+        box-shadow: 0 4px 12px ${shadow};
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: pulse 2s infinite;
+      ">
+        <div style="
+          width: 12px;
+          height: 12px;
+          background: white;
+          border-radius: 50%;
+        "></div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+};
 
 export default function Map({
   locations,
@@ -176,12 +190,19 @@ export default function Map({
     // Place Marker on the Last Location
     const lastLocationData = locations[locations.length - 1];
     const lastLatLng: L.LatLngExpression = [lastLocationData.latitude, lastLocationData.longitude];
-    L.marker(lastLatLng, { icon: getCustomIcon() })
+    const sourceLabel =
+      lastLocationData.source === "wifi"
+        ? "Wi-Fi"
+        : lastLocationData.source === "hybrid"
+        ? "Hybrid (GPS + Wi-Fi)"
+        : "GPS";
+
+    L.marker(lastLatLng, { icon: getCustomIcon(lastLocationData.source) })
       .addTo(layerGroup)
       .bindPopup(
         `<strong>Current Location</strong><br><small>${new Date(
           lastLocationData.timestamp
-        ).toLocaleString()}</small>`
+        ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`
       )
       .openPopup();
 

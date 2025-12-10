@@ -8,6 +8,7 @@ interface Location {
   longitude: number;
   deviceId: string | null;
   timestamp: string;
+  source?: "gps" | "wifi" | "hybrid" | null;
 }
 
 interface WifiDevicePoint {
@@ -188,10 +189,16 @@ export default function Google3DMap({
           map,
           title: "Current location",
         });
+        const sourceLabel =
+          last.source === "wifi"
+            ? "Wi-Fi"
+            : last.source === "hybrid"
+            ? "Hybrid (GPS + Wi-Fi)"
+            : "GPS";
         const info = new google.maps.InfoWindow({
           content: `<strong>Current Location</strong><br/><small>${new Date(
             last.timestamp
-          ).toLocaleString()}</small>`,
+          ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`,
         });
         marker.addListener("click", () => {
           info.open({ map, anchor: marker });

@@ -143,6 +143,7 @@ model Location {
   altitude          Float?
   speed             Float?
   timestamp         DateTime         @default(now())
+  source            String           @default("gps")
   userId            String
   user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceId          String?

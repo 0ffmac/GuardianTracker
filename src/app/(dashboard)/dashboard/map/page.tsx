@@ -18,6 +18,7 @@ interface Location {
   longitude: number;
   deviceId: string | null;
   timestamp: string;
+  source?: "gps" | "wifi" | "hybrid" | null;
 }
 
 interface TrackingSession {
@@ -636,6 +637,21 @@ export default function DashboardMapPage() {
               </span>
             </div>
           )}
+        </div>
+
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-200">
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
+            <span>GPS</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
+            <span>Wi-Fi</span>
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+            <span>Hybrid (GPS + Wi-Fi)</span>
+          </span>
         </div>
 
         <div className="h-[500px] rounded-xl overflow-hidden mt-4">

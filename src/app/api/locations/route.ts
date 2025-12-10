@@ -39,7 +39,7 @@ export async function GET(request: Request) {
   }
   try {
     const [locations, devices, trackingSessions] = await Promise.all([
-      prisma.location.findMany({
+      (prisma as any).location.findMany({
         where: { userId },
         orderBy: { timestamp: "asc" },
         select: {
@@ -48,13 +48,14 @@ export async function GET(request: Request) {
           longitude: true,
           deviceId: true,
           timestamp: true,
+          source: true,
         },
       }),
       prisma.device.findMany({
         where: { userId },
         orderBy: { lastSeen: "desc" },
       }),
-      prisma.trackingSession.findMany({
+      (prisma as any).trackingSession.findMany({
         where: { userId },
         include: {
           locations: {
@@ -65,6 +66,7 @@ export async function GET(request: Request) {
               longitude: true,
               deviceId: true,
               timestamp: true,
+              source: true,
             },
           },
         },

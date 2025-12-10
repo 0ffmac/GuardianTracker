@@ -172,6 +172,19 @@ async function processSingleLocation(
   const altitude = rawBody.altitude;
   const speed = rawBody.speed;
   const timestamp = rawBody.timestamp || rawBody.time || rawBody.created_at;
+  const rawSource =
+    rawBody.source ||
+    rawBody.locationSource ||
+    rawBody.location_source ||
+    rawBody.positionSource ||
+    rawBody.position_source;
+  let locationSource = "gps";
+  if (typeof rawSource === "string") {
+    const normalized = rawSource.toLowerCase();
+    if (normalized === "wifi" || normalized === "hybrid" || normalized === "gps") {
+      locationSource = normalized;
+    }
+  }
   const trackingSessionId =
     rawBody.trackingSessionId ||
     rawBody.tracking_session_id ||
@@ -263,7 +276,7 @@ async function processSingleLocation(
   }
   // Create location record
   const locationTimestamp = timestamp ? new Date(timestamp) : new Date();
-  location = await prisma.location.create({
+  location = await (prisma as any).location.create({
     data: {
       latitude,
       longitude,
@@ -271,6 +284,7 @@ async function processSingleLocation(
       altitude: altitude || null,
       speed: speed || null,
       timestamp: locationTimestamp,
+      source: locationSource,
       userId,
       deviceId,
       trackingSessionId,

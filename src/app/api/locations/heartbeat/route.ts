@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const location = await prisma.location.create({
+    const location = await (prisma as any).location.create({
       data: {
         userId,
         latitude,
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         timestamp: timestamp ? new Date(timestamp) : new Date(),
         deviceId: typeof deviceId === "string" ? deviceId : undefined,
         trackingSessionId: typeof trackingSessionId === "string" ? trackingSessionId : undefined,
+        source: "gps",
       },
     });
     return NextResponse.json({ success: true, location });

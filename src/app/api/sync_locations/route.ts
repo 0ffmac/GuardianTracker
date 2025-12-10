@@ -34,10 +34,15 @@ export async function POST(request: Request) {
       ...loc,
       userId,
       trackingSessionId,
+      source:
+        typeof loc.source === "string" &&
+        ["gps", "wifi", "hybrid"].includes(loc.source.toLowerCase())
+          ? loc.source.toLowerCase()
+          : "gps",
     }));
 
     for (const row of locationsData) {
-      await prisma.location.create({ data: row });
+      await (prisma as any).location.create({ data: row });
     }
 
 
