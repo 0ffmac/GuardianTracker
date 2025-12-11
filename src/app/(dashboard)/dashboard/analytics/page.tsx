@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import {
@@ -156,6 +156,7 @@ export default function DashboardAnalyticsPage() {
   const [deviceKindFilter, setDeviceKindFilter] = useState<"all" | "wifi" | "ble">("all");
   const [hideTrusted, setHideTrusted] = useState(true);
   const [showRadarModal, setShowRadarModal] = useState(false);
+  const [selectedModalDevice, setSelectedModalDevice] = useState<ModalDevice | null>(null);
 
   const router = useRouter();
 
@@ -1618,7 +1619,7 @@ export default function DashboardAnalyticsPage() {
                               <li
                                 key={d.kind + d.key}
                                 className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 cursor-pointer hover:bg-white/10"
-                                onClick={() => openDeviceOnMap(d)}
+                                onClick={() => setSelectedModalDevice(d)}
                               >
                                 <div className="flex items-start gap-2">
                                   <div className="mt-0.5">
@@ -1659,7 +1660,7 @@ export default function DashboardAnalyticsPage() {
                               <li
                                 key={d.kind + d.key}
                                 className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 cursor-pointer hover:bg-white/10"
-                                onClick={() => openDeviceOnMap(d)}
+                                onClick={() => setSelectedModalDevice(d)}
                               >
                                 <div className="flex items-start gap-2">
                                   <div className="mt-0.5">
@@ -1700,7 +1701,7 @@ export default function DashboardAnalyticsPage() {
                               <li
                                 key={d.kind + d.key}
                                 className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 cursor-pointer hover:bg-white/10"
-                                onClick={() => openDeviceOnMap(d)}
+                                onClick={() => setSelectedModalDevice(d)}
                               >
                                 <div className="flex items-start gap-2">
                                   <div className="mt-0.5">
@@ -1737,9 +1738,9 @@ export default function DashboardAnalyticsPage() {
                 {/* Right: large radar */}
                 <div className="flex flex-col gap-3">
                   <div className="relative mx-auto aspect-square w-full max-w-xl rounded-full border border-white/15 bg-black/40 overflow-hidden">
-                    <div className="absolute inset-6 rounded-full border border-white/5" />
-                    <div className="absolute inset-14 rounded-full border border-white/5" />
-                    <div className="absolute inset-24 rounded-full border border-white/5" />
+                    <div className="absolute inset-6 rounded-full border border-white/15" />
+                    <div className="absolute inset-14 rounded-full border border-white/15" />
+                    <div className="absolute inset-24 rounded-full border border-white/15" />
 
                     <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
                       <span className="w-3 h-3 rounded-full bg-gold-400 shadow-[0_0_18px_rgba(212,175,55,0.8)]" />
@@ -1755,41 +1756,54 @@ export default function DashboardAnalyticsPage() {
                       const radius = baseRadius + extraRadius;
                       const x = 50 + radius * Math.cos(angle);
                       const y = 50 + radius * Math.sin(angle);
-                      const sizeBase = 10;
+                      const sizeBase = 14;
                       const sizeExtra =
-                        ((d.totalCount || 1) / (modalRadarStats.maxTotalCount || 1)) * 8;
+                        ((d.totalCount || 1) / (modalRadarStats.maxTotalCount || 1)) * 10;
                       const size = sizeBase + sizeExtra;
                       const colorClass = d.isTrusted ? "bg-emerald-400" : "bg-red-400";
+                      const rotationDeg = (angle * 180) / Math.PI;
                       return (
-                        <button
-                          type="button"
-                          key={d.kind + d.key}
-                          onClick={() => openDeviceOnMap(d)}
-                          className="absolute flex flex-col items-center cursor-pointer focus:outline-none"
-                          style={{
-                            left: `${x}%`,
-                            top: `${y}%`,
-                            transform: "translate(-50%, -50%)",
-                          }}
-                        >
-                          <span
-                            className={`flex items-center justify-center rounded-full shadow-[0_0_14px_rgba(0,0,0,0.6)] ${colorClass}`}
-                            style={{ width: size + 8, height: size + 8 }}
+                        <Fragment key={d.kind + d.key}>
+                          {/* Radial line from center to device (relative distance) */}
+                          <div
+                            className="absolute w-px bg-white/15"
+                            style={{
+                              left: "50%",
+                              top: "50%",
+                              height: `${radius}%`,
+                              transformOrigin: "top",
+                              transform: `translate(-50%, -50%) rotate(${rotationDeg}deg)`,
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setSelectedModalDevice(d)}
+                            className="absolute flex flex-col items-center cursor-pointer focus:outline-none"
+                            style={{
+                              left: `${x}%`,
+                              top: `${y}%`,
+                              transform: "translate(-50%, -50%)",
+                            }}
                           >
-                            {renderDeviceIcon(d)}
-                          </span>
-                          <span className="mt-1 max-w-[140px] truncate text-[9px] text-gray-200">
-                            {d.label}
-                          </span>
-                        </button>
+                            <span
+                              className={`flex items-center justify-center rounded-full shadow-[0_0_18px_rgba(0,0,0,0.8)] ${colorClass}`}
+                              style={{ width: size + 10, height: size + 10 }}
+                            >
+                              {renderDeviceIcon(d)}
+                            </span>
+                            <span className="mt-1 max-w-[160px] truncate text-[10px] text-gray-200">
+                              {d.label}
+                            </span>
+                          </button>
+                        </Fragment>
                       );
                     })}
 
-                    <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/5" />
-                    <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/5" />
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/15" />
+                    <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/15" />
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
+                  <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300 mt-2">
                     <div className="inline-flex items-center gap-1">
                       <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
                         <Router className="w-3 h-3" />
@@ -1821,8 +1835,77 @@ export default function DashboardAnalyticsPage() {
                   <p className="text-[11px] text-gray-400">
                     Each dot is a device across selected sessions. Icon shows type
                     (mobile hotspot, Wi‑Fi router, Bluetooth), color shows trusted vs
-                    unknown, and size reflects how often it appears.
+                    unknown, and size reflects how often it appears. Radial lines show
+                    relative distance on this radar (not real-world meters).
                   </p>
+
+                  {selectedModalDevice && (
+                    <div className="mt-3 border-t border-white/10 pt-3 text-[11px] text-gray-200">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <div className="flex items-start gap-2">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10">
+                            {renderDeviceIcon(selectedModalDevice)}
+                          </span>
+                          <div>
+                            <div className="font-semibold text-gray-100">
+                              {selectedModalDevice.label}
+                            </div>
+                            {selectedModalDevice.manufacturer && (
+                              <div className="text-[10px] text-gray-400">
+                                {selectedModalDevice.manufacturer}
+                              </div>
+                            )}
+                            <div className="text-[10px] text-gray-500">
+                              {selectedModalDevice.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"} ·
+                              {" "}
+                              {selectedModalDevice.isTrusted ? "known in environment" : "possible tracker"}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-gray-400 text-right">
+                          <div>
+                            Identifier: <span className="font-mono">{selectedModalDevice.key}</span>
+                          </div>
+                          {selectedModalDevice.trustedSourceLabel && (
+                            <div>Env label: {selectedModalDevice.trustedSourceLabel}</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="mt-1">
+                        <p className="text-[10px] text-gray-400 mb-1">
+                          Sessions where this device appears:
+                        </p>
+                        <div className="max-h-32 overflow-y-auto pr-1">
+                          <ul className="space-y-1">
+                            {selectedModalDevice.sessions.map((s) => {
+                              const sessionMeta = trackingSessions.find((ts) => ts.id === s.id);
+                              return (
+                                <li
+                                  key={s.id}
+                                  className="flex items-start justify-between gap-2 rounded-lg bg-black/40 border border-white/10 px-2 py-1"
+                                >
+                                  <div>
+                                    <div className="text-[10px] font-semibold text-gray-100">
+                                      {s.name}
+                                    </div>
+                                    {sessionMeta?.startTime && (
+                                      <div className="text-[10px] text-gray-400">
+                                        {new Date(sessionMeta.startTime).toLocaleString()}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-[10px] text-gray-300">
+                                    sightings: <span className="font-mono">{s.count}</span>
+                                  </div>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
