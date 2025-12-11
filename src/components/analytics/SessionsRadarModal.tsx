@@ -343,8 +343,8 @@ export function SessionsRadarModal(props: Props) {
 
 
   return (
-    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-24 pb-4">
-      <div className="relative w-full max-w-7xl max-h-[90vh] bg-surface rounded-2xl border border-white/20 shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm overflow-y-auto flex items-start justify-center pt-24 pb-4">
+      <div className="relative w-full max-w-7xl bg-surface rounded-2xl border border-white/20 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-4">
           <h2 className="text-sm font-semibold">
@@ -401,7 +401,7 @@ export function SessionsRadarModal(props: Props) {
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px,1fr] gap-4 p-4 overflow-hidden">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px,1fr] gap-4 p-4">
           {/* Left: sessions + grouped devices */}
           <div className="overflow-y-auto pr-2 text-xs">
             {/* Session selection */}
