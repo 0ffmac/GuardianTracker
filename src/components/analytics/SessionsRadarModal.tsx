@@ -624,12 +624,10 @@ export function SessionsRadarModal(props: Props) {
 
                 const deviceCount = radarDevicesFull.length || 1;
                 const densityFactor = Math.min(deviceCount / 6, 2);
-                const sizeBase = 30 / (1 + densityFactor * 0.4);
-                const sizeExtra =
-                  (((d.totalCount || 1) /
-                    (modalRadarStats.maxTotalCount || 1)) *
-                    10) /
-                  (1 + densityFactor * 0.4);
+                // Base size shrinks a bit as more devices are shown
+                const sizeBase = 26 / (1 + densityFactor * 0.4);
+                // Extra size driven directly by signal/visibility strength
+                const sizeExtra = (10 * strength) / (1 + densityFactor * 0.4);
                 const size = sizeBase + sizeExtra;
 
                 const id = `${d.kind}-${d.key}`;
