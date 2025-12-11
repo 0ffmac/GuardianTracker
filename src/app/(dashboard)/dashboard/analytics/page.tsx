@@ -1862,13 +1862,20 @@ export default function DashboardAnalyticsPage() {
                             </div>
                           </div>
                         </div>
-                        <div className="text-[10px] text-gray-400 text-right">
+                        <div className="text-[10px] text-gray-400 text-right space-y-1">
                           <div>
                             Identifier: <span className="font-mono">{selectedModalDevice.key}</span>
                           </div>
                           {selectedModalDevice.trustedSourceLabel && (
                             <div>Env label: {selectedModalDevice.trustedSourceLabel}</div>
                           )}
+                          <button
+                            type="button"
+                            onClick={() => openDeviceOnMap(selectedModalDevice)}
+                            className="mt-1 inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-gray-100 hover:bg-white/10"
+                          >
+                            <span>Open on map</span>
+                          </button>
                         </div>
                       </div>
 
