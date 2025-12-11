@@ -217,7 +217,16 @@ export const Navbar: React.FC = () => {
         <div className="md:hidden mt-2 px-4">
           <div className="max-w-7xl mx-auto bg-black/80 border border-white/10 rounded-2xl p-4 flex flex-col gap-3">
             {(isDashboard ? dashboardLinks : marketingLinks).map((link) => (
-              link.kind === 'route' || !('kind' in link) ? (
+              'kind' in link && link.kind === 'hash' ? (
+                <a
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileOpen(false)}
+                  className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
+                >
+                  {link.label}
+                </a>
+              ) : (
                 <button
                   key={link.href}
                   onClick={() => {
@@ -226,17 +235,8 @@ export const Navbar: React.FC = () => {
                   }}
                   className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
                 >
-                  {'label' in link ? link.label : (link as any).label}
-                </button>
-              ) : (
-                <a
-                  key={link.href}
-                  href={link.href as string}
-                  onClick={() => setMobileOpen(false)}
-                  className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
-                >
                   {link.label}
-                </a>
+                </button>
               )
             ))}
 
