@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Filter } from "lucide-react";
 import { TrustedPillToggle } from "@/components/analytics/TrustedPillToggle";
 import type { TrustedDeviceKey } from "@/hooks/useTrustedDevices";
@@ -59,6 +59,7 @@ interface Props {
   onExpandRadar: () => void;
   openDeviceOnMap: (device: OverlapDevice) => void;
   toggleTrusted: (device: TrustedDeviceKey, nextValue: boolean) => void;
+  sessionQualityById: Record<string, "GOOD" | "REGULAR" | "BAD" | null | undefined>;
 }
 
 export function SessionsCorrelationSection({
@@ -82,7 +83,24 @@ export function SessionsCorrelationSection({
   onExpandRadar,
   openDeviceOnMap,
   toggleTrusted,
+  sessionQualityById,
 }: Props) {
+  const [overlapPage, setOverlapPage] = useState(0);
+  const pageSize = 15;
+
+  useEffect(() => {
+    setOverlapPage(0);
+  }, [filteredOverlapDevices.length, deviceKindFilter, hideTrusted, selectedSessionIds.length]);
+
+  const { visibleDevices, totalPages, currentPage } = useMemo(() => {
+    const total = filteredOverlapDevices.length;
+    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+    const currentPage = Math.min(overlapPage, totalPages - 1);
+    const start = currentPage * pageSize;
+    const visibleDevices = filteredOverlapDevices.slice(start, start + pageSize);
+    return { visibleDevices, totalPages, currentPage };
+  }, [filteredOverlapDevices, overlapPage, pageSize]);
+
   return (
     <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
@@ -125,7 +143,7 @@ export function SessionsCorrelationSection({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px,1fr] gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-[320px,1fr] gap-6">
         {/* Left: session filter */}
         <div className="space-y-4 text-xs">
           <div>
@@ -182,6 +200,7 @@ export function SessionsCorrelationSection({
                       : quality === "REGULAR"
                       ? "bg-amber-400"
                       : "bg-gray-500";
+
                   return (
                     <li key={s.id}>
                       <button
@@ -336,24 +355,28 @@ export function SessionsCorrelationSection({
             <button
               type="button"
               onClick={onExpandRadar}
-              className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1 text-[11px] text-gray-200 hover:bg-white/10"
+              className="inline-flex items-center gap-1 rounded-full bg-gold-500 text-black px-4 py-1.5 text-[11px] font-semibold shadow hover:bg-gold-400 transition-colors border border-gold-400/70"
             >
               <span>Expand radar view</span>
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            {selectedSessionIds.length < 2 ? (
-              <p className="text-sm text-gray-400">
-                Select at least two sessions on the left to see devices that follow you between
-                different places (for example a coffee shop, a restaurant and later a club).
-              </p>
-            ) : filteredOverlapDevices.length === 0 ? (
-              <p className="text-sm text-gray-400">
-                No overlapping devices found for the current filters. Try including more sessions
-                or showing trusted devices as well.
-              </p>
-            ) : (
+          {/* Overlap devices table is rendered full-width below */}
+
+        </div>
+        <div className="mt-4 lg:col-span-2 overflow-x-auto">
+          {selectedSessionIds.length < 2 ? (
+            <p className="text-sm text-gray-400">
+              Select at least two sessions on the left to see devices that follow you between
+              different places (for example a coffee shop, a restaurant and later a club).
+            </p>
+          ) : filteredOverlapDevices.length === 0 ? (
+            <p className="text-sm text-gray-400">
+              No overlapping devices found for the current filters. Try including more sessions
+              or showing trusted devices as well.
+            </p>
+          ) : (
+            <>
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-400 border-b border-white/10 text-[11px]">
@@ -365,27 +388,38 @@ export function SessionsCorrelationSection({
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredOverlapDevices.map((d) => (
+                  {visibleDevices.map((d) => (
                     <tr
                       key={d.kind + d.key}
                       onClick={() => openDeviceOnMap(d)}
                       className="border-b border-white/5 last:border-b-0 text-xs cursor-pointer hover:bg-white/5"
                     >
-                      <td className="py-1 pr-4 text-gray-100">{d.label}</td>
-                      <td className="py-1 pr-4 text-gray-300">
+                      <td className="py-1.5 pr-4 text-gray-100 align-top">{d.label}</td>
+                      <td className="py-1.5 pr-4 text-gray-300 align-top">
                         {d.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"}
                       </td>
-                      <td className="py-1 pr-4">
-                        <div className="flex flex-wrap gap-1">
-                          {d.sessions.map((s) => (
-                            <span
-                              key={s.id}
-                              className="inline-flex items-center rounded-full bg-black/40 px-2 py-0.5 text-[10px] text-gray-100 border border-white/10"
-                            >
-                              <span className="truncate max-w-[140px]">{s.name}</span>
-                              <span className="ml-1 text-gray-400">×{s.count}</span>
-                            </span>
-                          ))}
+                      <td className="py-1.5 pr-4 align-top">
+                        <div className="flex flex-wrap gap-1.5">
+                          {d.sessions.map((s) => {
+                            const quality = sessionQualityById[s.id];
+                            const pillClasses =
+                              quality === "GOOD"
+                                ? "bg-emerald-500/15 border-emerald-400/40 text-emerald-100"
+                                : quality === "BAD"
+                                ? "bg-red-500/15 border-red-400/40 text-red-100"
+                                : quality === "REGULAR"
+                                ? "bg-amber-500/15 border-amber-400/40 text-amber-100"
+                                : "bg-black/40 border-white/10 text-gray-100";
+                            return (
+                              <span
+                                key={s.id}
+                                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] border ${pillClasses}`}
+                              >
+                                <span className="truncate max-w-[200px]">{s.name}</span>
+                                <span className="ml-1 text-gray-400">×{s.count}</span>
+                              </span>
+                            );
+                          })}
                         </div>
                       </td>
                       <td className="py-1 pr-4 text-gray-100">{d.totalCount}</td>
@@ -400,10 +434,53 @@ export function SessionsCorrelationSection({
                   ))}
                 </tbody>
               </table>
-            )}
-          </div>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
+                <span>
+                  Showing {filteredOverlapDevices.length === 0 ? 0 : currentPage * pageSize + 1}
+                  – {Math.min((currentPage + 1) * pageSize, filteredOverlapDevices.length)} of {" "}
+                  {filteredOverlapDevices.length}
+                </span>
+                <div className="inline-flex items-center gap-3">
+                  <span className="text-[11px] text-gray-500">
+                    Page {totalPages === 0 ? 0 : currentPage + 1} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOverlapPage((prev) => Math.max(0, prev - 1));
+                    }}
+                    disabled={currentPage === 0}
+                    className={`px-2 py-0.5 rounded-full border text-[11px] ${
+                      currentPage === 0
+                        ? "border-white/10 text-gray-500 cursor-not-allowed opacity-60"
+                        : "border-white/20 text-gray-200 hover:bg-white/10"
+                    }`}
+                  >
+                    Prev
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOverlapPage((prev) => (prev + 1 >= totalPages ? prev : prev + 1));
+                    }}
+                    disabled={currentPage + 1 >= totalPages}
+                    className={`px-2 py-0.5 rounded-full border text-[11px] ${
+                      currentPage + 1 >= totalPages
+                        ? "border-white/10 text-gray-500 cursor-not-allowed opacity-60"
+                        : "border-white/20 text-gray-200 hover:bg-white/10"
+                    }`}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
-    </section>
-  );
-}
+       </div>
+     </section>
+   );
+ }
+

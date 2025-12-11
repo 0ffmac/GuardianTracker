@@ -623,6 +623,14 @@ export default function DashboardAnalyticsPage() {
     [radarDevices]
   );
 
+  const sessionQualityById = useMemo(() => {
+    const map: Record<string, "GOOD" | "REGULAR" | "BAD" | null | undefined> = {};
+    trackingSessions.forEach((s) => {
+      map[s.id] = s.quality ?? null;
+    });
+    return map;
+  }, [trackingSessions]);
+
 
 
 
@@ -1012,6 +1020,7 @@ export default function DashboardAnalyticsPage() {
           onExpandRadar={() => setShowRadarModal(true)}
           openDeviceOnMap={openDeviceOnMap}
           toggleTrusted={toggleTrusted}
+          sessionQualityById={sessionQualityById}
         />
 
 
