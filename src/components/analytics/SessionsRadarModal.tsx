@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, Fragment } from "react";
+import dynamic from "next/dynamic";
 import { Bluetooth, Smartphone, Router } from "lucide-react";
 
 export type OverlapDevice = {
@@ -27,7 +28,19 @@ export type EnvironmentDeviceBle = {
   manufacturer?: string | null;
 };
 
+type SessionMapLocation = {
+  id: string;
+  latitude: number;
+  longitude: number;
+  deviceId: string | null;
+  timestamp: string;
+  source?: "gps" | "wifi" | "hybrid" | null;
+};
+
+const InlineMap = dynamic(() => import("@/components/Map"), { ssr: false });
+
 export type TrackingSessionLite = {
+
   id: string;
   name: string | null;
   startTime: string | null;
@@ -91,6 +104,13 @@ export function SessionsRadarModal(props: Props) {
   >(new Map());
   const [zoomLevel, setZoomLevel] = useState<"near" | "medium" | "far">("medium");
   const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
+
+  const [sessionMapLocations, setSessionMapLocations] = useState<
+    Record<string, SessionMapLocation[]>
+  >({});
+  const [sessionMapIds, setSessionMapIds] = useState<string[]>([]);
+  const [sessionMapsLoading, setSessionMapsLoading] = useState(false);
+  const [sessionMapsError, setSessionMapsError] = useState<string | null>(null);
 
   const getDeviceColor = (
     iconKind: ModalDevice["iconKind"],
@@ -266,7 +286,61 @@ export function SessionsRadarModal(props: Props) {
     return ringRadii[idx];
   };
 
+  const handleShowSessionMap = async (sessionId: string) => {
+    setSessionMapsError(null);
+
+    if (sessionMapLocations[sessionId]) {
+      setSessionMapIds((prev) =>
+        prev.includes(sessionId) ? prev : [...prev, sessionId]
+      );
+      return;
+    }
+
+    setSessionMapsLoading(true);
+    try {
+      let byId = sessionMapLocations;
+
+      if (Object.keys(byId).length === 0) {
+        const res = await fetch("/api/locations");
+        if (!res.ok) {
+          throw new Error("Failed to load session locations");
+        }
+        const data = await res.json();
+        const rawSessions: any[] = data.trackingSessions || [];
+        const nextById: Record<string, SessionMapLocation[]> = {};
+        for (const s of rawSessions) {
+          const sid = String(s.id);
+          const locs = (s.locations || []) as any[];
+          nextById[sid] = locs.map((l) => ({
+            id: String(l.id),
+            latitude: l.latitude,
+            longitude: l.longitude,
+            deviceId: l.deviceId ?? null,
+            timestamp: l.timestamp,
+            source: l.source ?? null,
+          }));
+        }
+        byId = { ...byId, ...nextById };
+        setSessionMapLocations(byId);
+      }
+
+      if (byId[sessionId] && byId[sessionId].length > 0) {
+        setSessionMapIds((prev) =>
+          prev.includes(sessionId) ? prev : [...prev, sessionId]
+        );
+      } else {
+        setSessionMapsError("No location data available for this session yet.");
+      }
+    } catch (err: any) {
+      console.error("[SessionsRadarModal] Failed to load session map", err);
+      setSessionMapsError(err?.message || "Failed to load session map");
+    } finally {
+      setSessionMapsLoading(false);
+    }
+  };
+
   if (!isOpen) return null;
+
 
   return (
     <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-24 pb-4">
@@ -533,7 +607,11 @@ export function SessionsRadarModal(props: Props) {
           </div>
 
           {/* Right: large radar + legend + details */}
-          <div className="flex flex-col gap-3">
+          <div
+            className={`flex flex-col gap-3 ${
+              zoomLevel === "near" ? "overflow-y-auto pr-2" : ""
+            }`}
+          >
             <div className="relative mx-auto mt-12 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-gradient-to-br from-black/60 via-gray-900/60 to-gray-900/80 overflow-hidden shadow-2xl">
               {/* Animated scanning effect */}
               <div className="absolute inset-0 rounded-full overflow-hidden">
@@ -906,9 +984,9 @@ export function SessionsRadarModal(props: Props) {
                     <button
                       type="button"
                       onClick={() => openDeviceOnMap(selectedModalDevice)}
-                      className="mt-1 inline-flex items-center gap-1 rounded-full border border-white/20 px-2 py-0.5 text-[10px] text-gray-100 hover:bg-white/10"
+                      className="mt-1 inline-flex items-center gap-1 rounded-full border border-gold-400/80 bg-gold-400 px-2 py-0.5 text-[10px] text-black hover:bg-gold-300"
                     >
-                      <span>Open on map</span>
+                      <span>Open map</span>
                     </button>
                   </div>
                 </div>
@@ -936,8 +1014,17 @@ export function SessionsRadarModal(props: Props) {
                                 </div>
                               )}
                             </div>
-                            <div className="text-[10px] text-gray-300">
-                              sightings: <span className="font-mono">{s.count}</span>
+                            <div className="flex items-center gap-2 text-[10px] text-gray-300">
+                              <span>
+                                sightings: <span className="font-mono">{s.count}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleShowSessionMap(s.id)}
+                                className="inline-flex items-center rounded-full border border-gold-400/70 px-1.5 py-0.5 text-[9px] text-gold-200 hover:bg-gold-400/10"
+                              >
+                                Show map
+                              </button>
                             </div>
                           </li>
                         );
@@ -945,6 +1032,87 @@ export function SessionsRadarModal(props: Props) {
                     </ul>
                   </div>
                 </div>
+
+                {sessionMapIds.length > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-[10px] text-gray-400">
+                        Inline session maps (last known paths)
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setSessionMapIds([])}
+                        className="text-[9px] text-gray-400 hover:text-gray-100 underline-offset-2 hover:underline"
+                      >
+                        Clear maps
+                      </button>
+                    </div>
+                    {sessionMapsLoading && (
+                      <p className="text-[10px] text-gray-400 mb-1">
+                        Loading session map data…
+                      </p>
+                    )}
+                    {sessionMapsError && (
+                      <p className="text-[10px] text-red-400 mb-1">{sessionMapsError}</p>
+                    )}
+                    <div className="flex flex-wrap gap-3">
+                      {sessionMapIds.map((sessionId) => {
+                        const locs = sessionMapLocations[sessionId] || [];
+                        if (!locs.length) return null;
+                        const lastLoc = locs[locs.length - 1];
+                        const meta = trackingSessions.find((ts) => ts.id === sessionId);
+
+                        return (
+                          <div
+                            key={sessionId}
+                            className="w-full sm:w-64 h-48 rounded-xl border border-white/15 bg-black/40 overflow-hidden flex flex-col"
+                          >
+                            <div className="flex items-center justify-between px-2 py-1 text-[10px] text-gray-200 bg-black/70 border-b border-white/10">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="truncate">
+                                  {meta?.name || "Session"}
+                                  {meta?.startTime
+                                    ? ` · ${new Date(meta.startTime).toLocaleDateString()}`
+                                    : ""}
+                                </span>
+                                {selectedModalDevice && (
+                                  <span
+                                    className={`shrink-0 inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] border ${
+                                      selectedModalDevice.kind === "wifi"
+                                        ? "bg-orange-500/20 border-orange-400/60 text-orange-200"
+                                        : "bg-purple-500/20 border-purple-400/60 text-purple-200"
+                                    }`}
+                                  >
+                                    {selectedModalDevice.kind === "wifi" ? "Wi‑Fi focus" : "Bluetooth focus"}
+                                  </span>
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setSessionMapIds((prev) =>
+                                    prev.filter((id) => id !== sessionId)
+                                  )
+                                }
+                                className="ml-2 text-[9px] text-gray-400 hover:text-gray-100"
+                              >
+                                close
+                              </button>
+                            </div>
+                            <div className="flex-1">
+                              <InlineMap
+                                locations={locs}
+                                currentLocation={lastLoc}
+                                fitOnUpdate
+                                autoZoomOnFirstPoint
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
