@@ -608,7 +608,7 @@ export function SessionsRadarModal(props: Props) {
 
           {/* Right: large radar + legend + details */}
           <div
-            className={`flex flex-col gap-3 ${
+            className={`flex flex-col gap-4 ${
               zoomLevel === "near" ? "overflow-y-auto pr-2" : ""
             }`}
           >
@@ -835,7 +835,7 @@ export function SessionsRadarModal(props: Props) {
             </div>
 
             {/* Legend + zoom controls */}
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
               {/* Zoom controls for distance bands */}
               <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
                 <button
@@ -887,7 +887,7 @@ export function SessionsRadarModal(props: Props) {
               </div>
             </div>
 
-            <p className="mt-1 text-[11px] text-gray-400">
+            <p className="mt-2 text-[11px] text-gray-400">
               Animated rings show approximate distance bands (scaled by zoom).
               Each glowing bubble is a device seen across the selected sessions:
               icon and color show type, size reflects how often it appears, and
@@ -898,7 +898,7 @@ export function SessionsRadarModal(props: Props) {
 
             {/* Hover info panel */}
             {hoveredDevice && (
-              <div className="mt-2 bg-black/40 backdrop-blur-lg border border-white/10 rounded-xl px-3 py-2 text-[11px] text-gray-200">
+              <div className="mt-3 bg-black/40 backdrop-blur-lg border border-white/10 rounded-xl px-3 py-2 text-[11px] text-gray-200">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <div className="font-semibold text-gray-100 mb-0.5">
@@ -941,7 +941,7 @@ export function SessionsRadarModal(props: Props) {
 
             {/* Details panel for selected device */}
             {selectedModalDevice && (
-              <div className="mt-3 border-t border-white/10 pt-3 text-[11px] text-gray-200">
+              <div className="mt-4 border-t border-white/10 pt-3 text-[11px] text-gray-200">
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <div className="flex items-start gap-2">
                     <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-white/10">
