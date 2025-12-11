@@ -560,7 +560,7 @@ export default function DashboardAnalyticsPage() {
     const all: OverlapDevice[] = [
       ...Array.from(wifiMap.values()),
       ...Array.from(bleMap.values()),
-    ].filter((d) => d.sessionCount >= 2);
+    ].filter((d) => d.sessionCount >= 1);
 
     const suspiciousCount = all.filter((d) => !d.isTrusted).length;
 
@@ -1082,7 +1082,8 @@ export default function DashboardAnalyticsPage() {
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10">
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-                  <span>{filteredOverlapDevices.length} devices across ≥2 sessions</span>
+                   <span>{filteredOverlapDevices.length} devices across selected sessions</span>
+
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-red-400/40">
                   <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
@@ -1302,7 +1303,7 @@ export default function DashboardAnalyticsPage() {
                 <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/5" />
               </div>
               <p className="text-[11px] text-gray-400 text-center">
-                Each dot is a device seen in at least two of the selected sessions. Distance from
+                Each dot is a device seen across the selected sessions. Distance from
                 center roughly follows how often it appears across sessions; size reflects total
                 sightings. Red means not in your known environment; green is already known.
               </p>
@@ -1476,8 +1477,8 @@ export default function DashboardAnalyticsPage() {
         </section>
 
         {showRadarModal && (
-          <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center">
-            <div className="relative w-full max-w-7xl h-[96vh] max-h-[100vh] bg-surface rounded-2xl border border-white/20 shadow-2xl flex flex-col">
+          <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-24 pb-4">
+            <div className="relative w-full max-w-7xl max-h-[90vh] bg-surface rounded-2xl border border-white/20 shadow-2xl flex flex-col overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-4">
                 <h2 className="text-sm font-semibold">
                   Sessions correlation radar – full view
@@ -1532,14 +1533,78 @@ export default function DashboardAnalyticsPage() {
               </div>
 
               <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px,1fr] gap-4 p-4 overflow-hidden">
-                {/* Left: grouped device list */}
+                {/* Left: sessions + grouped device list */}
                 <div className="overflow-y-auto pr-2 text-xs">
+                  {/* Session selection in modal (reuses filteredSessions/selectedSessionIds) */}
+                  <div className="mb-4">
+                    <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                      Sessions in this range
+                    </p>
+                    {filteredSessions.length === 0 ? (
+                      <p className="text-[11px] text-gray-500">
+                        No sessions match this analytics time window yet.
+                      </p>
+                    ) : (
+                      <ul className="space-y-1">
+                        {filteredSessions.map((s) => {
+                          const isActive = selectedSessionIds.includes(s.id);
+                          const quality = s.quality;
+                          const dotClass =
+                            quality === "GOOD"
+                              ? "bg-emerald-400"
+                              : quality === "BAD"
+                              ? "bg-red-500"
+                              : quality === "REGULAR"
+                              ? "bg-amber-400"
+                              : "bg-gray-500";
+                          return (
+                            <li key={s.id}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedSessionIds((prev) =>
+                                    prev.includes(s.id)
+                                      ? prev.filter((id) => id !== s.id)
+                                      : [...prev, s.id]
+                                  );
+                                }}
+                                className={`w-full flex items-start justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
+                                  isActive
+                                    ? "bg-white/10 border-gold-400/70"
+                                    : "bg-white/5 border-white/10 hover:bg-white/10"
+                                }`}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <span className={`mt-1 h-2 w-2 rounded-full ${dotClass}`} />
+                                  <div>
+                                    <div className="text-[11px] font-semibold text-gray-100">
+                                      {s.name || "Session"}
+                                    </div>
+                                    <div className="text-[10px] text-gray-400">
+                                      {s.startTime
+                                        ? new Date(s.startTime).toLocaleString()
+                                        : "Unknown time"}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-gray-400">
+                                  {isActive ? "Selected" : "Tap to include"}
+                                </div>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+
+                  {/* Devices across selected sessions */}
                   <p className="text-[11px] text-gray-400 mb-2">
-                    Devices seen across multiple sessions. Click a row to open on the map.
+                    Devices seen across selected sessions. Click a row to open on the map.
                   </p>
                   {modalDevices.length === 0 ? (
                     <p className="text-[11px] text-gray-500">
-                      No overlapping devices for current filters.
+                      No devices for the current session selection and filters.
                     </p>
                   ) : (
                     <div className="space-y-3">
