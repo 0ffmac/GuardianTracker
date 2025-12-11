@@ -244,7 +244,8 @@ export function SessionsRadarModal(props: Props) {
   };
 
   const ringParamsByZoom: Record<"near" | "medium" | "far", { base: number; step: number }> = {
-    near: { base: 90, step: 0 },
+    // Near: single ring, slightly inset so bottom nodes stay visible
+    near: { base: 80, step: 0 },
     medium: { base: 30, step: 18 },
     far: { base: 10, step: 18 },
   };
@@ -533,7 +534,7 @@ export function SessionsRadarModal(props: Props) {
 
           {/* Right: large radar + legend + details */}
           <div className="flex flex-col gap-3">
-            <div className="relative mx-auto mt-8 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-gradient-to-br from-black/60 via-gray-900/60 to-gray-900/80 overflow-hidden shadow-2xl">
+            <div className="relative mx-auto mt-12 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-gradient-to-br from-black/60 via-gray-900/60 to-gray-900/80 overflow-hidden shadow-2xl">
               {/* Animated scanning effect */}
               <div className="absolute inset-0 rounded-full overflow-hidden">
                 <div
