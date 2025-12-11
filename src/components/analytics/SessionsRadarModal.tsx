@@ -84,11 +84,25 @@ export function SessionsRadarModal(props: Props) {
     openDeviceOnMap,
   } = props;
 
-  const [selectedModalDevice, setSelectedModalDevice] = useState<ModalDevice | null>(null);
+  const [selectedModalDevice, setSelectedModalDevice] =
+    useState<ModalDevice | null>(null);
   const [deviceDistances, setDeviceDistances] = useState<
     Map<string, { avgMeters: number | null; minMeters: number | null }>
   >(new Map());
-  const [zoomLevel, setZoomLevel] = useState<"near" | "medium" | "far">("near");
+  const [zoomLevel, setZoomLevel] = useState<"near" | "medium" | "far">("medium");
+  const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
+
+  const getDeviceColor = (
+    iconKind: ModalDevice["iconKind"],
+    strength: number
+  ) => {
+    const clamped = Math.max(0.2, Math.min(1, strength || 0));
+    const alpha = 0.3 + clamped * 0.7;
+
+    if (iconKind === "bluetooth") return `rgba(168, 85, 247, ${alpha})`;
+    if (iconKind === "mobile") return `rgba(16, 185, 129, ${alpha})`;
+    return `rgba(251, 146, 60, ${alpha})`;
+  };
 
   // Fetch per-device distance statistics (in meters) for the current time range
   useEffect(() => {
@@ -185,6 +199,16 @@ export function SessionsRadarModal(props: Props) {
     [radarDevicesFull]
   );
 
+  const hoveredDevice = useMemo(
+    () =>
+      hoveredDeviceId
+        ?
+            radarDevicesFull.find((d) => `${d.kind}-${d.key}` === hoveredDeviceId) ??
+          null
+        : null,
+    [hoveredDeviceId, radarDevicesFull]
+  );
+
   const groupedModalDevices = useMemo(() => {
     const groups: Record<"mobile" | "router" | "bluetooth", ModalDevice[]> = {
       mobile: [],
@@ -208,6 +232,37 @@ export function SessionsRadarModal(props: Props) {
       return <Smartphone className="w-3 h-3" style={{ width: size, height: size }} />;
     }
     return <Router className="w-3 h-3" style={{ width: size, height: size }} />;
+  };
+
+  const bandEdgesByZoom: Record<"near" | "medium" | "far", number[]> = {
+    // Near: focus on 0–5m only
+    near: [0, 5],
+    // Medium: show 0–20m with a bit more spread
+    medium: [0, 5, 10, 20],
+    // Far: full range up to ~30m
+    far: [0, 5, 10, 20, 30],
+  };
+
+  const ringParamsByZoom: Record<"near" | "medium" | "far", { base: number; step: number }> = {
+    near: { base: 90, step: 0 },
+    medium: { base: 30, step: 18 },
+    far: { base: 10, step: 18 },
+  };
+
+  const bandEdges = bandEdgesByZoom[zoomLevel];
+  const { base: ringBaseSize, step: ringStep } = ringParamsByZoom[zoomLevel];
+
+  const ringRadii = bandEdges.slice(1).map((_, idx) => {
+    const size = ringBaseSize + (idx + 1) * ringStep;
+    return size / 2;
+  });
+
+  const getBandRadius = (bandIndex: number) => {
+    if (ringRadii.length === 0) return 20;
+    // 0 and 1 share the innermost ring (0–5m bucket)
+    if (bandIndex <= 1) return ringRadii[0];
+    const idx = Math.min(bandIndex - 1, ringRadii.length - 1);
+    return ringRadii[idx];
   };
 
   if (!isOpen) return null;
@@ -478,138 +533,237 @@ export function SessionsRadarModal(props: Props) {
 
           {/* Right: large radar + legend + details */}
           <div className="flex flex-col gap-3">
-            <div className="relative mx-auto mt-6 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-black/40 overflow-hidden">
-              {/* Distance rings (approximate): 0m center, then ~5m, ~10m, ~20m, ~30m+ */}
-              <div className="absolute inset-10 rounded-full border border-white/15" />
-              <div className="absolute inset-20 rounded-full border border-white/15" />
-              <div className="absolute inset-30 rounded-full border border-white/15" />
-              <div className="absolute inset-40 rounded-full border border-white/15" />
-
-              {/* Center: You */}
-              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
-                <span className="w-3 h-3 rounded-full bg-gold-400 shadow-[0_0_18px_rgba(212,175,55,0.8)]" />
-                <span className="text-[10px] text-gray-300">You</span>
+            <div className="relative mx-auto mt-8 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-gradient-to-br from-black/60 via-gray-900/60 to-gray-900/80 overflow-hidden shadow-2xl">
+              {/* Animated scanning effect */}
+              <div className="absolute inset-0 rounded-full overflow-hidden">
+                <div
+                  className="absolute inset-0 bg-gradient-conic from-transparent via-blue-500/10 to-transparent animate-spin"
+                  style={{ animationDuration: "8s" }}
+                />
               </div>
 
+              {/* Distance rings with glow and dynamic labels */}
+              {bandEdges.slice(1).map((distance, idx) => {
+                const size = ringBaseSize + (idx + 1) * ringStep;
+                return (
+                  <div
+                    key={distance}
+                    className="absolute rounded-full border border-blue-400/20"
+                    style={{
+                      inset: `${50 - size / 2}%`,
+                      boxShadow: "0 0 20px rgba(96, 165, 250, 0.1)",
+                    }}
+                  >
+                    <div
+                      className="absolute left-1/2 text-[10px] font-mono text-blue-300/70 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-sm"
+                      style={{
+                        top: "-14px",
+                        transform: "translateX(-50%)",
+                      }}
+                    >
+                      {distance}m
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Cardinal direction lines */}
+              {[0, 90, 180, 270].map((angle) => (
+                <div
+                  key={angle}
+                  className="absolute left-1/2 top-1/2 w-px h-1/2 bg-gradient-to-t from-blue-400/30 to-transparent origin-bottom"
+                  style={{
+                    transform: `translateX(-50%) rotate(${angle}deg)`,
+                  }}
+                />
+              ))}
+
+              {/* Center: You with pulsing effect */}
+              <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-2 z-20">
+                <div className="relative">
+                  <div className="w-4 h-4 rounded-full bg-yellow-400 shadow-lg" />
+                  <div className="absolute inset-0 rounded-full bg-yellow-400 animate-ping opacity-75" />
+                  <div className="absolute inset-0 rounded-full bg-yellow-400/30 blur-xl scale-150" />
+                </div>
+                <span className="text-[10px] font-semibold text-yellow-300 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                  You
+                </span>
+              </div>
+
+              {/* Devices */}
               {radarDevicesFull.map((d, index) => {
                 const angle =
                   (index / Math.max(radarDevicesFull.length, 1)) * 2 * Math.PI;
 
-                // Distance bands (in meters) aligned with rings; scaled by zoom
-                const baseBandEdges = [0, 5, 10, 20, 30];
-                const zoomScale = zoomLevel === "near" ? 1 : zoomLevel === "medium" ? 2 : 4;
-                const bandEdges = baseBandEdges.map((v) => v * zoomScale);
-
                 let effectiveMeters: number | null = d.avgMeters ?? null;
                 if (effectiveMeters == null) {
                   const intensity =
-                    (d.sessionCount || 1) / (modalRadarStats.maxSessionCount || 1);
-                  effectiveMeters = bandEdges[bandEdges.length - 1] * intensity;
+                    (d.sessionCount || 1) /
+                    (modalRadarStats.maxSessionCount || 1);
+                  effectiveMeters =
+                    bandEdges[bandEdges.length - 1] * intensity;
                 }
 
-                // Snap to band index: 0=center, 1=~5m, 2=~10m, 3=~20m, 4=~30m+
                 let bandIndex = 0;
-                if (effectiveMeters <= bandEdges[1]) bandIndex = 1;
-                else if (effectiveMeters <= bandEdges[2]) bandIndex = 2;
-                else if (effectiveMeters <= bandEdges[3]) bandIndex = 3;
-                else bandIndex = 4;
+                for (let i = 1; i < bandEdges.length; i++) {
+                  if (effectiveMeters <= bandEdges[i]) {
+                    bandIndex = i;
+                    break;
+                  }
+                  bandIndex = i + 1;
+                }
 
-                const baseRadius = 8; // center (0m)
-                const bandStep = 12; // distance between rings
-                const radius = baseRadius + bandIndex * bandStep;
+                const radius = getBandRadius(bandIndex);
 
                 const x = 50 + radius * Math.cos(angle);
                 const y = 50 + radius * Math.sin(angle);
 
-                // Midpoint along the radial line for meter label
-                const midRadius = baseRadius + (bandIndex * bandStep) * 0.5;
+                const midRadius = radius * 0.5;
                 const midX = 50 + midRadius * Math.cos(angle);
                 const midY = 50 + midRadius * Math.sin(angle);
 
-                const sizeBase = 14;
+                const deviceCount = radarDevicesFull.length || 1;
+                const densityFactor = Math.min(deviceCount / 6, 2);
+                const sizeBase = 30 / (1 + densityFactor * 0.4);
                 const sizeExtra =
-                  ((d.totalCount || 1) / (modalRadarStats.maxTotalCount || 1)) * 10;
+                  (((d.totalCount || 1) /
+                    (modalRadarStats.maxTotalCount || 1)) *
+                    10) /
+                  (1 + densityFactor * 0.4);
                 const size = sizeBase + sizeExtra;
 
-                // Color by device kind: mobile (phone) = green, bluetooth = purple, router = orange
-                const kindColorClass =
-                  d.iconKind === "bluetooth"
-                    ? "bg-purple-400"
-                    : d.iconKind === "mobile"
-                    ? "bg-emerald-400"
-                    : "bg-orange-400";
+                const id = `${d.kind}-${d.key}`;
+                const isHovered = hoveredDeviceId === id;
 
+                const strength =
+                  modalRadarStats.maxTotalCount > 0
+                    ? (d.totalCount || 1) / modalRadarStats.maxTotalCount
+                    : 0.5;
+
+                const color = getDeviceColor(d.iconKind, strength);
                 const rotationDeg = (angle * 180) / Math.PI;
 
                 return (
-                  <Fragment key={d.kind + d.key}>
-                    {/* Radial line from center to device (meters-based when available) */}
+                  <Fragment key={id}>
+                    {/* Connection line */}
                     <div
-                      className="absolute w-px bg-white/15"
+                      className="absolute w-px bg-gradient-to-t from-white/30 to-transparent origin-top transition-opacity"
                       style={{
                         left: "50%",
                         top: "50%",
                         height: `${radius}%`,
-                        transformOrigin: "bottom",
-                        transform: `translateX(-50%) rotate(${rotationDeg}deg)`,
+                        transform: `translate(-50%, 0) rotate(${rotationDeg}deg)`,
+                        opacity: isHovered ? 1 : 0.4,
                       }}
                     />
 
-                    {/* Mid-line distance label when meters are known */}
+                    {/* Mid-line distance label (when meters are known) */}
                     {d.avgMeters != null && (
                       <div
-                        className="absolute text-[9px] text-gray-300 bg-black/60 px-1 py-0.5 rounded"
+                        className="absolute text-[9px] text-gray-200 bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-white/10"
                         style={{
                           left: `${midX}%`,
                           top: `${midY}%`,
                           transform: "translate(-50%, -50%)",
                         }}
                       >
-                        ~{Math.round(d.avgMeters)} m
+                        ~{Math.round(d.avgMeters)}m
                       </div>
                     )}
 
+                    {/* Device marker */}
                     <button
                       type="button"
                       onClick={() => setSelectedModalDevice(d)}
-                      className="absolute flex flex-col items-center cursor-pointer focus:outline-none"
+                      onMouseEnter={() => setHoveredDeviceId(id)}
+                      onMouseLeave={() => setHoveredDeviceId(null)}
+                      className="absolute flex flex-col items-center gap-1 transition-all duration-300 group cursor-pointer focus:outline-none z-10"
                       style={{
                         left: `${x}%`,
                         top: `${y}%`,
                         transform: "translate(-50%, -50%)",
                       }}
                     >
-                      <span
-                        className={`flex items-center justify-center rounded-full shadow-[0_0_18px_rgba(0,0,0,0.8)] ${kindColorClass}`}
-                        style={{ width: size + 10, height: size + 10 }}
+                      {/* Glow on hover */}
+                      {isHovered && (
+                        <div
+                          className="absolute -inset-2 rounded-full blur-2xl transition-opacity"
+                          style={{
+                            background: color,
+                            opacity: 0.7,
+                          }}
+                        />
+                      )}
+
+                      {/* Icon bubble */}
+                      <div
+                        className="relative flex items-center justify-center rounded-full border-2 transition-all duration-300 backdrop-blur-sm"
+                        style={{
+                          width: isHovered ? size * 1.1 : size,
+                          height: isHovered ? size * 1.1 : size,
+                          background: color,
+                          borderColor: isHovered
+                            ? "rgba(255,255,255,0.5)"
+                            : "rgba(255,255,255,0.25)",
+                          boxShadow: isHovered
+                            ? `0 0 30px ${color}`
+                            : `0 0 15px ${color}`,
+                        }}
                       >
-                        {renderDeviceIcon(d)}
-                      </span>
-                      <span className="mt-1 max-w-[160px] truncate text-[10px] text-gray-200">
-                        {d.label}
+                        <div className="text-white">{renderDeviceIcon(d)}</div>
+                      </div>
+
+                      {/* Label */}
+                      <div
+                        className="max-w-[160px] transition-all duration-300"
+                        style={{
+                          opacity: isHovered ? 1 : 0.8,
+                          transform: isHovered ? "scale(1.05)" : "scale(1)",
+                        }}
+                      >
+                        <div className="text-[10px] font-medium text-white text-center truncate bg-black/70 px-2 py-1 rounded-lg backdrop-blur-sm border border-white/10">
+                          {d.label}
+                        </div>
                         {d.avgMeters != null && (
-                          <> · ~{Math.round(d.avgMeters)} m</>
+                          <div className="text-[9px] text-gray-400 text-center mt-0.5">
+                            ~{Math.round(d.avgMeters)}m
+                          </div>
                         )}
-                      </span>
+                      </div>
+
+                      {/* Signal strength indicator */}
+                      <div className="flex gap-0.5 mt-1">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <div
+                            key={i}
+                            className="w-0.5 rounded-full transition-colors"
+                            style={{
+                              height: 4 + i * 2,
+                              background:
+                                i < strength * 5
+                                  ? color
+                                  : "rgba(255,255,255,0.2)",
+                            }}
+                          />
+                        ))}
+                      </div>
                     </button>
                   </Fragment>
                 );
               })}
-
-              {/* Crosshair lines */}
-              <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/15" />
-              <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/15" />
             </div>
 
             {/* Legend + zoom controls */}
-            <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300 mt-2">
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
               {/* Zoom controls for distance bands */}
               <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
                 <button
                   type="button"
                   onClick={() => setZoomLevel("near")}
                   className={`px-2 py-0.5 rounded-full ${
-                    zoomLevel === "near" ? "bg-white text-black" : "text-gray-300"
+                    zoomLevel === "near"
+                      ? "bg-white text-black"
+                      : "text-gray-300"
                   }`}
                 >
                   Near
@@ -618,7 +772,9 @@ export function SessionsRadarModal(props: Props) {
                   type="button"
                   onClick={() => setZoomLevel("medium")}
                   className={`px-2 py-0.5 rounded-full ${
-                    zoomLevel === "medium" ? "bg-white text-black" : "text-gray-300"
+                    zoomLevel === "medium"
+                      ? "bg-white text-black"
+                      : "text-gray-300"
                   }`}
                 >
                   Medium
@@ -627,39 +783,80 @@ export function SessionsRadarModal(props: Props) {
                   type="button"
                   onClick={() => setZoomLevel("far")}
                   className={`px-2 py-0.5 rounded-full ${
-                    zoomLevel === "far" ? "bg-white text-black" : "text-gray-300"
+                    zoomLevel === "far"
+                      ? "bg-white text-black"
+                      : "text-gray-300"
                   }`}
                 >
                   Far
                 </button>
               </div>
 
-              <div className="inline-flex items-center gap-1">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
-                  <Router className="w-3 h-3" />
-                </span>
-                <span>Wi‑Fi router / access point</span>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-orange-500/80" />
+                <span>Wi‑Fi routers / access points</span>
               </div>
-              <div className="inline-flex items-center gap-1">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
-                  <Smartphone className="w-3 h-3" />
-                </span>
-                <span>Mobile / phone hotspot</span>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                <span>Mobiles & phone hotspots</span>
               </div>
-              <div className="inline-flex items-center gap-1">
-                <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
-                  <Bluetooth className="w-3 h-3" />
-                </span>
-                <span>Bluetooth device</span>
+              <div className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded-full bg-purple-500/80" />
+                <span>Bluetooth devices</span>
               </div>
             </div>
 
-            <p className="text-[11px] text-gray-400">
-              Each dot is a device across selected sessions. Icon shows type (mobile hotspot,
-              Wi‑Fi router, Bluetooth), color shows device type, and size reflects how often
-              it appears. Radial lines show relative distance bands (~0/5/10/20/30m scaled by
-              zoom); exact averages are shown on each line.
+            <p className="mt-1 text-[11px] text-gray-400">
+              Animated rings show approximate distance bands (scaled by zoom).
+              Each glowing bubble is a device seen across the selected sessions:
+              icon and color show type, size reflects how often it appears, and
+              the small bars indicate relative signal/visibility strength. When
+              distance estimates are known, inline labels show the average
+              meters along each connection line.
             </p>
+
+            {/* Hover info panel */}
+            {hoveredDevice && (
+              <div className="mt-2 bg-black/40 backdrop-blur-lg border border-white/10 rounded-xl px-3 py-2 text-[11px] text-gray-200">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-gray-100 mb-0.5">
+                      {hoveredDevice.label}
+                    </div>
+                    {hoveredDevice.manufacturer && (
+                      <div className="text-[10px] text-gray-400">
+                        {hoveredDevice.manufacturer}
+                      </div>
+                    )}
+                    <div className="text-[10px] text-gray-500">
+                      {hoveredDevice.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"} · {""}
+                      {hoveredDevice.isTrusted
+                        ? "known in environment"
+                        : "possible tracker"}
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-gray-400 text-right space-y-0.5">
+                    <div>
+                      Sessions: {""}
+                      <span className="font-mono">
+                        {hoveredDevice.sessionCount}
+                      </span>
+                    </div>
+                    <div>
+                      Sightings: {""}
+                      <span className="font-mono">
+                        {hoveredDevice.totalCount}
+                      </span>
+                    </div>
+                    {hoveredDevice.avgMeters != null && (
+                      <div>
+                        Avg dist: ~{Math.round(hoveredDevice.avgMeters)}m
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Details panel for selected device */}
             {selectedModalDevice && (
