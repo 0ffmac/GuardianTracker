@@ -628,12 +628,16 @@ export function SessionsRadarModal(props: Props) {
                     : 0.5;
 
                 const deviceCount = radarDevicesFull.length || 1;
-                const densityFactor = Math.min(deviceCount / 6, 2);
-                // Base size shrinks a bit as more devices are shown
-                const sizeBase = 26 / (1 + densityFactor * 0.4);
-                // Extra size driven directly by signal/visibility strength
-                const sizeExtra = (10 * strength) / (1 + densityFactor * 0.4);
-                const size = sizeBase + sizeExtra;
+                const densityFactor = Math.min(deviceCount / 10, 2);
+
+                // Map strength (0–1) into a clear visual size range
+                const minSize = 20;
+                const maxSize = 46;
+                let size = minSize + strength * (maxSize - minSize);
+
+                // Light global shrink when there are many devices to reduce overlap
+                const densityScale = 1 / (1 + densityFactor * 0.25);
+                size *= densityScale;
 
                 const id = `${d.kind}-${d.key}`;
                 const isHovered = hoveredDeviceId === id;
