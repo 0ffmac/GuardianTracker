@@ -622,6 +622,11 @@ export function SessionsRadarModal(props: Props) {
                 const midX = 50 + midRadius * Math.cos(angle);
                 const midY = 50 + midRadius * Math.sin(angle);
 
+                const strength =
+                  modalRadarStats.maxTotalCount > 0
+                    ? (d.totalCount || 1) / modalRadarStats.maxTotalCount
+                    : 0.5;
+
                 const deviceCount = radarDevicesFull.length || 1;
                 const densityFactor = Math.min(deviceCount / 6, 2);
                 // Base size shrinks a bit as more devices are shown
@@ -632,11 +637,6 @@ export function SessionsRadarModal(props: Props) {
 
                 const id = `${d.kind}-${d.key}`;
                 const isHovered = hoveredDeviceId === id;
-
-                const strength =
-                  modalRadarStats.maxTotalCount > 0
-                    ? (d.totalCount || 1) / modalRadarStats.maxTotalCount
-                    : 0.5;
 
                 const color = getDeviceColor(d.iconKind, strength);
                 const rotationDeg = (angle * 180) / Math.PI;
