@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
-import { BarChart3, Bell, ShieldAlert, AlertTriangle, Activity, Filter } from "lucide-react";
+import {
+  BarChart3,
+  Bell,
+  ShieldAlert,
+  AlertTriangle,
+  Activity,
+  Filter,
+  Smartphone,
+  Bluetooth,
+  Router,
+} from "lucide-react";
 
 interface AlertsAnalytics {
   range: { from: string; to: string };
@@ -66,6 +76,7 @@ interface EnvironmentDeviceWifi {
   lastSeen: string | null;
   scanCount: number;
   hasSessions: boolean;
+  manufacturer?: string | null;
 }
 
 interface EnvironmentDeviceBle {
@@ -77,6 +88,7 @@ interface EnvironmentDeviceBle {
   lastSeen: string | null;
   scanCount: number;
   hasSessions: boolean;
+  manufacturer?: string | null;
 }
 
 interface SessionEnvironment {
@@ -143,6 +155,7 @@ export default function DashboardAnalyticsPage() {
   const [sessionSearch, setSessionSearch] = useState("");
   const [deviceKindFilter, setDeviceKindFilter] = useState<"all" | "wifi" | "ble">("all");
   const [hideTrusted, setHideTrusted] = useState(true);
+  const [showRadarModal, setShowRadarModal] = useState(false);
 
   const router = useRouter();
 
@@ -295,6 +308,7 @@ export default function DashboardAnalyticsPage() {
             lastSeen: w.lastSeen ?? null,
             scanCount: w.scanCount ?? 0,
             hasSessions: Boolean(w.hasSessions),
+            manufacturer: w.manufacturer ?? null,
           }))
           .filter((w: EnvironmentDeviceWifi) => w.bssid);
 
@@ -308,6 +322,7 @@ export default function DashboardAnalyticsPage() {
             lastSeen: b.lastSeen ?? null,
             scanCount: b.scanCount ?? 0,
             hasSessions: Boolean(b.hasSessions),
+            manufacturer: b.manufacturer ?? null,
           }))
           .filter((b: EnvironmentDeviceBle) => b.address);
 
@@ -440,6 +455,11 @@ export default function DashboardAnalyticsPage() {
     sessions: { id: string; name: string; count: number }[];
     isTrusted: boolean;
     trustedSourceLabel?: string | null;
+  };
+
+  type ModalDevice = OverlapDevice & {
+    manufacturer?: string | null;
+    iconKind: "mobile" | "router" | "bluetooth";
   };
 
   const openDeviceOnMap = (device: OverlapDevice) => {
@@ -589,6 +609,90 @@ export default function DashboardAnalyticsPage() {
     },
     [radarDevices]
   );
+
+  // Derived devices for the full-screen radar modal
+  const modalDevices = useMemo<ModalDevice[]>(() => {
+    if (filteredOverlapDevices.length === 0) return [];
+
+    const wifiMap = new Map(envWifiDevices.map((w) => [w.bssid, w]));
+    const bleMap = new Map(envBleDevices.map((b) => [b.address, b]));
+
+    const classifyIcon = (base: OverlapDevice, manufacturer: string | null): ModalDevice["iconKind"] => {
+      if (base.kind === "ble") return "bluetooth";
+      const label = base.label.toLowerCase();
+      const vendor = (manufacturer || "").toLowerCase();
+      if (
+        /iphone|ipad|android|galaxy|pixel|hotspot/.test(label) ||
+        /apple|samsung|oppo|xiaomi|huawei|oneplus/.test(vendor)
+      ) {
+        return "mobile";
+      }
+      return "router";
+    };
+
+    return filteredOverlapDevices.map((d) => {
+      let manufacturer: string | null = null;
+      if (d.kind === "wifi") {
+        const env = wifiMap.get(d.key);
+        manufacturer = env?.manufacturer ?? null;
+      } else {
+        const env = bleMap.get(d.key);
+        manufacturer = env?.manufacturer ?? null;
+      }
+      const iconKind = classifyIcon(d, manufacturer);
+      return { ...d, manufacturer, iconKind };
+    });
+  }, [filteredOverlapDevices, envWifiDevices, envBleDevices]);
+
+  const radarDevicesFull = useMemo<ModalDevice[]>(() => {
+    const max = 10;
+    if (modalDevices.length === 0) return [];
+    const suspicious = modalDevices.filter((d) => !d.isTrusted);
+    const trustedList = modalDevices.filter((d) => d.isTrusted);
+    const ordered = [...suspicious, ...trustedList].slice(0, max);
+    return ordered;
+  }, [modalDevices]);
+
+  const modalRadarStats = useMemo(
+    () => {
+      if (radarDevicesFull.length === 0) {
+        return { maxSessionCount: 1, maxTotalCount: 1 };
+      }
+      let maxSessionCount = 1;
+      let maxTotalCount = 1;
+      radarDevicesFull.forEach((d) => {
+        if (d.sessionCount > maxSessionCount) maxSessionCount = d.sessionCount;
+        if (d.totalCount > maxTotalCount) maxTotalCount = d.totalCount;
+      });
+      return { maxSessionCount, maxTotalCount };
+    },
+    [radarDevicesFull]
+  );
+
+  const groupedModalDevices = useMemo(() => {
+    const groups: Record<"mobile" | "router" | "bluetooth", ModalDevice[]> = {
+      mobile: [],
+      router: [],
+      bluetooth: [],
+    };
+
+    modalDevices.forEach((d) => {
+      groups[d.iconKind].push(d);
+    });
+
+    return groups;
+  }, [modalDevices]);
+
+  const renderDeviceIcon = (d: ModalDevice) => {
+    const size = 12;
+    if (d.iconKind === "bluetooth") {
+      return <Bluetooth className="w-3 h-3" style={{ width: size, height: size }} />;
+    }
+    if (d.iconKind === "mobile") {
+      return <Smartphone className="w-3 h-3" style={{ width: size, height: size }} />;
+    }
+    return <Router className="w-3 h-3" style={{ width: size, height: size }} />;
+  };
  
   const totalSuspicious = suspiciousAnalytics?.topDevices.length || 0;
 
@@ -1202,6 +1306,15 @@ export default function DashboardAnalyticsPage() {
                 center roughly follows how often it appears across sessions; size reflects total
                 sightings. Red means not in your known environment; green is already known.
               </p>
+              <div className="mt-2 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShowRadarModal(true)}
+                  className="inline-flex items-center gap-1 rounded-full border border-white/20 px-3 py-1 text-[11px] text-gray-200 hover:bg-white/10"
+                >
+                  <span>Expand radar view</span>
+                </button>
+              </div>
 
               <div className="overflow-x-auto">
               {selectedSessionIds.length < 2 ? (
@@ -1361,7 +1474,298 @@ export default function DashboardAnalyticsPage() {
             </div>
           )}
         </section>
-      </main>
+
+        {showRadarModal && (
+          <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm flex items-center justify-center">
+            <div className="relative w-full max-w-7xl h-[96vh] max-h-[100vh] bg-surface rounded-2xl border border-white/20 shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-4">
+                <h2 className="text-sm font-semibold">
+                  Sessions correlation radar – full view
+                </h2>
+                <div className="flex items-center gap-3 text-[11px] text-gray-300">
+                  <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
+                    <button
+                      type="button"
+                      onClick={() => setDeviceKindFilter("all")}
+                      className={`px-2 py-0.5 rounded-full ${
+                        deviceKindFilter === "all" ? "bg-white text-black" : "text-gray-300"
+                      }`}
+                    >
+                      All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeviceKindFilter("wifi")}
+                      className={`px-2 py-0.5 rounded-full ${
+                        deviceKindFilter === "wifi" ? "bg-white text-black" : "text-gray-300"
+                      }`}
+                    >
+                      Wi‑Fi
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDeviceKindFilter("ble")}
+                      className={`px-2 py-0.5 rounded-full ${
+                        deviceKindFilter === "ble" ? "bg-white text-black" : "text-gray-300"
+                      }`}
+                    >
+                      Bluetooth
+                    </button>
+                  </div>
+                  <label className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={hideTrusted}
+                      onChange={(e) => setHideTrusted(e.target.checked)}
+                      className="h-3 w-3"
+                    />
+                    <span>Hide known devices</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowRadarModal(false)}
+                    className="text-xs text-gray-300 hover:text-white"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px,1fr] gap-4 p-4 overflow-hidden">
+                {/* Left: grouped device list */}
+                <div className="overflow-y-auto pr-2 text-xs">
+                  <p className="text-[11px] text-gray-400 mb-2">
+                    Devices seen across multiple sessions. Click a row to open on the map.
+                  </p>
+                  {modalDevices.length === 0 ? (
+                    <p className="text-[11px] text-gray-500">
+                      No overlapping devices for current filters.
+                    </p>
+                  ) : (
+                    <div className="space-y-3">
+                      {groupedModalDevices.router.length > 0 && (
+                        <div>
+                          <h3 className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                            Wi‑Fi routers & access points ({groupedModalDevices.router.length})
+                          </h3>
+                          <ul className="space-y-2">
+                            {groupedModalDevices.router.map((d) => (
+                              <li
+                                key={d.kind + d.key}
+                                className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 cursor-pointer hover:bg-white/10"
+                                onClick={() => openDeviceOnMap(d)}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div className="mt-0.5">
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10">
+                                      {renderDeviceIcon(d)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <div className="text-[11px] font-semibold text-gray-100">
+                                      {d.label}
+                                    </div>
+                                    {d.manufacturer && (
+                                      <div className="text-[10px] text-gray-400">
+                                        {d.manufacturer}
+                                      </div>
+                                    )}
+                                    <div className="text-[10px] text-gray-500">
+                                      {d.sessionCount} sessions · {d.totalCount} sightings
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-gray-400">
+                                  {d.isTrusted ? "known" : "possible tracker"}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {groupedModalDevices.mobile.length > 0 && (
+                        <div>
+                          <h3 className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                            Mobiles & phone hotspots ({groupedModalDevices.mobile.length})
+                          </h3>
+                          <ul className="space-y-2">
+                            {groupedModalDevices.mobile.map((d) => (
+                              <li
+                                key={d.kind + d.key}
+                                className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 cursor-pointer hover:bg-white/10"
+                                onClick={() => openDeviceOnMap(d)}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div className="mt-0.5">
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10">
+                                      {renderDeviceIcon(d)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <div className="text-[11px] font-semibold text-gray-100">
+                                      {d.label}
+                                    </div>
+                                    {d.manufacturer && (
+                                      <div className="text-[10px] text-gray-400">
+                                        {d.manufacturer}
+                                      </div>
+                                    )}
+                                    <div className="text-[10px] text-gray-500">
+                                      {d.sessionCount} sessions · {d.totalCount} sightings
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-gray-400">
+                                  {d.isTrusted ? "known" : "possible tracker"}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {groupedModalDevices.bluetooth.length > 0 && (
+                        <div>
+                          <h3 className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                            Bluetooth devices ({groupedModalDevices.bluetooth.length})
+                          </h3>
+                          <ul className="space-y-2">
+                            {groupedModalDevices.bluetooth.map((d) => (
+                              <li
+                                key={d.kind + d.key}
+                                className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-black/30 px-3 py-2 cursor-pointer hover:bg-white/10"
+                                onClick={() => openDeviceOnMap(d)}
+                              >
+                                <div className="flex items-start gap-2">
+                                  <div className="mt-0.5">
+                                    <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/10">
+                                      {renderDeviceIcon(d)}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <div className="text-[11px] font-semibold text-gray-100">
+                                      {d.label}
+                                    </div>
+                                    {d.manufacturer && (
+                                      <div className="text-[10px] text-gray-400">
+                                        {d.manufacturer}
+                                      </div>
+                                    )}
+                                    <div className="text-[10px] text-gray-500">
+                                      {d.sessionCount} sessions · {d.totalCount} sightings
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="text-[10px] text-gray-400">
+                                  {d.isTrusted ? "known" : "possible tracker"}
+                                </div>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: large radar */}
+                <div className="flex flex-col gap-3">
+                  <div className="relative mx-auto aspect-square w-full max-w-xl rounded-full border border-white/15 bg-black/40 overflow-hidden">
+                    <div className="absolute inset-6 rounded-full border border-white/5" />
+                    <div className="absolute inset-14 rounded-full border border-white/5" />
+                    <div className="absolute inset-24 rounded-full border border-white/5" />
+
+                    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-gold-400 shadow-[0_0_18px_rgba(212,175,55,0.8)]" />
+                      <span className="text-[10px] text-gray-300">You</span>
+                    </div>
+
+                    {radarDevicesFull.map((d, index) => {
+                      const angle =
+                        (index / Math.max(radarDevicesFull.length, 1)) * 2 * Math.PI;
+                      const baseRadius = 22;
+                      const extraRadius =
+                        ((d.sessionCount || 1) / (modalRadarStats.maxSessionCount || 1)) * 18;
+                      const radius = baseRadius + extraRadius;
+                      const x = 50 + radius * Math.cos(angle);
+                      const y = 50 + radius * Math.sin(angle);
+                      const sizeBase = 10;
+                      const sizeExtra =
+                        ((d.totalCount || 1) / (modalRadarStats.maxTotalCount || 1)) * 8;
+                      const size = sizeBase + sizeExtra;
+                      const colorClass = d.isTrusted ? "bg-emerald-400" : "bg-red-400";
+                      return (
+                        <button
+                          type="button"
+                          key={d.kind + d.key}
+                          onClick={() => openDeviceOnMap(d)}
+                          className="absolute flex flex-col items-center cursor-pointer focus:outline-none"
+                          style={{
+                            left: `${x}%`,
+                            top: `${y}%`,
+                            transform: "translate(-50%, -50%)",
+                          }}
+                        >
+                          <span
+                            className={`flex items-center justify-center rounded-full shadow-[0_0_14px_rgba(0,0,0,0.6)] ${colorClass}`}
+                            style={{ width: size + 8, height: size + 8 }}
+                          >
+                            {renderDeviceIcon(d)}
+                          </span>
+                          <span className="mt-1 max-w-[140px] truncate text-[9px] text-gray-200">
+                            {d.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+
+                    <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/5" />
+                    <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/5" />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
+                    <div className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
+                        <Router className="w-3 h-3" />
+                      </span>
+                      <span>Wi‑Fi router / access point</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
+                        <Smartphone className="w-3 h-3" />
+                      </span>
+                      <span>Mobile / phone hotspot</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1">
+                      <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10">
+                        <Bluetooth className="w-3 h-3" />
+                      </span>
+                      <span>Bluetooth device</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-emerald-400" />
+                      <span>Known in your environment</span>
+                    </div>
+                    <div className="inline-flex items-center gap-1">
+                      <span className="w-3 h-3 rounded-full bg-red-400" />
+                      <span>Not known (possible tracker)</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-gray-400">
+                    Each dot is a device across selected sessions. Icon shows type
+                    (mobile hotspot, Wi‑Fi router, Bluetooth), color shows trusted vs
+                    unknown, and size reflects how often it appears.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+       </main>
     </div>
   );
 }
+
