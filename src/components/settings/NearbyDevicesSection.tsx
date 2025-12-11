@@ -73,13 +73,19 @@ export function NearbyDevicesSection({
                     >
                       <div className="flex items-center justify-between gap-2">
                         <div>
-                          <div className="text-sm font-medium">
-                            {device.ssid || "Hidden network"}
-                          </div>
-                          <div className="text-[11px] text-gray-400">
-                            BSSID: {device.bssid}
-                          </div>
-                        </div>
+                           <div className="text-sm font-medium">
+                             {device.ssid || "Hidden network"}
+                           </div>
+                           <div className="text-[11px] text-gray-400">
+                             BSSID: {device.bssid}
+                           </div>
+                           {device.manufacturer && (
+                             <div className="text-[11px] text-gray-400">
+                               Manufacturer: {device.manufacturer}
+                             </div>
+                           )}
+                         </div>
+
                         <div className="flex flex-col items-end gap-1">
                           {device.hasSessions && (
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-900/60 text-amber-100">
@@ -144,6 +150,11 @@ export function NearbyDevicesSection({
                           <div className="text-[11px] text-gray-400">
                             Address: {device.address}
                           </div>
+                          {device.manufacturer && (
+                            <div className="text-[11px] text-gray-400">
+                              Manufacturer: {device.manufacturer}
+                            </div>
+                          )}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {device.hasSessions && (

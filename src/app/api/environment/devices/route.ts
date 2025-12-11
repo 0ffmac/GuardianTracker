@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { lookupManufacturerFromMac } from "@/lib/macVendor";
 
 export const runtime = "nodejs";
+
 
 export async function GET(request: Request) {
   try {
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
         lastSeen: Date | null;
         scanCount: number;
         hasSessions: boolean;
+        manufacturer?: string | null;
       }
     >();
 
@@ -73,6 +76,7 @@ export async function GET(request: Request) {
           lastSeen: ts,
           scanCount: 0,
           hasSessions: false,
+          manufacturer: lookupManufacturerFromMac(key),
         };
 
       entry.ssid = entry.ssid || scan.ssid || null;
@@ -97,6 +101,7 @@ export async function GET(request: Request) {
         lastSeen: Date | null;
         scanCount: number;
         hasSessions: boolean;
+        manufacturer?: string | null;
       }
     >();
 
@@ -114,6 +119,7 @@ export async function GET(request: Request) {
           lastSeen: ts,
           scanCount: 0,
           hasSessions: false,
+          manufacturer: lookupManufacturerFromMac(key),
         };
 
       entry.name = entry.name || scan.name || null;
