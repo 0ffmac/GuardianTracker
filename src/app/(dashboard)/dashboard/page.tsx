@@ -759,14 +759,17 @@ export default function DashboardPage() {
 
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
              <div className="lg:col-span-2 h-[350px] lg:h-[380px] rounded-xl overflow-hidden">
-               {hasLiveData ? (
-                 <Map
-                   locations={locations}
-                   currentLocation={currentLocation}
-                   fitOnUpdate={true}
-                   autoZoomOnFirstPoint={true}
-                 />
-               ) : (
+                {hasLiveData ? (
+                  <Map
+                    locations={locations}
+                    currentLocation={currentLocation}
+                    fitOnUpdate={false}
+                    autoZoomOnFirstPoint={true}
+                    hidePopups
+                    pointZoom={16}
+                  />
+                ) : (
+
                  <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-xl border border-dashed border-white/10">
                    <p className="text-sm text-gray-400 text-center px-4">
                      No active tracking right now. Start the mobile app to see your live position here.
@@ -866,27 +869,29 @@ export default function DashboardPage() {
                      Selected: <span className="font-semibold">{selectedNearbyContact.name || selectedNearbyContact.email}</span>
                    </p>
                    <div className="w-full h-40 rounded-md overflow-hidden border border-white/10">
-                     <Map
-                       locations={[
-                         {
-                           id: "me",
-                           latitude: currentLocation.latitude,
-                           longitude: currentLocation.longitude,
-                           deviceId: currentLocation.deviceId,
-                           timestamp: currentLocation.timestamp,
-                         },
-                         {
-                           id: selectedNearbyContact.userId,
-                           latitude: selectedNearbyContact.lastLocation.latitude,
-                           longitude: selectedNearbyContact.lastLocation.longitude,
-                           deviceId: null,
-                           timestamp: selectedNearbyContact.lastLocation.timestamp as any,
-                         },
-                       ]}
-                       currentLocation={null}
-                       fitOnUpdate={true}
-                       autoZoomOnFirstPoint={false}
-                     />
+                      <Map
+                        locations={[
+                          {
+                            id: "me",
+                            latitude: currentLocation.latitude,
+                            longitude: currentLocation.longitude,
+                            deviceId: currentLocation.deviceId,
+                            timestamp: currentLocation.timestamp,
+                          },
+                          {
+                            id: selectedNearbyContact.userId,
+                            latitude: selectedNearbyContact.lastLocation.latitude,
+                            longitude: selectedNearbyContact.lastLocation.longitude,
+                            deviceId: null,
+                            timestamp: selectedNearbyContact.lastLocation.timestamp as any,
+                          },
+                        ]}
+                        currentLocation={null}
+                        fitOnUpdate={true}
+                        autoZoomOnFirstPoint={false}
+                        hidePopups
+                      />
+
                    </div>
                  </div>
                )}

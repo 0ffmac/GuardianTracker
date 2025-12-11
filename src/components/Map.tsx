@@ -44,6 +44,16 @@ interface MapProps {
   snappedGeoJson?: any | null;
   wifiDevices?: WifiDevicePoint[];
   bleDevices?: BleDevicePoint[];
+  /**
+   * If true, do not auto-open the current-location popup or attach per-device popups.
+   * Useful for small/mobile maps where the tooltip can cause layout issues.
+   */
+  hidePopups?: boolean;
+  /**
+   * Optional explicit zoom level to use when not fitting bounds (e.g. focus on last point).
+   * Defaults to 10 if not provided.
+   */
+  pointZoom?: number;
 }
 
 // Helper function to define the custom pulsing marker icon
@@ -95,6 +105,8 @@ export default function Map({
   snappedGeoJson,
   wifiDevices = [],
   bleDevices = [],
+  hidePopups = false,
+  pointZoom = 10,
 }: MapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
@@ -112,7 +124,11 @@ export default function Map({
     // Default center (Madrid) and a national zoom level (6)
     const defaultCenter: L.LatLngExpression = [40.4168, -3.7038];
 
-    mapRef.current = L.map(containerRef.current).setView(defaultCenter, 6);
+    mapRef.current = L.map(containerRef.current, { tap: false } as any).setView(
+      defaultCenter,
+      6
+    );
+
 
     const street = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 21,
@@ -197,14 +213,19 @@ export default function Map({
         ? "Hybrid (GPS + Wi-Fi)"
         : "GPS";
 
-    L.marker(lastLatLng, { icon: getCustomIcon(lastLocationData.source) })
-      .addTo(layerGroup)
-      .bindPopup(
-        `<strong>Current Location</strong><br><small>${new Date(
-          lastLocationData.timestamp
-        ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`
-      )
-      .openPopup();
+    const currentMarker = L.marker(lastLatLng, { icon: getCustomIcon(lastLocationData.source) }).addTo(
+      layerGroup
+    );
+
+    if (!hidePopups) {
+      currentMarker
+        .bindPopup(
+          `<strong>Current Location</strong><br><small>${new Date(
+            lastLocationData.timestamp
+          ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`
+        )
+        .openPopup();
+    }
 
     // Fit Bounds to show the entire route
     if (bounds) {
@@ -216,7 +237,7 @@ export default function Map({
           maxZoom: 14,
         });
       } else {
-        map.setView(lastLatLng, 10);
+        map.setView(lastLatLng, pointZoom);
       }
     }
 
@@ -224,21 +245,23 @@ export default function Map({
     if (Array.isArray(wifiDevices)) {
       wifiDevices.forEach((d) => {
         const latLng: L.LatLngExpression = [d.latitude, d.longitude];
-        L.circleMarker(latLng, {
+        const marker = L.circleMarker(latLng, {
           radius: 6,
           color: "#38bdf8",
           weight: 1,
           fillColor: "#0ea5e9",
           fillOpacity: 0.85,
-        })
-          .addTo(layerGroup)
-          .bindPopup(
+        }).addTo(layerGroup);
+
+        if (!hidePopups) {
+          marker.bindPopup(
             `<strong>Wi-Fi</strong><br />SSID: ${d.ssid || "(hidden)"}<br />BSSID: ${d.bssid}<br />Samples: ${d.count}<br />Avg RSSI: ${
               d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
             }<br /><small>${
               d.firstSeen ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />` : ""
             }${d.lastSeen ? `Last: ${new Date(d.lastSeen).toLocaleString()}` : ""}</small>`
           );
+        }
       });
     }
 
@@ -246,21 +269,23 @@ export default function Map({
     if (Array.isArray(bleDevices)) {
       bleDevices.forEach((d) => {
         const latLng: L.LatLngExpression = [d.latitude, d.longitude];
-        L.circleMarker(latLng, {
+        const marker = L.circleMarker(latLng, {
           radius: 6,
           color: "#a855f7",
           weight: 1,
           fillColor: "#c4b5fd",
           fillOpacity: 0.85,
-        })
-          .addTo(layerGroup)
-          .bindPopup(
+        }).addTo(layerGroup);
+
+        if (!hidePopups) {
+          marker.bindPopup(
             `<strong>Bluetooth</strong><br />Name: ${d.name || "(unknown)"}<br />Address: ${d.address}<br />Samples: ${d.count}<br />Avg RSSI: ${
               d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
             }<br /><small>${
               d.firstSeen ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />` : ""
             }${d.lastSeen ? `Last: ${new Date(d.lastSeen).toLocaleString()}` : ""}</small>`
           );
+        }
       });
     }
     // If fitOnUpdate is false, do not change zoom/center unless autoZoomOnFirstPoint triggers above

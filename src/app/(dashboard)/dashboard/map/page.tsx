@@ -712,17 +712,20 @@ export default function DashboardMapPage() {
                 wifiDevices={showWifiDevices ? focusedWifiDevices : []}
                 bleDevices={showBleDevices ? focusedBleDevices : []}
               />
-            ) : (
-              <Map
-                locations={locations}
-                currentLocation={locations[locations.length - 1] || null}
-                fitOnUpdate
-                autoZoomOnFirstPoint
-                snappedGeoJson={showSnapped ? snappedGeoJson : null}
-                wifiDevices={showWifiDevices ? focusedWifiDevices : []}
-                bleDevices={showBleDevices ? focusedBleDevices : []}
-              />
-            )
+             ) : (
+               <Map
+                 locations={locations}
+                 currentLocation={locations[locations.length - 1] || null}
+                 fitOnUpdate={false}
+                 autoZoomOnFirstPoint
+                 snappedGeoJson={showSnapped ? snappedGeoJson : null}
+                 wifiDevices={showWifiDevices ? focusedWifiDevices : []}
+                 bleDevices={showBleDevices ? focusedBleDevices : []}
+                 hidePopups
+                 pointZoom={16}
+               />
+             )
+
           )}
         </div>
 

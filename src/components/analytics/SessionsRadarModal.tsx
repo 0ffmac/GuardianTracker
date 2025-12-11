@@ -1103,8 +1103,10 @@ export function SessionsRadarModal(props: Props) {
                               <InlineMap
                                 locations={locs}
                                 currentLocation={lastLoc}
-                                fitOnUpdate
+                                fitOnUpdate={false}
                                 autoZoomOnFirstPoint
+                                hidePopups
+                                pointZoom={17}
                               />
                             </div>
                           </div>

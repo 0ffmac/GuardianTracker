@@ -37,9 +37,11 @@ export default async function MobileMapPage({
       <Map
         locations={locations as any} // match your MapProps type
         currentLocation={currentLocation as any}
-        fitOnUpdate
+        fitOnUpdate={false}
         autoZoomOnFirstPoint
         snappedGeoJson={null}
+        hidePopups
+        pointZoom={16}
       />
     </div>
   );
