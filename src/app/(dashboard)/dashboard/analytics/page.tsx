@@ -963,9 +963,9 @@ export default function DashboardAnalyticsPage() {
                         style={{ height: `${heightPct}%` }}
                         title={`${b.total} alerts`}
                       />
-                      <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                        {formatShortDate(b.start)}
-                      </span>
+                       <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                        {formatShortDate(b.end)}
+                       </span>
                     </div>
                   );
                 })}
