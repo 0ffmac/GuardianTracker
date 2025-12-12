@@ -81,6 +81,27 @@ interface AlertSummary {
   createdAt: string;
 }
 
+interface AlertTimelineEvent {
+  time: string;
+  kind: string;
+  status?: string | null;
+  byUserId?: string | null;
+  byUserName?: string | null;
+  recipientId?: string | null;
+  recipientName?: string | null;
+}
+
+interface AlertTimeline {
+  alert: {
+    id: string;
+    title: string;
+    status: string;
+    createdAt: string;
+    senderName?: string | null;
+  };
+  events: AlertTimelineEvent[];
+}
+
 interface TrackingSession {
   id: string;
   name?: string | null;
@@ -161,6 +182,9 @@ export default function DashboardAnalyticsPage() {
     useState<SuspiciousAnalytics | null>(null);
   const [recentAlerts, setRecentAlerts] = useState<AlertSummary[]>([]);
   const [selectedAlertId, setSelectedAlertId] = useState<string>("");
+  const [alertTimeline, setAlertTimeline] = useState<AlertTimeline | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
+  const [timelineError, setTimelineError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -306,6 +330,43 @@ export default function DashboardAnalyticsPage() {
 
     void fetchAnalytics();
   }, [fromIso, toIso, daysBack, selectedAlertId, alertTypeFilter, compare, prevFromIso, prevToIso]);
+
+  useEffect(() => {
+    if (!selectedAlertId) {
+      setAlertTimeline(null);
+      setTimelineError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const fetchTimeline = async () => {
+      setTimelineLoading(true);
+      setTimelineError(null);
+      try {
+        const res = await fetch(`/api/analytics/alerts/${selectedAlertId}/timeline`);
+        if (!res.ok) throw new Error("Failed to load alert timeline");
+        const data = (await res.json()) as AlertTimeline;
+        if (cancelled) return;
+        setAlertTimeline(data);
+      } catch (err: any) {
+        if (cancelled) return;
+        console.error("Failed to load alert timeline", err);
+        setTimelineError(err?.message || "Unknown error");
+        setAlertTimeline(null);
+      } finally {
+        if (!cancelled) {
+          setTimelineLoading(false);
+        }
+      }
+    };
+
+    void fetchTimeline();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAlertId]);
 
   useEffect(() => {
     const fetchSessionsAndDevices = async () => {
@@ -1013,31 +1074,31 @@ export default function DashboardAnalyticsPage() {
           </section>
 
            {/* Alert filter and legend */}
-           <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex flex-col gap-4">
-             <div>
-              <h2 className="text-lg font-semibold">{t('analytics.focus.title')}</h2>
-              <p className="text-xs text-gray-400">
-                {t('analytics.focus.body')}
-              </p>
-             </div>
+            <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex flex-col gap-4">
+              <div>
+               <h2 className="text-lg font-semibold">{t('analytics.focus.title')}</h2>
+               <p className="text-xs text-gray-400">
+                 {t('analytics.focus.body')}
+               </p>
+              </div>
 
 
-             <div>
-              <label className="text-xs text-gray-300 mb-1 block">{t('analytics.focus.selectLabel')}</label>
-               <select
+              <div>
+               <label className="text-xs text-gray-300 mb-1 block">{t('analytics.focus.selectLabel')}</label>
+                <select
 
-                value={selectedAlertId}
-                onChange={(e) => setSelectedAlertId(e.target.value)}
-                className="w-full p-2 rounded-lg bg-black/40 border border-white/10 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-gold-500"
+                 value={selectedAlertId}
+                 onChange={(e) => setSelectedAlertId(e.target.value)}
+                 className="w-full p-2 rounded-lg bg-black/40 border border-white/10 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-gold-500"
 >
-                 <option value="">{t('analytics.focus.allOption')}</option>
-                 {recentAlerts.map((a) => (
-                   <option key={a.id} value={a.id}>
-                    {formatShortDateTime(a.createdAt)} – {a.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+                  <option value="">{t('analytics.focus.allOption')}</option>
+                  {recentAlerts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                     {formatShortDateTime(a.createdAt)} – {a.title}
+                   </option>
+                  ))}
+               </select>
+             </div>
 
              <div className="mt-2 flex flex-col gap-2 text-xs text-gray-300">
                <div className="inline-flex items-center gap-2">
@@ -1059,7 +1120,52 @@ export default function DashboardAnalyticsPage() {
                  </span>
                </div>
             </div>
-          </section>
+
+            {selectedAlertId && (
+              <div className="mt-4 border-t border-white/10 pt-3 text-xs text-gray-300">
+                <p className="mb-2 font-semibold">
+                  {t('analytics.focus.timelineLabel')}
+                </p>
+
+                {timelineLoading && (
+                  <p className="text-[11px] text-gray-400">
+                    {t('analytics.focus.timelineLoading')}
+                  </p>
+                )}
+
+                {timelineError && (
+                  <p className="text-[11px] text-red-400">
+                    {timelineError}
+                  </p>
+                )}
+
+                {alertTimeline && alertTimeline.events.length > 0 && (
+                  <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                    {alertTimeline.events.map((ev) => (
+                      <div key={`${ev.kind}-${ev.time}-${ev.recipientId || ev.byUserId || ''}`} className="flex flex-col">
+                        <span className="text-[11px] text-gray-400">
+                          {formatShortDateTime(ev.time)}
+                        </span>
+                        <span className="text-[11px] text-gray-100">
+                          {ev.kind}
+                          {ev.status ? ` · ${ev.status}` : ""}
+                          {ev.recipientName ? ` · ${ev.recipientName}` : ""}
+                          {ev.byUserName ? ` · ${ev.byUserName}` : ""}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {alertTimeline && alertTimeline.events.length === 0 && !timelineLoading && !timelineError && (
+                  <p className="text-[11px] text-gray-400">
+                    {t('analytics.focus.timelineEmpty')}
+                  </p>
+                )}
+              </div>
+            )}
+           </section>
+
         </div>
 
         {/* Session correlation section */}
