@@ -718,9 +718,32 @@ export default function DashboardMapPage() {
         </div>
 
 
-        <div className="mt-6 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20"></div>
-      </main>
-      <Footer />
-    </div>
-  );
-}
+        <div className="mt-6 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20 h-[540px] md:h-[640px]">
+          {hasMounted && locations.length > 0 && (
+            useGoogle3DMaps && googleMapsApiKey ? (
+              <Google3DMap
+                locations={locations}
+                currentLocation={locations[locations.length - 1]}
+                snappedGeoJson={showSnapped ? snappedGeoJson : null}
+                wifiDevices={showWifiDevices ? focusedWifiDevices : []}
+                bleDevices={showBleDevices ? focusedBleDevices : []}
+                apiKey={googleMapsApiKey}
+              />
+            ) : (
+              <Map
+                locations={locations}
+                currentLocation={locations[locations.length - 1]}
+                snappedGeoJson={showSnapped ? snappedGeoJson : null}
+                wifiDevices={showWifiDevices ? focusedWifiDevices : []}
+                bleDevices={showBleDevices ? focusedBleDevices : []}
+                autoZoomOnFirstPoint
+                hidePopups
+              />
+            )
+          )}
+        </div>
+       </main>
+       <Footer />
+     </div>
+   );
+ }

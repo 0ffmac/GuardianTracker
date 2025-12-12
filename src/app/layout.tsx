@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
   title: "Guard Royal Tracking",
-  description: "Advanced location tracking and monitoring system",
+  description: "Seguimiento avanzado de ubicación y sistema de seguridad",
 }
 
 export default function RootLayout({
@@ -16,7 +16,7 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="es">
       <body className={inter.className}>
         <Providers>
           {children}

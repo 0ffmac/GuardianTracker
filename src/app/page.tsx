@@ -8,7 +8,6 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
 import { useLanguage } from "@/hooks/useLanguage";
 
-
 const App: React.FC = () => {
   const { t } = useLanguage();
   return (

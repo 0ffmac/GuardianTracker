@@ -234,7 +234,7 @@ export default function Map({
       } else if (fitOnUpdate) {
         map.fitBounds(bounds, {
           padding: [50, 50],
-          maxZoom: 14,
+          maxZoom: 16,
         });
       } else {
         map.setView(lastLatLng, pointZoom);

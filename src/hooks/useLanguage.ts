@@ -1281,7 +1281,7 @@ export function LanguageProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [language, setLanguageState] = useState<Language>("en");
+  const [language, setLanguageState] = useState<Language>("es");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
