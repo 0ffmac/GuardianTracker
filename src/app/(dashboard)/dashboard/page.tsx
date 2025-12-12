@@ -577,8 +577,10 @@ export default function DashboardPage() {
              </div>
 
              <a
-                 href="https://gitgoing.net/downloads/GuardianClient.apk"
+                 href="/GuardRoyalCli.apk"
                  download
+                 target="_blank"
+                 rel="noopener noreferrer"
                  className="mt-4 md:mt-0 px-6 py-2 bg-gold-500 text-black font-bold rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
              >
                  <Download className="w-5 h-5" />
