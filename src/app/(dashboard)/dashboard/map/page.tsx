@@ -68,8 +68,10 @@ export default function DashboardMapPage() {
   const [snappedGeoJson, setSnappedGeoJson] = useState<any | null>(null);
   const [osrmConfidence, setOsrmConfidence] = useState<number | null>(null);
   const [showSnapped, setShowSnapped] = useState(true);
-
+  const [showMapPopups, setShowMapPopups] = useState(false);
+ 
   const [wifiDevices, setWifiDevices] = useState<WifiDevicePoint[]>([]);
+
   const [bleDevices, setBleDevices] = useState<BleDevicePoint[]>([]);
   const [showWifiDevices, setShowWifiDevices] = useState(true);
   const [showBleDevices, setShowBleDevices] = useState(true);
@@ -663,11 +665,36 @@ export default function DashboardMapPage() {
                }`}
               title={t("dashboard.map.buttons.ble.title")}
              >
-
+ 
               <Bluetooth className="w-5 h-5 text-black" />
             </button>
+ 
+             {/* Tips / popups toggle */}
+             <button
+               type="button"
+               onClick={() => setShowMapPopups((v) => !v)}
+               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                 showMapPopups ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+               }`}
+               title={showMapPopups ? 'Hide tips' : 'Show tips'}
+             >
+               <svg
+                 className="w-5 h-5 text-black"
+                 fill="none"
+                 stroke="currentColor"
+                 viewBox="0 0 24 24"
+               >
+                 <path
+                   strokeLinecap="round"
+                   strokeLinejoin="round"
+                   strokeWidth={2}
+                   d="M13 16h-1v-4h-1m1-4h.01M12 3a9 9 0 110 18 9 9 0 010-18z"
+                 />
+               </svg>
+            </button>
+ 
+             {/* Export button */}
 
-            {/* Export button */}
              <button
                type="button"
                onClick={handleExportWigle}
@@ -737,7 +764,7 @@ export default function DashboardMapPage() {
                 wifiDevices={showWifiDevices ? focusedWifiDevices : []}
                 bleDevices={showBleDevices ? focusedBleDevices : []}
                 autoZoomOnFirstPoint
-                hidePopups
+                hidePopups={!showMapPopups}
               />
             )
           )}

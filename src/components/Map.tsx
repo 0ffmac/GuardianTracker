@@ -218,13 +218,11 @@ export default function Map({
     );
 
     if (!hidePopups) {
-      currentMarker
-        .bindPopup(
-          `<strong>Current Location</strong><br><small>${new Date(
-            lastLocationData.timestamp
-          ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`
-        )
-        .openPopup();
+      currentMarker.bindPopup(
+        `<strong>Current Location</strong><br><small>${new Date(
+          lastLocationData.timestamp
+        ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`
+      );
     }
 
     // Fit Bounds to show the entire route
