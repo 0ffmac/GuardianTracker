@@ -295,6 +295,7 @@ export default function Map({
     autoZoomOnFirstPoint,
     wifiDevices,
     bleDevices,
+    hidePopups,
   ]);
 
   // Toggle between street and satellite base layers

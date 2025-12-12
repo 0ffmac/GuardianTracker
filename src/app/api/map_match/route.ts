@@ -11,10 +11,10 @@ export async function POST(request: Request) {
     if (!Array.isArray(points) || points.length < 2) {
       return NextResponse.json({ error: "At least 2 points required" }, { status: 400 });
     }
-
+ 
     // 1) Clean obvious GPS glitches using a speed threshold.
     const MAX_SPEED_KMH = 250; // discard teleports faster than this
-
+ 
     const toRad = (v: number) => (v * Math.PI) / 180;
     const haversineMeters = (
       lat1: number,
@@ -34,17 +34,126 @@ export async function POST(request: Request) {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return R * c;
     };
-
+ 
+    // Before speed-based cleaning, collapse long "stay" clusters (e.g. restaurant/home)
+    const DWELL_RADIUS_METERS = 20; // points within this radius considered same place
+    const MIN_DWELL_SECONDS = 90;   // must stay at least this long to collapse
+    const MIN_DWELL_POINTS = 5;     // require enough samples to treat as a dwell
+    const MOVEMENT_WITHIN_DWELL_METERS = 10; // if you roam more than this inside, keep a mid point
+ 
+    const collapseDwellClusters = (pts: any[]) => {
+      if (pts.length === 0) return [] as any[];
+      const result: any[] = [];
+ 
+      let cluster: {
+        points: any[];
+        centerLat: number;
+        centerLon: number;
+        maxDist: number;
+        maxDistPoint: any | null;
+      } | null = null;
+ 
+      const flushCluster = () => {
+        if (!cluster) return;
+        const first = cluster.points[0];
+        const last = cluster.points[cluster.points.length - 1];
+        const dwellSeconds = (last.timestamp || 0) - (first.timestamp || 0);
+ 
+        if (
+          dwellSeconds >= MIN_DWELL_SECONDS &&
+          cluster.points.length >= MIN_DWELL_POINTS
+        ) {
+          const mid = cluster.maxDistPoint;
+          if (mid && cluster.maxDist >= MOVEMENT_WITHIN_DWELL_METERS) {
+            // Long dwell with noticeable internal movement: entry -> mid move -> exit
+            result.push(first, mid, last);
+          } else {
+            // Mostly static dwell: just entry -> exit
+            result.push(first, last);
+          }
+        } else {
+          // Short or sparse: keep all raw points
+          result.push(...cluster.points);
+        }
+        cluster = null;
+      };
+ 
+      for (const p of pts) {
+        if (
+          typeof p.lat !== "number" ||
+          typeof p.lon !== "number" ||
+          typeof p.timestamp !== "number"
+        ) {
+          // Non-usable point, just flush current cluster and skip
+          flushCluster();
+          continue;
+        }
+ 
+        if (!cluster) {
+          cluster = {
+            points: [p],
+            centerLat: p.lat,
+            centerLon: p.lon,
+            maxDist: 0,
+            maxDistPoint: null,
+          };
+          continue;
+        }
+ 
+        const dist = haversineMeters(
+          cluster.centerLat,
+          cluster.centerLon,
+          p.lat,
+          p.lon
+        );
+ 
+        if (dist <= DWELL_RADIUS_METERS) {
+          // Still in same place: grow cluster and update center slightly
+          cluster.points.push(p);
+          const n = cluster.points.length;
+          cluster.centerLat =
+            cluster.centerLat + (p.lat - cluster.centerLat) / n;
+          cluster.centerLon =
+            cluster.centerLon + (p.lon - cluster.centerLon) / n;
+ 
+          if (dist > cluster.maxDist) {
+            cluster.maxDist = dist;
+            cluster.maxDistPoint = p;
+          }
+        } else {
+          // Moved away: finalize previous cluster and start a new one
+          flushCluster();
+          cluster = {
+            points: [p],
+            centerLat: p.lat,
+            centerLon: p.lon,
+            maxDist: 0,
+            maxDistPoint: null,
+          };
+        }
+      }
+ 
+      flushCluster();
+      return result;
+    };
+ 
     const cleanedPoints: any[] = [];
     // Sort by timestamp in case they arrived unordered
     const sortedPoints = [...points].sort(
       (a, b) => (a.timestamp || 0) - (b.timestamp || 0)
     );
-
-    cleanedPoints.push(sortedPoints[0]);
-    for (let i = 1; i < sortedPoints.length; i++) {
+ 
+    // First, collapse any long dwell clusters to reduce jitter
+    const dwellReduced = collapseDwellClusters(sortedPoints);
+    if (dwellReduced.length === 0) {
+      return NextResponse.json({ error: "Not enough valid points after dwell clustering" }, { status: 400 });
+    }
+ 
+    cleanedPoints.push(dwellReduced[0]);
+    for (let i = 1; i < dwellReduced.length; i++) {
       const prev = cleanedPoints[cleanedPoints.length - 1];
-      const curr = sortedPoints[i];
+      const curr = dwellReduced[i];
+
 
       // Skip if coordinates missing
       if (typeof curr.lat !== "number" || typeof curr.lon !== "number") continue;
