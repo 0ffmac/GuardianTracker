@@ -577,7 +577,7 @@ export default function DashboardPage() {
              </div>
 
              <a
-                 href="/GuardRoyalCli.apk"
+                 href="/downloads/GuardRoyalCli.apk"
                  download
                  target="_blank"
                  rel="noopener noreferrer"
