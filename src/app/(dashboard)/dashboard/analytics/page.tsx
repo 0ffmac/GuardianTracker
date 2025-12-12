@@ -44,6 +44,14 @@ interface AlertsAnalytics {
     total: number;
     byStatus: Record<string, number>;
   }[];
+  // Optional, per-recipient analytics for the current user
+  recipientByStatus?: Record<string, number>;
+  recipientTimeBuckets?: {
+    start: string;
+    end: string;
+    total: number;
+    byStatus: Record<string, number>;
+  }[];
 }
 
 interface SuspiciousDevice {
@@ -662,6 +670,7 @@ export default function DashboardAnalyticsPage() {
 
   const alertsTotals = alertsAnalytics?.totals;
   const alertsTotalsPrev = alertsAnalyticsCompare?.totals;
+  const recipientStatusSummary = alertsAnalytics?.recipientByStatus || {};
 
   const totalAlertsDelta =
     alertsTotals && alertsTotalsPrev
@@ -973,16 +982,32 @@ export default function DashboardAnalyticsPage() {
             )}
 
             {alertsAnalytics && (
-              <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-300">
-                {Object.entries(alertsAnalytics.byStatus).map(([status, count]) => (
-                  <span
-                    key={status}
-                    className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10"
-                  >
-                    <span className="font-mono text-[10px] text-gray-400">{status}</span>
-                    <span className="font-semibold text-white">{count}</span>
-                  </span>
-                ))}
+              <div className="mt-3 flex flex-col gap-2 text-xs text-gray-300">
+                <div className="flex flex-wrap gap-3">
+                  {Object.entries(alertsAnalytics.byStatus).map(([status, count]) => (
+                    <span
+                      key={status}
+                      className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10"
+                    >
+                      <span className="font-mono text-[10px] text-gray-400">{status}</span>
+                      <span className="font-semibold text-white">{count}</span>
+                    </span>
+                  ))}
+                </div>
+
+                {Object.keys(recipientStatusSummary).length > 0 && (
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(recipientStatusSummary).map(([status, count]) => (
+                      <span
+                        key={`me-${status}`}
+                        className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-sky-400/40"
+                      >
+                        <span className="font-mono text-[10px] text-sky-300">ME/{status}</span>
+                        <span className="font-semibold text-white">{count}</span>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </section>

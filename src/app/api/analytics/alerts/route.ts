@@ -121,7 +121,7 @@ export async function GET(request: Request) {
     const includeSent = type === "sent" || type === "all";
     const includeReceived = type === "received" || type === "all";
 
-    const [sentAlerts, receivedAlerts] = await Promise.all([
+    const [sentAlerts, receivedAlerts, recipientRows] = await Promise.all([
       includeSent
         ? prisma.alert.findMany({
             where: sentWhere,
@@ -138,6 +138,24 @@ export async function GET(request: Request) {
             },
           })
         : Promise.resolve([]),
+      prisma.alertRecipient.findMany({
+        where: {
+          contactId: userId,
+          alert: {
+            createdAt: {
+              gte: from,
+              lt: to,
+            },
+            ...(alertId ? { id: alertId } : {}),
+          },
+        },
+        select: {
+          status: true,
+          alert: {
+            select: { createdAt: true },
+          },
+        },
+      }),
     ]);
 
     type Bucket = {
@@ -181,6 +199,30 @@ export async function GET(request: Request) {
       bucketEntry.byStatus[status] = (bucketEntry.byStatus[status] || 0) + 1;
     }
 
+    // Recipient-level aggregation ("my" status for received alerts)
+    const recipientByStatus: Record<string, number> = {};
+    const recipientBuckets: Bucket[] = buckets.map((b) => ({
+      start: new Date(b.start),
+      end: new Date(b.end),
+      total: 0,
+      byStatus: {},
+    }));
+
+    for (const row of recipientRows) {
+      const status = (row as any).status || "UNKNOWN";
+      const createdAt = (row as any).alert.createdAt as Date;
+
+      recipientByStatus[status] = (recipientByStatus[status] || 0) + 1;
+
+      const t = createdAt.getTime();
+      if (t < startMs || t >= endMs) continue;
+      const index = Math.floor((t - startMs) / bucketMs);
+      const bucketEntry = recipientBuckets[index];
+      if (!bucketEntry) continue;
+      bucketEntry.total += 1;
+      bucketEntry.byStatus[status] = (bucketEntry.byStatus[status] || 0) + 1;
+    }
+
     const result = {
       range: {
         from: from.toISOString(),
@@ -194,6 +236,13 @@ export async function GET(request: Request) {
       },
       byStatus,
       timeBuckets: buckets.map((b) => ({
+        start: b.start.toISOString(),
+        end: b.end.toISOString(),
+        total: b.total,
+        byStatus: b.byStatus,
+      })),
+      recipientByStatus,
+      recipientTimeBuckets: recipientBuckets.map((b) => ({
         start: b.start.toISOString(),
         end: b.end.toISOString(),
         total: b.total,
