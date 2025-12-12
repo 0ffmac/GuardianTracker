@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface TrackingSessionsSectionProps {
   trackingSessions: any[];
@@ -59,34 +60,42 @@ export function TrackingSessionsSection({
   handleSaveSessionMeta,
   formatDuration,
 }: TrackingSessionsSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10">
       <div className="flex items-center justify-between gap-3 mb-2">
-        <h2 className="text-lg font-semibold">Tracking Sessions</h2>
+        <h2 className="text-lg font-semibold">
+          {t("settings.sessions.title")}
+        </h2>
         {trackingSessions.length > 0 && (
           <button
             className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
             onClick={handleDeleteAllSessions}
           >
-            Delete all
+            {t("settings.sessions.deleteAll")}
           </button>
         )}
       </div>
+
       <p className="text-sm text-gray-300">
-        View, inspect and delete recorded tracking sessions from your devices.
+        {t("settings.sessions.body")}
       </p>
+
       <div className="mt-4">
         {loading ? (
-          <div>Loading...</div>
+          <div>{t("settings.sessions.loading")}</div>
         ) : trackingSessions.length === 0 ? (
           <div className="text-sm text-gray-400">
-            No tracking sessions found yet. They will appear here when you use live
-            tracking.
+            {t("settings.sessions.empty")}
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Sessions list */}
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-gray-200 mb-1">Sessions</h3>
+              <h3 className="text-sm font-semibold text-gray-200 mb-1">
+                {t("settings.sessions.listTitle")}
+              </h3>
               <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
                 {trackingSessions.map((session) => {
                   const quality = (session as any).quality;
@@ -98,14 +107,16 @@ export function TrackingSessionsSection({
                       : quality === "REGULAR"
                       ? "bg-amber-400"
                       : "bg-gray-500";
+
                   const qualityLabel =
                     quality === "GOOD"
-                      ? "Good"
+                      ? t("settings.sessions.quality.good")
                       : quality === "BAD"
-                      ? "Not good"
+                      ? t("settings.sessions.quality.bad")
                       : quality === "REGULAR"
-                      ? "Regular"
+                      ? t("settings.sessions.quality.regular")
                       : null;
+
                   return (
                     <li
                       key={session.id}
@@ -120,7 +131,7 @@ export function TrackingSessionsSection({
                         <span className={`h-2 w-2 rounded-full ${dotClass}`} />
                         <div>
                           <div className="text-sm font-medium">
-                            {session.name || "Session"}
+                            {session.name || t("settings.sessions.sessionFallback")}
                           </div>
                           <div className="text-xs text-gray-400">
                             {new Date(session.startTime).toLocaleString()}
@@ -151,17 +162,21 @@ export function TrackingSessionsSection({
                         }}
                         disabled={deleting === session.id}
                       >
-                        {deleting === session.id ? "Deleting..." : "Delete"}
+                        {deleting === session.id
+                          ? t("settings.sessions.row.deleting")
+                          : t("settings.sessions.row.delete")}
                       </button>
                     </li>
                   );
                 })}
               </ul>
             </div>
+
+            {/* Details + environment */}
             <div className="lg:col-span-2">
               <div className="flex items-center justify-between gap-2 mb-2">
                 <h3 className="text-sm font-semibold text-gray-200">
-                  Session details
+                  {t("settings.sessions.details.title")}
                 </h3>
                 {selectedSession && (
                   <button
@@ -170,44 +185,48 @@ export function TrackingSessionsSection({
                     disabled={environmentLoading}
                   >
                     {environmentLoading
-                      ? "Loading environment..."
-                      : "View environment metrics"}
+                      ? t("settings.sessions.details.viewEnv.loading")
+                      : t("settings.sessions.details.viewEnv.idle")}
                   </button>
                 )}
               </div>
+
               {!selectedSession ? (
                 <div className="text-sm text-gray-400">
-                  Select a session on the left to see its details.
+                  {t("settings.sessions.details.selectPrompt")}
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Basic stats */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-white/5 rounded-xl p-3">
-                      <div className="text-xs text-gray-400 mb-1">Name</div>
+                      <div className="text-xs text-gray-400 mb-1">
+                        {t("settings.sessions.details.name")}
+                      </div>
                       <div className="flex items-center justify-between gap-2">
                         <div className="text-sm font-medium">
-                          {selectedSession.name || "Session"}
+                          {selectedSession.name || t("settings.sessions.sessionFallback")}
                         </div>
                         {(() => {
                           const quality = (selectedSession as any).quality;
                           if (!quality) return null;
+
                           let label = "";
                           let cls = "";
                           if (quality === "GOOD") {
-                            label = "Good track";
+                            label = t("settings.sessions.quality.good") + " track";
                             cls = "bg-emerald-600 text-emerald-50";
                           } else if (quality === "BAD") {
-                            label = "Not good";
+                            label = t("settings.sessions.quality.bad");
                             cls = "bg-red-600 text-red-50";
                           } else if (quality === "REGULAR") {
-                            label = "Regular";
+                            label = t("settings.sessions.quality.regular");
                             cls = "bg-amber-500 text-black";
                           }
                           if (!label) return null;
+
                           return (
-                            <span
-                              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}
-                            >
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
                               {label}
                             </span>
                           );
@@ -216,51 +235,62 @@ export function TrackingSessionsSection({
                     </div>
 
                     <div className="bg-white/5 rounded-xl p-3">
-                      <div className="text-xs text-gray-400">Duration</div>
+                      <div className="text-xs text-gray-400">
+                        {t("settings.sessions.details.duration")}
+                      </div>
                       <div className="text-sm font-medium">
                         {sessionDurationMs != null
                           ? formatDuration(sessionDurationMs)
-                          : "Unknown"}
+                          : t("settings.sessions.details.durationUnknown")}
                       </div>
                     </div>
+
                     <div className="bg-white/5 rounded-xl p-3">
-                      <div className="text-xs text-gray-400">Points</div>
+                      <div className="text-xs text-gray-400">
+                        {t("settings.sessions.details.points")}
+                      </div>
                       <div className="text-sm font-medium">
                         {selectedSessionLocations.length}
                       </div>
                     </div>
+
                     <div className="bg-white/5 rounded-xl p-3">
-                      <div className="text-xs text-gray-400">Devices in session</div>
+                      <div className="text-xs text-gray-400">
+                        {t("settings.sessions.details.devices")}
+                      </div>
                       <div className="text-sm font-medium">
                         {sessionDeviceIds.length > 0
                           ? sessionDeviceIds.length
-                          : "No device info"}
+                          : t("settings.sessions.details.devicesNone")}
                       </div>
                     </div>
                   </div>
 
+                  {/* Edit meta */}
                   <form
                     onSubmit={handleSaveSessionMeta}
                     className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-4"
                   >
                     <div className="bg-white/5 rounded-xl p-3 sm:col-span-2">
                       <div className="text-xs text-gray-400 mb-1">
-                        Edit session name / tag
+                        {t("settings.sessions.edit.label")}
                       </div>
                       <input
                         type="text"
                         value={sessionNameDraft}
                         onChange={(e) => setSessionNameDraft(e.target.value)}
                         className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
-                        placeholder="e.g. Morning commute, City test drive"
+                        placeholder={t("settings.sessions.edit.placeholder")}
                       />
                       <div className="text-[11px] text-gray-400 mt-1">
-                        Give this track a short label to make it easier to find
-                        later.
+                        {t("settings.sessions.edit.helper")}
                       </div>
                     </div>
+
                     <div className="bg-white/5 rounded-xl p-3 flex flex-col gap-2">
-                      <div className="text-xs text-gray-400">Quality rating</div>
+                      <div className="text-xs text-gray-400">
+                        {t("settings.sessions.rating.label")}
+                      </div>
                       <div className="flex flex-wrap gap-2">
                         <button
                           type="button"
@@ -271,7 +301,7 @@ export function TrackingSessionsSection({
                               : "bg-black/30 text-emerald-200 border-emerald-500/40 hover:bg-emerald-700/40"
                           }`}
                         >
-                          Good (green)
+                          {t("settings.sessions.rating.good")}
                         </button>
                         <button
                           type="button"
@@ -282,7 +312,7 @@ export function TrackingSessionsSection({
                               : "bg-black/30 text-amber-200 border-amber-500/40 hover:bg-amber-700/40"
                           }`}
                         >
-                          Regular (orange)
+                          {t("settings.sessions.rating.regular")}
                         </button>
                         <button
                           type="button"
@@ -293,7 +323,7 @@ export function TrackingSessionsSection({
                               : "bg-black/30 text-red-200 border-red-500/40 hover:bg-red-700/40"
                           }`}
                         >
-                          Not good (red)
+                          {t("settings.sessions.rating.bad")}
                         </button>
                       </div>
                       {sessionMetaError && (
@@ -306,11 +336,14 @@ export function TrackingSessionsSection({
                         className="mt-1 px-3 py-1.5 bg-gold-500 text-black rounded-lg hover:bg-gold-400 transition text-[11px] font-semibold disabled:opacity-60"
                         disabled={sessionMetaSaving}
                       >
-                        {sessionMetaSaving ? "Saving..." : "Save tag & rating"}
+                        {sessionMetaSaving
+                          ? t("settings.sessions.saveMeta.loading")
+                          : t("settings.sessions.saveMeta.idle")}
                       </button>
                     </div>
                   </form>
 
+                  {/* Environment metrics */}
                   {environmentError && (
                     <div className="text-xs text-red-400">{environmentError}</div>
                   )}

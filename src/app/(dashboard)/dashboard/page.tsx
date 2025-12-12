@@ -7,6 +7,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { motion } from "framer-motion";
+import { useLanguage } from "@/hooks/useLanguage";
 import {
   MapPin,
   Clock,
@@ -113,9 +114,11 @@ const haversineDistance = (
 
 export default function DashboardPage() {
   // New: Track the active tracking session ID
-  const [activeTrackingSessionId, setActiveTrackingSessionId] = useState<string | null>(null);
-  const { data: session, status } = useSession();
-  const router = useRouter();
+   const [activeTrackingSessionId, setActiveTrackingSessionId] = useState<string | null>(null);
+   const { data: session, status } = useSession();
+   const router = useRouter();
+   const { t } = useLanguage();
+
   const [locations, setLocations] = useState<Location[]>([]);
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [trackingSessions, setTrackingSessions] = useState<TrackingSession[]>([]);
@@ -514,10 +517,11 @@ export default function DashboardPage() {
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-white text-xl">Loading...</div>
+        <div className="text-white text-xl">{t('dashboard.loading')}</div>
       </div>
     );
   }
+
 
   // Derived alert metrics for mobile status
   const now = Date.now();
@@ -541,12 +545,14 @@ export default function DashboardPage() {
       <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
         <div>
           <p className="text-sm text-gray-400">
-            Welcome back{session?.user?.name ? "," : ""}
+            {t('dashboard.greeting')}
+            {session?.user?.name ? "," : ""}
           </p>
           <h1 className="text-2xl font-bold text-white">
-            {session?.user?.name || session?.user?.email || "Your overview"}
+            {session?.user?.name || session?.user?.email || t('dashboard.overview.fallback')}
           </h1>
         </div>
+
       </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -563,20 +569,22 @@ export default function DashboardPage() {
         >
             <div>
                 <h3 className="text-xl font-semibold text-gold-200">
-                    Enable Real-Time Tracking
+                    {t('dashboard.download.title')}
                 </h3>
                 <p className="text-gold-300/80 text-sm">
-                    Download the Guard Royal Client App to send live location data from your device.
+                    {t('dashboard.download.body')}
                 </p>
-            </div>
-            <a
-                href="https://gitgoing.net/downloads/GuardianClient.apk"
-                download
-                className="mt-4 md:mt-0 px-6 py-2 bg-gold-500 text-black font-bold rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
-            >
-                <Download className="w-5 h-5" />
-                Download Client App
-            </a>
+             </div>
+
+             <a
+                 href="https://gitgoing.net/downloads/GuardianClient.apk"
+                 download
+                 className="mt-4 md:mt-0 px-6 py-2 bg-gold-500 text-black font-bold rounded-lg hover:bg-gold-400 transition-colors flex items-center gap-2"
+             >
+                 <Download className="w-5 h-5" />
+                {t('dashboard.download.button')}
+             </a>
+
         </motion.div>
 
 
@@ -631,55 +639,64 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <div className="flex items-center justify-between mb-4">
                   <div>
-                    <h2 className="text-2xl font-bold text-white">Emergency Alerts</h2>
+                    <h2 className="text-2xl font-bold text-white">{t('dashboard.alerts.title')}</h2>
                     <p className="text-gray-400 text-sm">
-                      View alerts you have received from your trusted contacts or ones you have sent to them.
+                      {t('dashboard.alerts.subtitle')}
                     </p>
                     {(pendingMobileAlertsCount > 0 || recentSentAlertsCount > 0) && (
                       <p className="mt-2 text-xs text-amber-300">
-                        {pendingMobileAlertsCount > 0 && (
-                          <span>{pendingMobileAlertsCount} pending on your mobile</span>
-                        )}
+                          {pendingMobileAlertsCount > 0 && (
+                          <span>
+                            {pendingMobileAlertsCount} {t('dashboard.alerts.pendingMobileSuffix')}
+                          </span>
+                         )}
+
                         {pendingMobileAlertsCount > 0 && recentSentAlertsCount > 0 && (
                           <span className="mx-1">·</span>
                         )}
-                        {recentSentAlertsCount > 0 && (
-                          <span>{recentSentAlertsCount} sent in last 30 min</span>
-                        )}
+                         {recentSentAlertsCount > 0 && (
+                          <span>
+                            {recentSentAlertsCount} {t('dashboard.alerts.sentLast30Suffix')}
+                          </span>
+                         )}
+
                       </p>
                     )}
-                    {unreadRepliesCount > 0 && (
-                      <p className="mt-1 text-xs text-emerald-300">
+                     {unreadRepliesCount > 0 && (
+                        <p className="mt-1 text-xs text-emerald-300">
                         {unreadRepliesCount === 1
-                          ? "1 alert has a new audio reply from your contacts."
-                          : `${unreadRepliesCount} alerts have new audio replies from your contacts.`}
-                      </p>
-                    )}
+                          ? t('dashboard.alerts.unreadSingle')
+                          : `${unreadRepliesCount} ${t('dashboard.alerts.unreadMultipleSuffix')}`}
+                        </p>
+                      )}
+
                   </div>
                   <div className="inline-flex rounded-full bg-black/40 border border-white/10 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setAlertsView("received")}
-                      className={`px-3 py-1 rounded-full transition-colors ${
-                        alertsView === "received" ? "bg-white text-black" : "text-gray-300"
-                      }`}
-                    >
-                      Received
-                    </button>
+                     <button
+                        type="button"
+                        onClick={() => setAlertsView("received")}
+                        className={`px-3 py-1 rounded-full transition-colors ${
+                          alertsView === "received" ? "bg-white text-black" : "text-gray-300"
+                        }`}
+                     >
+                      {t('dashboard.alerts.tab.received')}
+                     </button>
+
                     <button
                       type="button"
                       onClick={() => setAlertsView("sent")}
                       className={`px-3 py-1 rounded-full transition-colors ${
                         alertsView === "sent" ? "bg-white text-black" : "text-gray-300"
                       }`}
-                    >
-                      Sent
-                      {unreadRepliesCount > 0 && (
-                        <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-400 text-black text-[10px] px-1.5 min-w-[1.25rem]">
-                          {unreadRepliesCount}
-                        </span>
-                      )}
-                    </button>
+>
+                      {t('dashboard.alerts.tab.sent')}
+                       {unreadRepliesCount > 0 && (
+                         <span className="ml-1 inline-flex items-center justify-center rounded-full bg-amber-400 text-black text-[10px] px-1.5 min-w-[1.25rem]">
+                           {unreadRepliesCount}
+                         </span>
+                       )}
+                     </button>
+
                   </div>
                 </div>
 
@@ -716,9 +733,9 @@ export default function DashboardPage() {
           >
             <div className="flex items-center justify-between mb-6">
               <div>
-                <h2 className="text-2xl font-bold text-white">Live Tracking</h2>
+                <h2 className="text-2xl font-bold text-white">{t('dashboard.live.title')}</h2>
                 <p className="text-gray-400">
-                  The dashboard only shows live points while a device is actively reporting. Use the Map tab to explore history.
+                  {t('dashboard.live.subtitle')}
                 </p>
               </div>
                <div className="flex flex-col items-end gap-1">
@@ -731,27 +748,29 @@ export default function DashboardPage() {
                         : "w-5 h-5 text-gray-500"
                     }
                   />
-                  <span
-                    className={
-                      hasLiveData
-                        ? "text-green-400 font-medium"
-                        : "text-gray-400 font-medium"
-                    }
-                  >
-                    {hasLiveData ? "Active" : "Idle"}
-                  </span>
+                   <span
+                      className={
+                        hasLiveData
+                          ? "text-green-400 font-medium"
+                          : "text-gray-400 font-medium"
+                      }
+                   >
+                    {hasLiveData ? t('dashboard.live.status.active') : t('dashboard.live.status.idle')}
+                   </span>
+
                 </div>
                 {lastDeviceSeenAt && (
-                  <p className="text-[11px] text-gray-400">
-                    Last seen {(() => {
-                      const diffMs = Date.now() - new Date(lastDeviceSeenAt).getTime();
-                      if (diffMs < 60 * 1000) return "just now";
-                      const mins = Math.round(diffMs / (60 * 1000));
-                      if (mins < 60) return `${mins} min ago`;
-                      const hours = Math.round(mins / 60);
-                      return `${hours} hr${hours > 1 ? "s" : ""} ago`;
-                    })()}
-                  </p>
+                     <p className="text-[11px] text-gray-400">
+                    {(t('dashboard.live.lastUpdatedPrefix') || 'Last seen')} {(() => {
+                        const diffMs = Date.now() - new Date(lastDeviceSeenAt).getTime();
+                       if (diffMs < 60 * 1000) return t('dashboard.live.lastSeen.justNow');
+                        const mins = Math.round(diffMs / (60 * 1000));
+                       if (mins < 60) return `${mins} ${t('dashboard.live.lastSeen.minsSuffix')}`;
+                        const hours = Math.round(mins / 60);
+                       return `${hours} ${t('dashboard.live.lastSeen.hoursSuffix')}`;
+                      })()}
+                    </p>
+
                 )}
               </div>
             </div>
@@ -760,30 +779,32 @@ export default function DashboardPage() {
            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
              <div className="lg:col-span-2 h-[350px] lg:h-[380px] rounded-xl overflow-hidden">
                 {hasLiveData ? (
-                  <Map
-                    locations={locations}
-                    currentLocation={currentLocation}
-                    fitOnUpdate={false}
-                    autoZoomOnFirstPoint={true}
-                    hidePopups
-                    pointZoom={16}
-                  />
-                ) : (
-
-                 <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-xl border border-dashed border-white/10">
+                   <Map
+                     locations={locations}
+                     currentLocation={currentLocation}
+                     fitOnUpdate={false}
+                     autoZoomOnFirstPoint={true}
+                     hidePopups
+                     pointZoom={16}
+                   />
+                 ) : (
+ 
+                  <div className="w-full h-full flex items-center justify-center bg-black/20 rounded-xl border border-dashed border-white/10">
                    <p className="text-sm text-gray-400 text-center px-4">
-                     No active tracking right now. Start the mobile app to see your live position here.
+                     {t('dashboard.live.noActive')}
                    </p>
-                 </div>
-               )}
+                  </div>
+                )}
+
              </div>
 
              <div className="h-full rounded-xl border border-white/10 bg-black/20 p-4 flex flex-col gap-4">
                <div>
-                 <h3 className="text-lg font-semibold text-white mb-1">Alerts & Nearby Contacts</h3>
-                 <p className="text-sm text-gray-400 mb-3">
-                   See trusted contacts that are physically close to your live location.
-                 </p>
+                 <h3 className="text-lg font-semibold text-white mb-1">{t('dashboard.nearby.title')}</h3>
+                  <p className="text-sm text-gray-400 mb-3">
+                    {t('dashboard.nearby.subtitle')}
+                  </p>
+
 
                  <div className="flex items-center justify-between gap-2 mb-3">
                    <label className="flex items-center gap-2 text-xs text-gray-300">
@@ -827,16 +848,18 @@ export default function DashboardPage() {
                </div>
 
                <div className="flex-1 overflow-y-auto border border-white/5 rounded-md bg-black/20 p-2">
-                 {!hasLiveData && (
-                   <p className="text-xs text-gray-500 italic">
-                     Start the mobile app to enable nearby contact detection.
-                   </p>
-                 )}
-                 {hasLiveData && nearbyContacts.length === 0 && (
-                   <p className="text-xs text-gray-500 italic">
-                     No trusted contacts within {nearbyRadiusKm} km.
-                   </p>
-                 )}
+                  {!hasLiveData && (
+                     <p className="text-xs text-gray-500 italic">
+                      {t('dashboard.nearby.noLive')}
+                     </p>
+                   )}
+
+                  {hasLiveData && nearbyContacts.length === 0 && (
+                     <p className="text-xs text-gray-500 italic">
+                      {t('dashboard.nearby.nonePrefix')} {nearbyRadiusKm} {t('dashboard.nearby.noneSuffix')}
+                     </p>
+                   )}
+
                  {hasLiveData && nearbyContacts.length > 0 && (
                    <ul className="space-y-1">
                      {nearbyContacts.map((c) => (
@@ -865,9 +888,10 @@ export default function DashboardPage() {
 
                {hasLiveData && currentLocation && selectedNearbyContact && (
                  <div className="mt-2">
-                   <p className="text-xs text-gray-300 mb-1">
-                     Selected: <span className="font-semibold">{selectedNearbyContact.name || selectedNearbyContact.email}</span>
-                   </p>
+                    <p className="text-xs text-gray-300 mb-1">
+                      {t('dashboard.nearby.selectedPrefix')} <span className="font-semibold">{selectedNearbyContact.name || selectedNearbyContact.email}</span>
+                     </p>
+
                    <div className="w-full h-40 rounded-md overflow-hidden border border-white/10">
                       <Map
                         locations={[
@@ -906,12 +930,13 @@ export default function DashboardPage() {
            transition={{ delay: 0.5 }}
            className="mt-8 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20"
          >
-           <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-             <h2 className="text-2xl font-bold text-gold-200 mb-2 md:mb-0">Tracking History</h2>
-             <div>
-               <label htmlFor="history-select" className="text-gray-400 sr-only">
-                 View Tracking History
-               </label>
+             <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+              <h2 className="text-2xl font-bold text-gold-200 mb-2 md:mb-0">{t('dashboard.history.title')}</h2>
+               <div>
+                 <label htmlFor="history-select" className="text-gray-400 sr-only">
+                  {t('dashboard.history.label')}
+                 </label>
+
                <select
                  id="history-select"
                  onChange={(e) => handleSessionSelect(e.target.value)}
@@ -1001,15 +1026,17 @@ export default function DashboardPage() {
                   >
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-lg font-semibold text-white">Wi-Fi Networks Seen</h3>
-                      {environmentSummary && (
-                        <p className="text-xs text-gray-400">
-                          {environmentSummary.wifiScans} scan samples across {wifiNetworks.length} networks
-                        </p>
-                      )}
+                       {environmentSummary && (
+                          <p className="text-xs text-gray-400">
+                           {environmentSummary.wifiScans} {t('dashboard.history.wifiSummaryMiddle')} {wifiNetworks.length} {t('dashboard.history.wifiSummarySuffix')}
+                          </p>
+                        )}
+
                     </div>
-                    {wifiNetworks.length === 0 ? (
-                      <p className="text-sm text-gray-400">No Wi-Fi data recorded for this session yet.</p>
-                    ) : (
+                     {wifiNetworks.length === 0 ? (
+                      <p className="text-sm text-gray-400">{t('dashboard.history.wifiNoData')}</p>
+                     ) : (
+
                       <table className="min-w-full text-sm">
                         <thead>
                           <tr className="text-left text-gray-400 border-b border-white/10">
@@ -1098,23 +1125,22 @@ export default function DashboardPage() {
           transition={{ delay: 0.55 }}
           className="mt-6 bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex gap-4 items-start"
         >
-          <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
-            <AlertTriangle className="w-6 h-6" />
-          </div>
-          <div>
+           <div className="p-3 rounded-xl bg-amber-500/10 text-amber-400">
+             <AlertTriangle className="w-6 h-6" />
+           </div>
+           <div>
             <h3 className="text-lg font-semibold text-white mb-1">
-              Suspicious observations
-            </h3>
-            <p className="text-sm text-gray-300">
-              Once Guard Royal has enough tracking history, Wi-Fi and Bluetooth
-              devices that seem to follow you across different places will be
-              surfaced here.
-            </p>
-            <p className="mt-2 text-xs text-gray-500">
-              You can explore full details in Settings  Suspicious Wi-Fi &amp;
-              Bluetooth Devices.
-            </p>
-          </div>
+               {t('dashboard.suspicious.title')}
+             </h3>
+             <p className="text-sm text-gray-300">
+               {t('dashboard.suspicious.body')}
+             </p>
+             <p className="mt-2 text-xs text-gray-500">
+               {t('dashboard.suspicious.note')}
+             </p>
+           </div>
+
+
         </motion.div>
 
         {hasLiveData && currentLocation && (
@@ -1122,31 +1148,33 @@ export default function DashboardPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
-            className="mt-6 bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
-          >
+             className="mt-6 bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10"
+            >
             <h3 className="text-lg font-semibold text-white mb-4">
-              Current Location
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-gray-400 text-sm">Latitude</p>
-                <p className="text-white font-mono">
-                  {currentLocation.latitude.toFixed(6)}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Longitude</p>
-                <p className="text-white font-mono">
-                  {currentLocation.longitude.toFixed(6)}
-                </p>
-              </div>
-              <div>
-                <p className="text-gray-400 text-sm">Last Updated</p>
-                <p className="text-white">
-                  {new Date(currentLocation.timestamp).toLocaleString()}
-                </p>
-              </div>
-            </div>
+               {t('dashboard.current.title')}
+             </h3>
+             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+               <div>
+                <p className="text-gray-400 text-sm">{t('dashboard.current.lat')}</p>
+                 <p className="text-white font-mono">
+                   {currentLocation.latitude.toFixed(6)}
+                 </p>
+               </div>
+               <div>
+                <p className="text-gray-400 text-sm">{t('dashboard.current.lon')}</p>
+                 <p className="text-white font-mono">
+                   {currentLocation.longitude.toFixed(6)}
+                 </p>
+               </div>
+               <div>
+                <p className="text-gray-400 text-sm">{t('dashboard.current.lastUpdated')}</p>
+                 <p className="text-white">
+                   {new Date(currentLocation.timestamp).toLocaleString()}
+                 </p>
+               </div>
+             </div>
+
+
           </motion.div>
         )}
 

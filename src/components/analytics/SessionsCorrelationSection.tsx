@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Filter } from "lucide-react";
 import { TrustedPillToggle } from "@/components/analytics/TrustedPillToggle";
 import type { TrustedDeviceKey } from "@/hooks/useTrustedDevices";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface TrackingSession {
   id: string;
@@ -87,19 +88,34 @@ export function SessionsCorrelationSection({
 }: Props) {
   const [overlapPage, setOverlapPage] = useState(0);
   const pageSize = 15;
+  const { t } = useLanguage();
 
+  // Reset pagination when filters or selection change
   useEffect(() => {
     setOverlapPage(0);
   }, [filteredOverlapDevices.length, deviceKindFilter, hideTrusted, selectedSessionIds.length]);
 
   const { visibleDevices, totalPages, currentPage } = useMemo(() => {
     const total = filteredOverlapDevices.length;
-    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
-    const currentPage = Math.min(overlapPage, totalPages - 1);
-    const start = currentPage * pageSize;
-    const visibleDevices = filteredOverlapDevices.slice(start, start + pageSize);
-    return { visibleDevices, totalPages, currentPage };
+    const totalPagesLocal = total === 0 ? 1 : Math.ceil(total / pageSize);
+    const currentPageLocal = Math.min(overlapPage, totalPagesLocal - 1);
+    const start = currentPageLocal * pageSize;
+    const visible = filteredOverlapDevices.slice(start, start + pageSize);
+    return {
+      visibleDevices: visible,
+      totalPages: totalPagesLocal,
+      currentPage: currentPageLocal,
+    };
   }, [filteredOverlapDevices, overlapPage, pageSize]);
+
+  const sessionFilterTokens: string[] = [
+    "cafe",
+    "coffee",
+    "restaurant",
+    "bar",
+    "club",
+    "home",
+  ];
 
   return (
     <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 mb-8">
@@ -109,11 +125,11 @@ export function SessionsCorrelationSection({
             <Filter className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Sessions correlation radar</h2>
+            <h2 className="text-lg font-semibold">
+              {t("analytics.sessions.title")}
+            </h2>
             <p className="text-xs text-gray-400 max-w-xl">
-              Search across tracking sessions for Wi‑Fi and Bluetooth devices that follow you
-              between different places in this time range. Known devices from your environment
-              are marked so you can focus on potential stalker hardware.
+              {t("analytics.sessions.body")}
             </p>
           </div>
         </div>
@@ -121,19 +137,27 @@ export function SessionsCorrelationSection({
           <div className="flex flex-wrap gap-2">
             <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-              <span>{filteredSessions.length} sessions in range</span>
+              <span>
+                {filteredSessions.length} {t("analytics.sessions.chip.sessionsSuffix")}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-white/10">
               <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-              <span>{filteredOverlapDevices.length} devices across selected sessions</span>
+              <span>
+                {filteredOverlapDevices.length} {t("analytics.sessions.chip.devicesSuffix")}
+              </span>
             </span>
             <span className="inline-flex items-center gap-1 rounded-full bg-black/40 px-2 py-1 border border-red-400/40">
               <span className="w-1.5 h-1.5 rounded-full bg-red-400" />
-              <span>{suspiciousOverlapCount} flagged as non‑trusted</span>
+              <span>
+                {suspiciousOverlapCount} {t("analytics.sessions.chip.suspiciousSuffix")}
+              </span>
             </span>
           </div>
           {(sessionsLoading || envDevicesLoading) && (
-            <span className="text-[11px] text-gray-400">Loading sessions &amp; environment…</span>
+            <span className="text-[11px] text-gray-400">
+              {t("analytics.sessions.loading")}
+            </span>
           )}
           {(sessionsError || envDevicesError) && (
             <span className="text-[11px] text-red-400">
@@ -148,44 +172,47 @@ export function SessionsCorrelationSection({
         <div className="space-y-4 text-xs">
           <div>
             <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-              Session filter
+              {t("analytics.sessions.filter.label")}
             </p>
             <input
               type="text"
               value={sessionSearch}
               onChange={(e) => setSessionSearch(e.target.value)}
-              placeholder="Search by name, coffee shop, restaurant, club…"
+              placeholder={t("analytics.sessions.filter.placeholder")}
               className="w-full rounded-lg bg-black/40 border border-white/10 px-3 py-2 text-[11px] text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gold-500"
             />
             <div className="mt-2 flex flex-wrap gap-2">
-              {["cafe", "coffee", "restaurant", "bar", "club", "home"].map((token) => (
-                <button
-                  key={token}
-                  type="button"
-                  onClick={() =>
-                    setSessionSearch((prev) =>
-                      prev.toLowerCase().includes(token)
-                        ? prev
-                        : prev
-                        ? `${prev} ${token}`
-                        : token
-                    )
-                  }
-                  className="px-2 py-1 rounded-full border border-white/10 bg-black/30 text-[11px] text-gray-200 hover:bg-white/10 transition-colors"
-                >
-                  {token}
-                </button>
-              ))}
+              {sessionFilterTokens.map((tokenKey) => {
+                const label = t(`analytics.sessions.filter.token.${tokenKey}`);
+                return (
+                  <button
+                    key={tokenKey}
+                    type="button"
+                    onClick={() =>
+                      setSessionSearch((prev) =>
+                        prev.toLowerCase().includes(label.toLowerCase())
+                          ? prev
+                          : prev
+                          ? `${prev} ${label}`
+                          : label,
+                      )
+                    }
+                    className="px-2 py-1 rounded-full border border-white/10 bg-black/30 text-[11px] text-gray-200 hover:bg-white/10 transition-colors"
+                  >
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div>
             <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-              Sessions in this range
+              {t("analytics.sessions.list.label")}
             </p>
             {filteredSessions.length === 0 ? (
               <p className="text-[11px] text-gray-500">
-                No sessions match this analytics time window yet.
+                {t("analytics.sessions.filter.empty")}
               </p>
             ) : (
               <ul className="space-y-1 max-h-56 overflow-y-auto pr-1">
@@ -209,7 +236,7 @@ export function SessionsCorrelationSection({
                           setSelectedSessionIds((prev) =>
                             prev.includes(s.id)
                               ? prev.filter((id) => id !== s.id)
-                              : [...prev, s.id]
+                              : [...prev, s.id],
                           );
                         }}
                         className={`w-full flex items-start justify-between gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
@@ -222,17 +249,19 @@ export function SessionsCorrelationSection({
                           <span className={`mt-1 h-2 w-2 rounded-full ${dotClass}`} />
                           <div>
                             <div className="text-[11px] font-semibold text-gray-100">
-                              {s.name || "Session"}
+                              {s.name || t("analytics.sessions.list.fallbackName")}
                             </div>
                             <div className="text-[10px] text-gray-400">
                               {s.startTime
                                 ? new Date(s.startTime).toLocaleString()
-                                : "Unknown time"}
+                                : t("analytics.sessions.list.unknownTime")}
                             </div>
                           </div>
                         </div>
                         <div className="text-[10px] text-gray-400">
-                          {isActive ? "Selected" : "Tap to include"}
+                          {isActive
+                            ? t("analytics.sessions.list.selected")
+                            : t("analytics.sessions.list.tapToInclude")}
                         </div>
                       </button>
                     </li>
@@ -244,7 +273,7 @@ export function SessionsCorrelationSection({
 
           <div className="border-t border-white/10 pt-3">
             <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-              Device kind
+              {t("analytics.sessions.deviceKind.label")}
             </p>
             <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/10 p-1">
               <button
@@ -254,7 +283,7 @@ export function SessionsCorrelationSection({
                   deviceKindFilter === "all" ? "bg-white text-black" : "text-gray-300"
                 }`}
               >
-                All
+                {t("analytics.sessions.deviceKind.all")}
               </button>
               <button
                 type="button"
@@ -263,7 +292,7 @@ export function SessionsCorrelationSection({
                   deviceKindFilter === "wifi" ? "bg-white text-black" : "text-gray-300"
                 }`}
               >
-                Wi‑Fi
+                {t("analytics.sessions.deviceKind.wifi")}
               </button>
               <button
                 type="button"
@@ -272,7 +301,7 @@ export function SessionsCorrelationSection({
                   deviceKindFilter === "ble" ? "bg-white text-black" : "text-gray-300"
                 }`}
               >
-                Bluetooth
+                {t("analytics.sessions.deviceKind.ble")}
               </button>
             </div>
 
@@ -284,7 +313,7 @@ export function SessionsCorrelationSection({
                 className="h-3 w-3"
               />
               <span className="text-[11px]">
-                Hide networks and devices already known in my environment
+                {t("analytics.sessions.hideTrusted")}
               </span>
             </label>
           </div>
@@ -292,6 +321,7 @@ export function SessionsCorrelationSection({
 
         {/* Right: radar + overlapping devices table */}
         <div className="space-y-4">
+          {/* Mini radar */}
           <div className="relative mx-auto aspect-square max-w-xs rounded-full border border-white/15 bg-black/40 overflow-hidden">
             {/* Concentric rings */}
             <div className="absolute inset-6 rounded-full border border-white/5" />
@@ -345,46 +375,52 @@ export function SessionsCorrelationSection({
             <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/5" />
             <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/5" />
           </div>
+
           <p className="text-[11px] text-gray-400 text-center">
-            Each dot is a device seen across the selected sessions. Distance from
-            center roughly follows how often it appears across sessions; size reflects total
-            sightings. Red means devices you have not marked as known; green means you have
-            marked them as known/trusted.
+            {t("analytics.sessions.radar.caption")}
           </p>
+
           <div className="mt-2 flex justify-center">
             <button
               type="button"
               onClick={onExpandRadar}
               className="inline-flex items-center gap-1 rounded-full bg-gold-500 text-black px-4 py-1.5 text-[11px] font-semibold shadow hover:bg-gold-400 transition-colors border border-gold-400/70"
             >
-              <span>Expand radar view</span>
+              <span>{t("analytics.sessions.radar.expand")}</span>
             </button>
           </div>
-
-          {/* Overlap devices table is rendered full-width below */}
-
         </div>
+
+        {/* Overlap devices table */}
         <div className="mt-4 lg:col-span-2 overflow-x-auto">
           {selectedSessionIds.length < 2 ? (
             <p className="text-sm text-gray-400">
-              Select at least two sessions on the left to see devices that follow you between
-              different places (for example a coffee shop, a restaurant and later a club).
+              {t("analytics.sessions.overlap.needMoreSessions")}
             </p>
           ) : filteredOverlapDevices.length === 0 ? (
             <p className="text-sm text-gray-400">
-              No overlapping devices found for the current filters. Try including more sessions
-              or showing trusted devices as well.
+              {t("analytics.sessions.overlap.none")}
             </p>
           ) : (
             <>
               <table className="min-w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-400 border-b border-white/10 text-[11px]">
-                    <th className="py-2 pr-4">Device</th>
-                    <th className="py-2 pr-4">Kind</th>
-                    <th className="py-2 pr-4">Sessions</th>
-                    <th className="py-2 pr-4">Total sightings</th>
-                    <th className="py-2 pr-4">Trusted</th>
+                    <th className="py-2 pr-4">
+                      {t("analytics.sessions.overlap.headers.device")}
+                    </th>
+                    <th className="py-2 pr-4">
+                      {t("analytics.sessions.overlap.headers.kind")}
+                    </th>
+                    <th className="py-2 pr-4">
+                      {t("analytics.sessions.overlap.headers.sessions")}
+                    </th>
+                    <th className="py-2 pr-4">
+                      {t("analytics.sessions.overlap.headers.totalSightings")}
+                    </th>
+                    <th className="py-2 pr-4">
+                      {t("analytics.sessions.overlap.headers.trusted")}
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -427,22 +463,37 @@ export function SessionsCorrelationSection({
                         <TrustedPillToggle
                           isTrusted={d.isTrusted}
                           trustedSourceLabel={d.trustedSourceLabel}
-                          onToggle={() => toggleTrusted({ kind: d.kind, key: d.key }, !d.isTrusted)}
+                          onToggle={() =>
+                            toggleTrusted(
+                              { kind: d.kind, key: d.key },
+                              !d.isTrusted,
+                            )
+                          }
                         />
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+
               <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
                 <span>
-                  Showing {filteredOverlapDevices.length === 0 ? 0 : currentPage * pageSize + 1}
-                  – {Math.min((currentPage + 1) * pageSize, filteredOverlapDevices.length)} of {" "}
+                  {t("analytics.sessions.overlap.paging.showingPrefix")} {" "}
+                  {filteredOverlapDevices.length === 0
+                    ? 0
+                    : currentPage * pageSize + 1}
+                  –
+                  {" "}
+                  {Math.min((currentPage + 1) * pageSize, filteredOverlapDevices.length)} {" "}
+                  {t("analytics.sessions.overlap.paging.of")} {" "}
                   {filteredOverlapDevices.length}
                 </span>
                 <div className="inline-flex items-center gap-3">
                   <span className="text-[11px] text-gray-500">
-                    Page {totalPages === 0 ? 0 : currentPage + 1} of {totalPages}
+                    {t("analytics.sessions.overlap.paging.page")} {" "}
+                    {totalPages === 0 ? 0 : currentPage + 1} {" "}
+                    {t("analytics.sessions.overlap.paging.pageOf")} {" "}
+                    {totalPages}
                   </span>
                   <button
                     type="button"
@@ -457,13 +508,15 @@ export function SessionsCorrelationSection({
                         : "border-white/20 text-gray-200 hover:bg-white/10"
                     }`}
                   >
-                    Prev
+                    {t("analytics.sessions.overlap.paging.prev")}
                   </button>
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setOverlapPage((prev) => (prev + 1 >= totalPages ? prev : prev + 1));
+                      setOverlapPage((prev) =>
+                        prev + 1 >= totalPages ? prev : prev + 1,
+                      );
                     }}
                     disabled={currentPage + 1 >= totalPages}
                     className={`px-2 py-0.5 rounded-full border text-[11px] ${
@@ -472,15 +525,14 @@ export function SessionsCorrelationSection({
                         : "border-white/20 text-gray-200 hover:bg-white/10"
                     }`}
                   >
-                    Next
+                    {t("analytics.sessions.overlap.paging.next")}
                   </button>
                 </div>
               </div>
             </>
           )}
         </div>
-       </div>
-     </section>
-   );
- }
-
+      </div>
+    </section>
+  );
+}

@@ -4,6 +4,7 @@ import React from "react";
 import { Activity, AlertTriangle, ShieldAlert } from "lucide-react";
 import { TrustedPillToggle } from "@/components/analytics/TrustedPillToggle";
 import type { TrustedDeviceKey } from "@/hooks/useTrustedDevices";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface SuspiciousDevice {
   id: string;
@@ -51,7 +52,9 @@ export function TopSuspiciousDevicesSection({
   trustedBleKeySet,
   toggleTrusted,
 }: Props) {
-  const totalSuspicious = suspiciousAnalytics?.topDevices.length || 0;
+  const { t } = useLanguage();
+  const devices = suspiciousAnalytics?.topDevices ?? [];
+  const totalSuspicious = devices.length;
 
   return (
     <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-red-400/20 mb-10">
@@ -61,46 +64,70 @@ export function TopSuspiciousDevicesSection({
             <ShieldAlert className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold">Top suspicious devices</h2>
+            <h2 className="text-lg font-semibold">
+              {t("analytics.suspicious.title")}
+            </h2>
             <p className="text-xs text-gray-400">
-              Devices that repeatedly appear near your app device in different places. These
-              may represent potential trackers or stalker tools.
+              {t("analytics.suspicious.body")}
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-gray-300">
-          <Activity className="w-4 h-4" />
-          <span>
-            {totalSuspicious === 0
-              ? "No suspicious devices for this range"
-              : `${totalSuspicious} devices flagged`}
-          </span>
-        </div>
       </div>
 
-      {(!suspiciousAnalytics || suspiciousAnalytics.topDevices.length === 0) && !loading && (
-        <p className="text-sm text-gray-400">No suspicious devices detected for this time range.</p>
+      <div className="flex items-center gap-2 text-xs text-gray-300 mb-4">
+        <Activity className="w-4 h-4" />
+        <span>
+          {totalSuspicious === 0
+            ? t("analytics.suspicious.summary.none")
+            : `${totalSuspicious} ${t("analytics.suspicious.summary.someSuffix")}`}
+        </span>
+      </div>
+
+      {!loading && devices.length === 0 && (
+        <p className="text-sm text-gray-400">
+          {t("analytics.suspicious.empty")}
+        </p>
       )}
 
-      {suspiciousAnalytics && suspiciousAnalytics.topDevices.length > 0 && (
+      {devices.length > 0 && (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-gray-400 border-b border-white/10">
-                <th className="py-2 pr-4">Identifier</th>
-                <th className="py-2 pr-4">Type</th>
-                <th className="py-2 pr-4">Name</th>
-                <th className="py-2 pr-4">Sightings</th>
-                <th className="py-2 pr-4">Places</th>
-                <th className="py-2 pr-4">Score</th>
-                <th className="py-2 pr-4">First seen</th>
-                <th className="py-2 pr-4">Last seen</th>
-                <th className="py-2 pr-4">Near alert</th>
-                <th className="py-2 pr-4">Trusted</th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.identifier")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.type")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.name")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.sightings")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.places")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.score")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.firstSeen")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.lastSeen")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.nearAlert")}
+                </th>
+                <th className="py-2 pr-4">
+                  {t("analytics.suspicious.table.trusted")}
+                </th>
               </tr>
             </thead>
             <tbody>
-              {suspiciousAnalytics.topDevices.map((d) => {
+              {devices.map((d) => {
                 const isWifi = d.type === "wifi";
                 const isBle = d.type === "ble";
                 const key = d.identifier;
@@ -111,17 +138,30 @@ export function TopSuspiciousDevicesSection({
                   : false;
 
                 return (
-                  <tr key={d.id} className="border-b border-white/5 last:border-b-0 text-xs">
+                  <tr
+                    key={d.id}
+                    className="border-b border-white/5 last:border-b-0 text-xs"
+                  >
                     <td className="py-1 pr-4 font-mono text-[11px] text-gray-200">
                       {d.identifier}
                     </td>
                     <td className="py-1 pr-4 text-gray-200">{d.type}</td>
                     <td className="py-1 pr-4 text-gray-100">
-                      {d.lastName || <span className="text-gray-500 italic">(unknown)</span>}
+                      {d.lastName || (
+                        <span className="text-gray-500 italic">
+                          {t("analytics.suspicious.unknownName")}
+                        </span>
+                      )}
                     </td>
-                    <td className="py-1 pr-4 text-gray-100">{d.totalSightings}</td>
-                    <td className="py-1 pr-4 text-gray-100">{d.distinctLocationCount}</td>
-                    <td className="py-1 pr-4 text-gray-100">{d.suspicionScore.toFixed(1)}</td>
+                    <td className="py-1 pr-4 text-gray-100">
+                      {d.totalSightings}
+                    </td>
+                    <td className="py-1 pr-4 text-gray-100">
+                      {d.distinctLocationCount}
+                    </td>
+                    <td className="py-1 pr-4 text-gray-100">
+                      {d.suspicionScore.toFixed(1)}
+                    </td>
                     <td className="py-1 pr-4 text-gray-400">
                       {formatShortDateTime(d.firstSeenAt)}
                     </td>
@@ -132,10 +172,12 @@ export function TopSuspiciousDevicesSection({
                       {d.seenNearAlert ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-200 border border-amber-400/40">
                           <AlertTriangle className="w-3 h-3" />
-                          near alert
+                          {t("analytics.suspicious.nearAlertPill")}
                         </span>
                       ) : (
-                        <span className="text-[10px] text-gray-500">no</span>
+                        <span className="text-[10px] text-gray-500">
+                          {t("analytics.suspicious.nearAlertNo")}
+                        </span>
                       )}
                     </td>
                     <td className="py-1 pr-4">
@@ -145,12 +187,14 @@ export function TopSuspiciousDevicesSection({
                           onToggle={() =>
                             toggleTrusted(
                               { kind: isWifi ? "wifi" : "ble", key },
-                              !isTrusted
+                              !isTrusted,
                             )
                           }
                         />
                       ) : (
-                        <span className="text-[10px] text-gray-500">n/a</span>
+                        <span className="text-[10px] text-gray-500">
+                          {t("analytics.suspicious.na")}
+                        </span>
                       )}
                     </td>
                   </tr>

@@ -6,9 +6,11 @@ import { Features } from '@/components/Features';
 import { Footer } from '@/components/Footer';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/Button';
+import { useLanguage } from "@/hooks/useLanguage";
 
 
 const App: React.FC = () => {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-background text-white selection:bg-gold-500/30 selection:text-gold-200">
       <Navbar />
@@ -33,20 +35,23 @@ const App: React.FC = () => {
               
               <div className="relative z-10 flex flex-col items-center">
                 <h2 className="text-4xl md:text-6xl font-serif mb-6 text-white tracking-tight">
-                  Uncompromised Security
-                </h2>
+                  {t('home.cta.title')}
+                 </h2>
+
                 <div className="w-24 h-[1px] bg-gold-400/50 mb-8" />
-                <p className="text-lg text-gray-400 mb-12 max-w-xl mx-auto font-sans font-light leading-relaxed">
-                  Join an exclusive network of individuals who prioritize safety above all else. Your peace of mind begins here.
-                </p>
-                <div className="flex flex-col sm:flex-row gap-6">
-                   <Button variant="primary" className="min-w-[180px]">
-                      Start Trial
-                   </Button>
-                   <Button variant="outline" className="min-w-[180px]">
-                      Contact Sales
-                   </Button>
-                </div>
+                 <p className="text-lg text-gray-400 mb-12 max-w-xl mx-auto font-sans font-light leading-relaxed">
+                  {t('home.cta.body')}
+                 </p>
+
+                 <div className="flex flex-col sm:flex-row gap-6">
+                    <Button variant="primary" className="min-w-[180px]">
+                       {t('home.cta.startTrial')}
+                     </Button>
+                     <Button variant="outline" className="min-w-[180px]">
+                       {t('home.cta.contactSales')}
+                     </Button>
+                  </div>
+
               </div>
 
               {/* Background gradient effects */}

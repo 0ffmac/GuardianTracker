@@ -1,8 +1,11 @@
 "use client";
-import { useState, useEffect } from "react";
-import { Navbar } from "@/components/Navbar";
+ import { useState, useEffect } from "react";
+ import { Navbar } from "@/components/Navbar";
+ import { useLanguage } from "@/hooks/useLanguage";
+ 
+ export default function DashboardMetricsPage() {
+   const { t } = useLanguage();
 
-export default function DashboardMetricsPage() {
   const [trackingSessions, setTrackingSessions] = useState<any[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const [wifiNetworks, setWifiNetworks] = useState<any[]>([]);
@@ -66,19 +69,21 @@ export default function DashboardMetricsPage() {
             ))}
           </select>
         </div>
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">Wi-Fi Networks Seen</h2>
-          {wifiNetworks.length === 0 ? (
-            <p className="text-sm text-gray-400">No Wi-Fi data recorded for this session yet.</p>
-          ) : (
+         <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">{t('dashboard.metrics.wifiSeen.title')}</h2>
+           {wifiNetworks.length === 0 ? (
+            <p className="text-sm text-gray-400">{t('dashboard.metrics.wifiSeen.empty')}</p>
+           ) : (
+
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-white/10">
-                  <th className="py-2 pr-4">SSID</th>
-                  <th className="py-2 pr-4">BSSID</th>
-                  <th className="py-2 pr-4">Samples</th>
-                  <th className="py-2 pr-4">Avg RSSI</th>
-                </tr>
+                 <tr className="text-left text-gray-400 border-b border-white/10">
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiSeen.columns.ssid')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiSeen.columns.bssid')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiSeen.columns.samples')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiSeen.columns.avgRssi')}</th>
+                 </tr>
+
               </thead>
               <tbody>
                 {wifiNetworks.map((net, idx) => (
@@ -93,18 +98,20 @@ export default function DashboardMetricsPage() {
             </table>
           )}
         </div>
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">Wi-Fi Devices Most Time Nearby</h2>
-          {wifiNetworks.length === 0 ? (
-            <p className="text-sm text-gray-400">No Wi-Fi data recorded for this session yet.</p>
-          ) : (
+         <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">{t('dashboard.metrics.wifiTop.title')}</h2>
+           {wifiNetworks.length === 0 ? (
+            <p className="text-sm text-gray-400">{t('dashboard.metrics.wifiSeen.empty')}</p>
+           ) : (
+
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-white/10">
-                  <th className="py-2 pr-4">SSID</th>
-                  <th className="py-2 pr-4">BSSID</th>
-                  <th className="py-2 pr-4">Samples (proxy for time)</th>
-                </tr>
+                 <tr className="text-left text-gray-400 border-b border-white/10">
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiSeen.columns.ssid')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiSeen.columns.bssid')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.wifiTop.columns.samplesProxy')}</th>
+                 </tr>
+
               </thead>
               <tbody>
                 {wifiNetworks
@@ -112,7 +119,7 @@ export default function DashboardMetricsPage() {
                   .slice(0, 10)
                   .map((net, idx) => (
                     <tr key={`most-${net.bssid}-${idx}`} className="border-b border-white/5 last:border-b-0">
-                      <td className="py-1 pr-4 text-white">{net.ssid || <span className="text-gray-500 italic">(hidden)</span>}</td>
+                      <td className="py-1 pr-4 text-white">{net.ssid || <span className="text-gray-500 italic">{t('dashboard.metrics.wifi.hidden')}</span>}</td>
                       <td className="py-1 pr-4 text-gray-300 font-mono text-xs">{net.bssid}</td>
                       <td className="py-1 pr-4 text-gold-300 font-bold">{net.count}</td>
                     </tr>
@@ -121,19 +128,21 @@ export default function DashboardMetricsPage() {
             </table>
           )}
         </div>
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">Bluetooth Devices Seen</h2>
-          {bleDevices.length === 0 ? (
-            <p className="text-sm text-gray-400">No BLE data recorded for this session yet.</p>
-          ) : (
+         <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">{t('dashboard.metrics.bleSeen.title')}</h2>
+           {bleDevices.length === 0 ? (
+            <p className="text-sm text-gray-400">{t('dashboard.metrics.bleSeen.empty')}</p>
+           ) : (
+
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-white/10">
-                  <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Address</th>
-                  <th className="py-2 pr-4">Samples</th>
-                  <th className="py-2 pr-4">Avg RSSI</th>
-                </tr>
+                 <tr className="text-left text-gray-400 border-b border-white/10">
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleSeen.columns.name')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleSeen.columns.address')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleSeen.columns.samples')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleSeen.columns.avgRssi')}</th>
+                 </tr>
+
               </thead>
               <tbody>
                 {bleDevices.map((dev, idx) => (
@@ -148,18 +157,20 @@ export default function DashboardMetricsPage() {
             </table>
           )}
         </div>
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold mb-2">Bluetooth Devices Most Time Nearby</h2>
-          {bleDevices.length === 0 ? (
-            <p className="text-sm text-gray-400">No BLE data recorded for this session yet.</p>
-          ) : (
+         <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-2">{t('dashboard.metrics.bleTop.title')}</h2>
+           {bleDevices.length === 0 ? (
+            <p className="text-sm text-gray-400">{t('dashboard.metrics.bleSeen.empty')}</p>
+           ) : (
+
             <table className="min-w-full text-sm">
               <thead>
-                <tr className="text-left text-gray-400 border-b border-white/10">
-                  <th className="py-2 pr-4">Name</th>
-                  <th className="py-2 pr-4">Address</th>
-                  <th className="py-2 pr-4">Samples (proxy for time)</th>
-                </tr>
+                 <tr className="text-left text-gray-400 border-b border-white/10">
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleSeen.columns.name')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleSeen.columns.address')}</th>
+                  <th className="py-2 pr-4">{t('dashboard.metrics.bleTop.columns.samplesProxy')}</th>
+                 </tr>
+
               </thead>
               <tbody>
                 {bleDevices
@@ -167,7 +178,7 @@ export default function DashboardMetricsPage() {
                   .slice(0, 10)
                   .map((dev, idx) => (
                     <tr key={`most-${dev.address}-${idx}`} className="border-b border-white/5 last:border-b-0">
-                      <td className="py-1 pr-4 text-white">{dev.name || <span className="text-gray-500 italic">(unknown)</span>}</td>
+                      <td className="py-1 pr-4 text-white">{dev.name || <span className="text-gray-500 italic">{t('dashboard.metrics.ble.unknown')}</span>}</td>
                       <td className="py-1 pr-4 text-gray-300 font-mono text-xs">{dev.address}</td>
                       <td className="py-1 pr-4 text-gold-300 font-bold">{dev.count}</td>
                     </tr>

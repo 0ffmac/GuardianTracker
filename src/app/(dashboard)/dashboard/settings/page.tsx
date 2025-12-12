@@ -8,14 +8,16 @@ import { NearbyDevicesSection } from "@/components/settings/NearbyDevicesSection
 import { SuspiciousDevicesSection } from "@/components/settings/SuspiciousDevicesSection";
 import { AlertsSection } from "@/components/settings/AlertsSection";
 import { AlertTriangle } from "lucide-react";
-
-
-type UserWithId = { id: string; name?: string | null; email?: string | null; image?: string | null };
-
-export default function SettingsPage() {
+import { useLanguage } from "@/hooks/useLanguage";
+ 
+ 
+ type UserWithId = { id: string; name?: string | null; email?: string | null; image?: string | null };
+ 
+ export default function SettingsPage() {
   const { data: session } = useSession();
-  const sessionUser = session?.user as UserWithId | undefined;
-  const [profileUser, setProfileUser] = useState<UserWithId | null>(null);
+  const { t } = useLanguage();
+   const sessionUser = session?.user as UserWithId | undefined;
+   const [profileUser, setProfileUser] = useState<UserWithId | null>(null);
   const [mounted, setMounted] = useState(false);
   const [trackingSessions, setTrackingSessions] = useState<any[]>([]);
   const [contacts, setContacts] = useState<any[]>([]);
@@ -709,10 +711,10 @@ export default function SettingsPage() {
    return (
 
     <div className="min-h-screen bg-background text-white">
-      <Navbar />
-      <main className="max-w-7xl mx-auto px-6 py-8 pt-28">
-        <h1 className="text-2xl font-bold mb-6">Settings</h1>
-        {error && (
+       <Navbar />
+       <main className="max-w-7xl mx-auto px-6 py-8 pt-28">
+         <h1 className="text-2xl font-bold mb-6">{t('settings.page.title')}</h1>
+         {error && (
           <div className="mb-4 text-sm text-red-400 bg-red-900/40 border border-red-500/40 rounded-xl px-4 py-2">
             {error}
           </div>
@@ -814,21 +816,22 @@ export default function SettingsPage() {
           />
 
 
-          {/* Danger Zone section */}
-          <section className="bg-red-950/40 rounded-2xl p-6 border border-red-500/40">
-            <h2 className="text-lg font-semibold mb-2 text-red-200">Danger Zone</h2>
-            <p className="text-sm text-red-100/80">
-              Delete all your location history, devices, tracking sessions, and your account.
-              This action is irreversible.
-            </p>
-            <button
-              className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
-              onClick={handleDeleteAllData}
-              disabled={dangerLoading}
-            >
-              {dangerLoading ? "Deleting..." : "Delete All My Data"}
-            </button>
-          </section>
+           {/* Danger Zone section */}
+           <section className="bg-red-950/40 rounded-2xl p-6 border border-red-500/40">
+             <h2 className="text-lg font-semibold mb-2 text-red-200">{t('settings.danger.title')}</h2>
+             <p className="text-sm text-red-100/80">
+               {t('settings.danger.body')}
+             </p>
+             <button
+               className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm"
+               onClick={handleDeleteAllData}
+               disabled={dangerLoading}
+             >
+               {dangerLoading
+                 ? t('settings.danger.button.loading')
+                 : t('settings.danger.button.idle')}
+             </button>
+           </section>
         </div>
       </main>
 

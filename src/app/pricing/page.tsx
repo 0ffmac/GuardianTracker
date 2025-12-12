@@ -4,9 +4,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Shield, Stars } from 'lucide-react';
+import { useLanguage } from "@/hooks/useLanguage";
 
 export default function PricingPage() {
   const [pulse, setPulse] = React.useState(0);
+  const { t } = useLanguage();
   const [swap, setSwap] = React.useState(false);
   const [visible, setVisible] = React.useState(true);
   const [cycle, setCycle] = React.useState(0);
@@ -176,11 +178,17 @@ export default function PricingPage() {
               transition={{ delay: 0.6, duration: 0.8 }}
               className="mt-12 grid md:grid-cols-3 gap-6"
             >
-              <div className="relative border border-white/10 bg-surface/60 backdrop-blur-md p-8 text-left">
-                <div className="text-xs uppercase tracking-[0.3em] text-gray-400">Plan</div>
-                <div className="text-3xl md:text-4xl font-serif mt-2">Free</div>
-                <div className="text-gray-400 mt-3">All core features included. Personal use. No ads.</div>
-              </div>
+               <div className="relative border border-white/10 bg-surface/60 backdrop-blur-md p-8 text-left">
+                <div className="text-xs uppercase tracking-[0.3em] text-gray-400">{t('pricing.features.label')}</div>
+                 <ul className="mt-3 text-gray-300 space-y-2 text-sm">
+                  <li>• {t('pricing.features.bullet1')}</li>
+                  <li>• {t('pricing.features.bullet2')}</li>
+                  <li>• {t('pricing.features.bullet3')}</li>
+                  <li>• {t('pricing.features.bullet4')}</li>
+                 </ul>
+               </div>
+
+
               <div className="relative border border-white/10 bg-surface/60 backdrop-blur-md p-8 text-left">
                 <div className="text-xs uppercase tracking-[0.3em] text-gray-400">What you get</div>
                 <ul className="mt-3 text-gray-300 space-y-2 text-sm">
@@ -190,10 +198,11 @@ export default function PricingPage() {
                   <li>• Alerts and safety check‑ins</li>
                 </ul>
               </div>
-              <div className="relative border border-white/10 bg-surface/60 backdrop-blur-md p-8 text-left">
-                <div className="text-xs uppercase tracking-[0.3em] text-gray-400">Future</div>
-                <div className="text-gray-400 mt-3 text-sm">Open APIs, responder tooling, and enhanced analytics — driven by the community.</div>
-              </div>
+               <div className="relative border border-white/10 bg-surface/60 backdrop-blur-md p-8 text-left">
+                <div className="text-xs uppercase tracking-[0.3em] text-gray-400">{t('pricing.future.label')}</div>
+                <div className="text-gray-400 mt-3 text-sm">{t('pricing.future.body')}</div>
+               </div>
+
             </motion.div>
           </div>
 

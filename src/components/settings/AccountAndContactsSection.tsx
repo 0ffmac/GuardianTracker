@@ -1,6 +1,7 @@
 "use client";
 
 import React, { Dispatch, SetStateAction } from "react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 // Keep in sync with Settings page user type
 export type UserWithId = {
@@ -16,6 +17,7 @@ interface AccountAndContactsSectionProps {
   setShareLocationWithTrustedContacts: Dispatch<
     SetStateAction<boolean | null>
   >;
+
   useGoogle3DMaps: boolean;
   setUseGoogle3DMaps: Dispatch<SetStateAction<boolean>>;
   googleMapsApiKey: string;
@@ -24,6 +26,7 @@ interface AccountAndContactsSectionProps {
   mapSettingsSaving: boolean;
   mapSettingsError: string | null;
   handleSaveMapSettings: (e: React.FormEvent) => Promise<void> | void;
+
   contacts: any[];
   setContacts: Dispatch<SetStateAction<any[]>>;
   contactEmail: string;
@@ -34,14 +37,16 @@ interface AccountAndContactsSectionProps {
   handleAddContact: (e: React.FormEvent) => Promise<void> | void;
   handleDeleteContact: (id: string) => Promise<void> | void;
   handleDeleteAllContacts: () => Promise<void> | void;
+
   trustedBy: any[];
   inviteUpdatingId: string | null;
   trustedDeletingId: string | null;
   handleInviteStatus: (
     id: string,
-    status: "ACCEPTED" | "DECLINED"
+    status: "ACCEPTED" | "DECLINED",
   ) => Promise<void> | void;
   handleDeleteTrustedBy: (id: string) => Promise<void> | void;
+
   showToast: (message: string, type?: "success" | "error") => void;
   setProfileUser: Dispatch<SetStateAction<UserWithId | null>>;
 }
@@ -76,17 +81,24 @@ export function AccountAndContactsSection({
   showToast,
   setProfileUser,
 }: AccountAndContactsSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10">
-      <h2 className="text-lg font-semibold mb-4">Account &amp; Contacts</h2>
+      <h2 className="text-lg font-semibold mb-4">
+        {t("settings.account.title")}
+      </h2>
+
       <div className="space-y-6">
         {/* Profile */}
         <div>
-          <h3 className="text-base font-semibold mb-1">Profile</h3>
+          <h3 className="text-base font-semibold mb-1">
+            {t("settings.account.profile.title")}
+          </h3>
           <p className="text-sm text-gray-300 mb-3">
-            Update the information that appears in your dashboard and for trusted
-            contacts.
+            {t("settings.account.profile.body")}
           </p>
+
           {effectiveUser && (
             <form
               onSubmit={async (e) => {
@@ -112,7 +124,7 @@ export function AccountAndContactsSection({
                       email,
                       image,
                     }));
-                    showToast("Profile saved");
+                    showToast("Profile saved", "success");
                   }
                 } catch (err) {
                   console.error("Profile update error", err);
@@ -145,11 +157,14 @@ export function AccountAndContactsSection({
                   )}
                 </div>
                 <div className="flex-1 text-xs text-gray-400">
-                  This avatar will appear in the navigation bar.
+                  {t("settings.account.profile.avatarNote")}
                 </div>
               </div>
+
               <div>
-                <label className="block text-xs text-gray-300 mb-1">Name</label>
+                <label className="block text-xs text-gray-300 mb-1">
+                  {t("settings.account.profile.nameLabel")}
+                </label>
                 <input
                   name="name"
                   defaultValue={effectiveUser.name || ""}
@@ -157,32 +172,37 @@ export function AccountAndContactsSection({
                   placeholder="Your name"
                 />
               </div>
+
               <div>
-                <label className="block text-xs text-gray-300 mb-1">Email</label>
+                <label className="block text-xs text-gray-300 mb-1">
+                  {t("settings.account.profile.emailLabel")}
+                </label>
                 <input
                   type="email"
                   name="email"
                   defaultValue={effectiveUser.email || ""}
-                  className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+                  className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline.none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                   placeholder="you@example.com"
                 />
               </div>
+
               <div>
                 <label className="block text-xs text-gray-300 mb-1">
-                  Avatar URL
+                  {t("settings.account.profile.avatarLabel")}
                 </label>
                 <input
                   name="image"
                   defaultValue={effectiveUser.image || ""}
-                  className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+                  className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline.none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
                   placeholder="https://..."
                 />
               </div>
+
               <button
                 type="submit"
                 className="mt-2 px-4 py-2 bg-gold-500 text-black rounded-lg hover:bg-gold-400 transition text-sm font-semibold"
               >
-                Save Profile
+                {t("settings.account.profile.save")}
               </button>
             </form>
           )}
@@ -192,15 +212,15 @@ export function AccountAndContactsSection({
 
         {/* Privacy */}
         <div>
-          <h3 className="text-base font-semibold mb-1">Privacy</h3>
+          <h3 className="text-base font-semibold mb-1">
+            {t("settings.privacy.title")}
+          </h3>
           <p className="text-sm text-gray-300">
-            Control whether your live location can be used to find nearby
-            trusted contacts.
+            {t("settings.privacy.body")}
           </p>
           <div className="mt-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div className="text-xs text-gray-400 max-w-xs">
-              When enabled, your last known position is used to calculate
-              distances to your accepted contacts.
+              {t("settings.privacy.helper")}
             </div>
             <label className="flex items-center gap-2 text-xs text-gray-200">
               <input
@@ -220,13 +240,13 @@ export function AccountAndContactsSection({
                   } catch (err) {
                     console.error(
                       "Failed to update privacy from settings",
-                      err
+                      err,
                     );
                   }
                 }}
                 className="h-4 w-4 text-gold-500"
               />
-              <span>Share my live location</span>
+              <span>{t("settings.privacy.shareToggle")}</span>
             </label>
           </div>
         </div>
@@ -235,10 +255,11 @@ export function AccountAndContactsSection({
 
         {/* Map experience */}
         <div>
-          <h3 className="text-base font-semibold mb-1">Map Experience</h3>
+          <h3 className="text-base font-semibold mb-1">
+            {t("settings.map.title")}
+          </h3>
           <p className="text-sm text-gray-300">
-            Choose between the built-in map and Google 3D Maps when you provide
-            your own API key.
+            {t("settings.map.body")}
           </p>
           <form
             onSubmit={handleSaveMapSettings}
@@ -246,19 +267,17 @@ export function AccountAndContactsSection({
           >
             <div>
               <label className="block text-xs text-gray-300 mb-1">
-                Google Maps API key
+                {t("settings.map.apiKeyLabel")}
               </label>
               <input
                 type="password"
                 value={googleMapsApiKey}
                 onChange={(e) => setGoogleMapsApiKey(e.target.value)}
-
-                className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
-                placeholder="Paste your Google Maps API key"
+                className="w-full px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline.none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+                placeholder={t("settings.map.apiKeyPlaceholder")}
               />
               <p className="mt-1 text-[11px] text-gray-400">
-                Restrict this key by HTTP referrer in your Google Cloud
-                Console. It is stored only for your account.
+                {t("settings.map.apiKeyHelper")}
               </p>
             </div>
             <label className="flex items-center gap-2 text-xs text-gray-200">
@@ -270,8 +289,10 @@ export function AccountAndContactsSection({
                 disabled={!googleMapsApiKey.trim()}
               />
               <span>
-                Use Google 3D Maps on the dashboard when this key is set
-                {!googleMapsApiKey.trim() ? " (add a key first)" : ""}
+                {t("settings.map.useGoogle3D")}
+                {!googleMapsApiKey.trim()
+                  ? t("settings.map.useGoogle3D.addKeySuffix")
+                  : ""}
               </span>
             </label>
             {mapSettingsError && (
@@ -282,11 +303,13 @@ export function AccountAndContactsSection({
               className="px-4 py-2 bg-gold-500 text-black rounded-lg hover:bg-gold-400 transition text-sm font-semibold disabled:opacity-60"
               disabled={mapSettingsSaving || mapSettingsLoading}
             >
-              {mapSettingsSaving ? "Saving..." : "Save map settings"}
+              {mapSettingsSaving
+                ? t("settings.map.save.loading")
+                : t("settings.map.save.idle")}
             </button>
             {mapSettingsLoading && (
               <div className="text-xs text-gray-400">
-                Loading saved map settings...
+                {t("settings.map.loadingSaved")}
               </div>
             )}
           </form>
@@ -297,19 +320,20 @@ export function AccountAndContactsSection({
         {/* Emergency contacts */}
         <div>
           <div className="flex items-center justify-between gap-3 mb-1">
-            <h3 className="text-base font-semibold">Emergency Contacts</h3>
+            <h3 className="text-base font-semibold">
+              {t("settings.contacts.title")}
+            </h3>
             {contacts.length > 0 && (
               <button
                 className="px-3 py-1 text-[11px] rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
                 onClick={handleDeleteAllContacts}
               >
-                Delete all
+                {t("settings.contacts.deleteAll")}
               </button>
             )}
           </div>
           <p className="text-sm text-gray-300">
-            Add trusted people who can receive alerts about your location. Only
-            existing Guard Royal accounts can be added for now.
+            {t("settings.contacts.body")}
           </p>
           <form
             onSubmit={handleAddContact}
@@ -317,8 +341,8 @@ export function AccountAndContactsSection({
           >
             <input
               type="email"
-              className="flex-1 px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
-              placeholder="Contact's email address"
+              className="flex-1 px-3 py-2 rounded-lg bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline.none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+              placeholder={t("settings.contacts.inputPlaceholder")}
               value={contactEmail}
               onChange={(e) => setContactEmail(e.target.value)}
               required
@@ -328,7 +352,9 @@ export function AccountAndContactsSection({
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition text-sm"
               disabled={contactLoading}
             >
-              {contactLoading ? "Adding..." : "Add Contact"}
+              {contactLoading
+                ? t("settings.contacts.add.loading")
+                : t("settings.contacts.add.idle")}
             </button>
           </form>
           {contactError && (
@@ -337,7 +363,7 @@ export function AccountAndContactsSection({
           <div className="mt-4">
             {contacts.length === 0 ? (
               <div className="text-sm text-gray-400">
-                No emergency contacts yet.
+                {t("settings.contacts.empty")}
               </div>
             ) : (
               <ul className="space-y-2">
@@ -366,13 +392,15 @@ export function AccountAndContactsSection({
                                 prev.map((x) =>
                                   x.id === c.id
                                     ? { ...x, receiveEmergencyAlerts: next }
-                                    : x
-                                )
+                                    : x,
+                                ),
                               );
                               try {
                                 const res = await fetch(`/api/contacts/${c.id}`, {
                                   method: "PATCH",
-                                  headers: { "Content-Type": "application/json" },
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
                                   body: JSON.stringify({
                                     receiveEmergencyAlerts: next,
                                   }),
@@ -380,23 +408,23 @@ export function AccountAndContactsSection({
                                 if (!res.ok) {
                                   showToast(
                                     "Failed to update emergency alerts setting",
-                                    "error"
+                                    "error",
                                   );
                                 }
                               } catch (err) {
                                 console.error(
                                   "Failed to update receiveEmergencyAlerts",
-                                  err
+                                  err,
                                 );
                                 showToast(
                                   "Failed to update emergency alerts setting",
-                                  "error"
+                                  "error",
                                 );
                               }
                             }}
                             className="h-4 w-4 text-gold-500"
                           />
-                          <span>Emergency alerts</span>
+                          <span>{t("settings.contacts.flags.emergencyAlerts")}</span>
                         </label>
                         <label className="inline-flex items-center gap-2">
                           <input
@@ -408,13 +436,15 @@ export function AccountAndContactsSection({
                                 prev.map((x) =>
                                   x.id === c.id
                                     ? { ...x, allowCallsAndMessages: next }
-                                    : x
-                                )
+                                    : x,
+                                ),
                               );
                               try {
                                 const res = await fetch(`/api/contacts/${c.id}`, {
                                   method: "PATCH",
-                                  headers: { "Content-Type": "application/json" },
+                                  headers: {
+                                    "Content-Type": "application/json",
+                                  },
                                   body: JSON.stringify({
                                     allowCallsAndMessages: next,
                                   }),
@@ -422,23 +452,23 @@ export function AccountAndContactsSection({
                                 if (!res.ok) {
                                   showToast(
                                     "Failed to update calls/messages setting",
-                                    "error"
+                                    "error",
                                   );
                                 }
                               } catch (err) {
                                 console.error(
                                   "Failed to update allowCallsAndMessages",
-                                  err
+                                  err,
                                 );
                                 showToast(
                                   "Failed to update calls/messages setting",
-                                  "error"
+                                  "error",
                                 );
                               }
                             }}
                             className="h-4 w-4 text-gold-500"
                           />
-                          <span>Calls &amp; messages</span>
+                          <span>{t("settings.contacts.flags.callsMessages")}</span>
                         </label>
                       </div>
                     </div>
@@ -447,7 +477,9 @@ export function AccountAndContactsSection({
                       onClick={() => handleDeleteContact(c.id)}
                       disabled={contactDeletingId === c.id}
                     >
-                      {contactDeletingId === c.id ? "Removing..." : "Remove"}
+                      {contactDeletingId === c.id
+                        ? t("settings.contacts.remove.loading")
+                        : t("settings.contacts.remove.idle")}
                     </button>
                   </li>
                 ))}
@@ -460,36 +492,36 @@ export function AccountAndContactsSection({
 
         {/* People who trust you */}
         <div>
-          <h3 className="text-base font-semibold mb-1">People Who Trust You</h3>
+          <h3 className="text-base font-semibold mb-1">
+            {t("settings.contacts.trustedBy.title")}
+          </h3>
           <p className="text-sm text-gray-300">
-            These people have added you as an emergency contact in their
-            Guard Royal account.
+            {t("settings.contacts.trustedBy.body")}
           </p>
           {trustedBy.length > 0 && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-900/40 border border-emerald-400/40 px-4 py-2 text-xs font-semibold text-emerald-200">
               <span className="inline-block h-2 w-2 rounded-full bg-emerald-300 animate-pulse" />
               <span>
-                You are an emergency contact for {trustedBy.length}{" "}
-                {trustedBy.length === 1 ? "person" : "people"}.
+                {trustedBy.length === 1
+                  ? t("settings.contacts.trustedBy.summary.one")
+                  : `${t("settings.contacts.trustedBy.summary.manyPrefix")} ${trustedBy.length} ${t(
+                      "settings.contacts.trustedBy.summary.manySuffix",
+                    )}`}
               </span>
             </div>
           )}
           <div className="mt-3">
-            {trustedBy.some((t) => t.status === "PENDING") && (
+            {trustedBy.some((trust) => trust.status === "PENDING") && (
               <div className="mb-3 rounded-xl bg-amber-900/40 border border-amber-400/40 px-4 py-3 text-xs text-amber-100">
                 <div className="font-semibold mb-1">
-                  Pending emergency contact requests
+                  {t("settings.contacts.trustedBy.pendingTitle")}
                 </div>
                 <p>
-                  You have {
-                    trustedBy.filter((t) => t.status === "PENDING").length
-                  }{" "}
-                  pending request
-                  {trustedBy.filter((t) => t.status === "PENDING").length === 1
-                    ? ""
-                    : "s"}
-                  {" "}
-                  to become an emergency contact.
+                  {t("settings.contacts.trustedBy.pendingPrefix")} {" "}
+                  {trustedBy.filter((trust) => trust.status === "PENDING").length}{" "}
+                  {trustedBy.filter((trust) => trust.status === "PENDING").length === 1
+                    ? t("settings.contacts.trustedBy.pendingSuffix")
+                    : t("settings.contacts.trustedBy.pendingSuffixPlural")}
                 </p>
               </div>
             )}
@@ -497,79 +529,50 @@ export function AccountAndContactsSection({
           <div className="mt-2">
             {trustedBy.length === 0 ? (
               <div className="text-sm text-gray-400">
-                No one has added you as an emergency contact yet.
+                {t("settings.contacts.trustedBy.empty")}
               </div>
             ) : (
               <ul className="space-y-2">
-                {trustedBy.map((t) => (
+                {trustedBy.map((trust) => (
                   <li
-                    key={t.id}
+                    key={trust.id}
                     className="flex items-center justify-between bg-white/5 rounded-xl px-3 py-2"
                   >
                     <div>
                       <div className="text-sm font-medium">
-                        {t.owner?.name || t.owner?.email || "Guard Royal user"}
+                        {trust.owner?.name || trust.owner?.email || "Guard Royal user"}
                       </div>
-                      {t.owner?.email && (
+                      {trust.owner?.email && (
                         <div className="text-xs text-gray-400">
-                          {t.owner.email}
+                          {trust.owner.email}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {t.status === "PENDING" && (
+                      {trust.status === "PENDING" && (
                         <>
                           <button
-                            className="px-3 py-1 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition text-xs"
-                            onClick={() => handleInviteStatus(t.id, "ACCEPTED")}
-                            disabled={
-                              inviteUpdatingId === t.id || trustedDeletingId === t.id
-                            }
+                            className="px-3 py-1 text-[11px] rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition"
+                            onClick={() => handleInviteStatus(trust.id, "ACCEPTED")}
+                            disabled={inviteUpdatingId === trust.id}
                           >
-                            {inviteUpdatingId === t.id ? "Accepting..." : "Accept"}
+                            Accept
                           </button>
                           <button
-                            className="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition text-xs"
-                            onClick={() => handleInviteStatus(t.id, "DECLINED")}
-                            disabled={
-                              inviteUpdatingId === t.id || trustedDeletingId === t.id
-                            }
+                            className="px-3 py-1 text-[11px] rounded-lg bg-gray-600 text-white hover:bg-gray-700 transition"
+                            onClick={() => handleInviteStatus(trust.id, "DECLINED")}
+                            disabled={inviteUpdatingId === trust.id}
                           >
-                            {inviteUpdatingId === t.id ? "Declining..." : "Decline"}
+                            Decline
                           </button>
                         </>
-                      )}
-                      {t.status === "ACCEPTED" && (
-                        <>
-                          <span className="px-2 py-1 rounded-full bg-emerald-900/60 text-emerald-200 text-[11px] font-semibold">
-                            Accepted
-                          </span>
-                          <button
-                            className="px-3 py-1 bg-amber-600 text-white rounded hover:bg-amber-700 transition text-xs"
-                            onClick={() => handleInviteStatus(t.id, "DECLINED")}
-                            disabled={
-                              inviteUpdatingId === t.id || trustedDeletingId === t.id
-                            }
-                          >
-                            {inviteUpdatingId === t.id
-                              ? "Revoking..."
-                              : "Revoke emergency"}
-                          </button>
-                        </>
-                      )}
-                      {t.status === "DECLINED" && (
-                        <span className="px-2 py-1 rounded-full bg-neutral-800/80 text-neutral-300 text-[11px] font-semibold">
-                          Declined
-                        </span>
                       )}
                       <button
-                        className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-xs"
-                        onClick={() => handleDeleteTrustedBy(t.id)}
-                        disabled={
-                          trustedDeletingId === t.id || inviteUpdatingId === t.id
-                        }
+                        className="px-3 py-1 text-[11px] rounded-lg bg-red-600 text.white hover:bg-red-700 transition"
+                        onClick={() => handleDeleteTrustedBy(trust.id)}
+                        disabled={trustedDeletingId === trust.id}
                       >
-                        {trustedDeletingId === t.id ? "Removing..." : "Remove"}
+                        {t("settings.contacts.remove.idle")}
                       </button>
                     </div>
                   </li>

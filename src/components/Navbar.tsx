@@ -6,6 +6,7 @@ import { Shield, LogOut, Menu, X } from 'lucide-react';
 import { Button } from './ui/Button';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from "next-auth/react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export const Navbar: React.FC = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -13,8 +14,10 @@ export const Navbar: React.FC = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const { t, language, setLanguage } = useLanguage();
+ 
+   const router = useRouter();
 
-  const router = useRouter();
   const pathname = usePathname();
   // 1. Next-Auth Session and Status Check
   const { data: session, status } = useSession();
@@ -75,19 +78,20 @@ export const Navbar: React.FC = () => {
   }, [isLoggedIn, session?.user]);
  
   const dashboardLinks = [
-    { href: '/dashboard', label: 'Overview' },
-    { href: '/dashboard/map', label: 'Map' },
-    { href: '/dashboard/metrics', label: 'Metrics' },
-    { href: '/dashboard/analytics', label: 'Analytics' },
-    { href: '/dashboard/settings', label: 'Settings' },
+    { href: '/dashboard', labelKey: 'nav.overview' },
+    { href: '/dashboard/map', labelKey: 'nav.map' },
+    { href: '/dashboard/metrics', labelKey: 'nav.metrics' },
+    { href: '/dashboard/analytics', labelKey: 'nav.analytics' },
+    { href: '/dashboard/settings', labelKey: 'nav.settings' },
   ];
  
-  const marketingLinks = [
-    { label: 'Features', kind: 'hash' as const, href: '#features' },
-    { label: 'Discover', kind: 'route' as const, href: '/discover' },
-    { label: 'Pricing', kind: 'route' as const, href: '/pricing' },
-    { label: 'About', kind: 'route' as const, href: '/about' },
+   const marketingLinks = [
+    { labelKey: 'nav.features', kind: 'hash' as const, href: '#features' },
+    { labelKey: 'nav.discover', kind: 'route' as const, href: '/discover' },
+    { labelKey: 'nav.pricing', kind: 'route' as const, href: '/pricing' },
+    { labelKey: 'nav.about', kind: 'route' as const, href: '/about' },
   ];
+
  
   return (
 
@@ -124,27 +128,29 @@ export const Navbar: React.FC = () => {
                   onClick={() => router.push(link.href)}
                   className="text-xs font-sans font-medium uppercase tracking-widest text-gray-400 hover:text-gold-400 transition-colors relative group"
                 >
-                  {link.label}
+                  {t(link.labelKey)}
                   <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
                 </button>
               ))
             : marketingLinks.map((link) =>
                 link.kind === 'route' ? (
-                  <button
-                    key={link.label}
+                   <button
+                      key={link.labelKey}
+
                     onClick={() => router.push(link.href)}
                     className="text-xs font-sans font-medium uppercase tracking-widest text-gray-400 hover:text-gold-400 transition-colors relative group"
                   >
-                    {link.label}
+                    {t(link.labelKey)}
                     <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
                   </button>
                 ) : (
                   <a
-                    key={link.label}
-                    href={link.href}
+                     key={link.labelKey}
+                     href={link.href}
+
                     className="text-xs font-sans font-medium uppercase tracking-widest text-gray-400 hover:text-gold-400 transition-colors relative group"
                   >
-                    {link.label}
+                    {t(link.labelKey)}
                     <span className="absolute -bottom-2 left-1/2 w-0 h-[1px] bg-gold-400 transition-all duration-300 group-hover:w-full group-hover:left-0" />
                   </a>
                 )
@@ -175,30 +181,54 @@ export const Navbar: React.FC = () => {
             </div>
           )}
 
-          {/* Auth Button */}
-          <button
-            onClick={handleAuthAction}
-            className="flex items-center gap-2 text-xs font-sans uppercase tracking-widest text-white hover:text-gold-400 transition-colors"
-          >
-            {isLoggedIn ? (
-              <>
-                <LogOut className="w-4 h-4" />
-                Sign Out
-              </>
-            ) : (
-              'Sign In'
-            )}
-          </button>
+           {/* Language Toggle */}
+           <div className="flex items-center gap-1 mr-2 text-[10px] uppercase tracking-[0.2em]">
+             <button
+               type="button"
+               onClick={() => setLanguage('en')}
+               className={`px-2 py-1 rounded-full border border-white/10 ${
+                 language === 'en' ? 'bg-white text-black' : 'text-gray-300'
+               }`}
+             >
+               {t('nav.lang.en')}
+             </button>
+             <button
+               type="button"
+               onClick={() => setLanguage('es')}
+               className={`px-2 py-1 rounded-full border border-white/10 ${
+                 language === 'es' ? 'bg-white text-black' : 'text-gray-300'
+               }`}
+             >
+               {t('nav.lang.es')}
+             </button>
+           </div>
+ 
+           {/* Auth Button */}
+           <button
+             onClick={handleAuthAction}
+             className="flex items-center gap-2 text-xs font-sans uppercase tracking-widest text-white hover:text-gold-400 transition-colors"
+           >
+             {isLoggedIn ? (
+               <>
+                 <LogOut className="w-4 h-4" />
+                 {t('nav.signOut')}
+               </>
+             ) : (
+               t('nav.signIn')
+             )}
+           </button>
+
 
           {/* CTA Button (Get Started / Go to Dashboard) */}
           <div className="hidden sm:block">
-            <Button
-              variant="outline"
-              onClick={handleCtaAction}
-              className="!py-2 !px-6 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white"
-            >
-              {isLoggedIn ? 'Dashboard' : 'Get Started'}
-            </Button>
+             <Button
+               variant="outline"
+               onClick={handleCtaAction}
+               className="!py-2 !px-6 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white"
+             >
+               {isLoggedIn ? t('nav.dashboard') : t('nav.getStarted')}
+             </Button>
+
           </div>
 
           {/* Mobile menu toggle */}
@@ -223,9 +253,10 @@ export const Navbar: React.FC = () => {
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
                   className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
-                >
-                  {link.label}
-                </a>
+                   >
+                     {t(link.labelKey)}
+                   </a>
+
               ) : (
                 <button
                   key={link.href}
@@ -233,10 +264,11 @@ export const Navbar: React.FC = () => {
                     router.push(link.href as string);
                     setMobileOpen(false);
                   }}
-                  className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
-                >
-                  {link.label}
-                </button>
+                   className="w-full text-left text-xs font-sans font-medium uppercase tracking-widest text-gray-200 hover:text-gold-400"
+                 >
+                   {t(link.labelKey)}
+                 </button>
+
               )
             ))}
 
@@ -249,7 +281,8 @@ export const Navbar: React.FC = () => {
                 }}
                 className="!py-2 !px-4 !text-xs !border-white/20 hover:!bg-white hover:!text-black hover:!border-white w-full"
               >
-                {isLoggedIn ? 'Dashboard' : 'Get Started'}
+                 {isLoggedIn ? t('nav.dashboard') : t('nav.getStarted')}
+
               </Button>
             </div>
           </div>

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { Shield, Activity, Map, Radar, Database, Lock, Bell, HeartPulse, Smartphone } from 'lucide-react';
+import { useLanguage } from "@/hooks/useLanguage";
 
 const Glow: React.FC<{ className?: string }> = ({ className = '' }) => (
   <div className={`pointer-events-none absolute rounded-full blur-[120px] opacity-30 ${className}`} />
@@ -40,6 +41,7 @@ const Card: React.FC<{ title: string; icon: React.ReactNode; children: React.Rea
 export default function DiscoverPage() {
   const [reverse, setReverse] = useState(false);
   const [modal, setModal] = useState<null | 'osrm' | 'fusion' | 'privacy'>(null);
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-background text-white selection:bg-gold-500/30 selection:text-gold-200">
       <Navbar />
@@ -60,7 +62,8 @@ export default function DiscoverPage() {
                   transition={{ duration: 0.8 }}
                   className="text-4xl md:text-6xl font-serif tracking-tight leading-tight"
                 >
-                  Discover <span className="text-gold-gradient italic">Guard Royal</span> Technology
+                  {t('discover.hero.titlePrefix')} <span className="text-gold-gradient italic">Guard Royal</span>{' '}
+                  {t('discover.hero.titleSuffix')}
                 </motion.h1>
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}
@@ -68,12 +71,12 @@ export default function DiscoverPage() {
                   transition={{ duration: 0.9, delay: 0.1 }}
                   className="text-gray-400 mt-6 max-w-xl"
                 >
-                  A modern safety platform combining precise map-matching, intelligent signal fusion, and privacy-first data handling to protect people in real time.
+                  {t('discover.hero.body')}
                 </motion.p>
 
                 <div className="mt-8 flex items-center gap-4">
                   <span className="inline-flex items-center gap-2 text-gold-300 text-xs uppercase tracking-[0.2em]">
-                    <span className="w-2 h-2 rounded-full bg-gold-400 animate-ping" /> Live Detection Pulse
+                    <span className="w-2 h-2 rounded-full bg-gold-400 animate-ping" /> {t('discover.hero.pulse')}
                   </span>
                 </div>
               </div>
@@ -160,14 +163,14 @@ export default function DiscoverPage() {
         {/* Technical pillars */}
         <section className="py-20 px-6">
           <div className="max-w-7xl mx-auto grid md:grid-cols-3 gap-6 md:gap-8">
-            <Card title="OSRM Map-Matching" icon={<Map className="w-5 h-5 text-gold-300" />} onClick={() => setModal('osrm')}>
-              We snap GPS traces to real road segments using OSRM's map_match endpoint. Under the hood, a Hidden Markov Model with Viterbi search weighs emission (GPS noise) and transition (movement) probabilities to output a clean, navigable path with a confidence score.
+            <Card title={t('discover.pillars.osrmTitle')} icon={<Map className="w-5 h-5 text-gold-300" />} onClick={() => setModal('osrm')}>
+              {t('discover.pillars.osrmBody')}
             </Card>
-            <Card title="Signal Fusion" icon={<Radar className="w-5 h-5 text-gold-300" />} onClick={() => setModal('fusion')}>
-              Alongside GPS, the mobile app optionally collects Wi‑Fi BSSIDs and BLE beacons. We store these as time-bound observations and use them to stabilize position indoors, flag unfamiliar devices, and detect proximity patterns that could indicate harassment or tracking.
+            <Card title={t('discover.pillars.fusionTitle')} icon={<Radar className="w-5 h-5 text-gold-300" />} onClick={() => setModal('fusion')}>
+              {t('discover.pillars.fusionBody')}
             </Card>
-            <Card title="Privacy by Design" icon={<Lock className="w-5 h-5 text-gold-300" />} onClick={() => setModal('privacy')}>
-              All personally identifiable data stays within our infrastructure. We never sell to third parties. Access is strictly scoped per user, with auditing, short-lived tokens, and encryption at rest and in transit.
+            <Card title={t('discover.pillars.privacyTitle')} icon={<Lock className="w-5 h-5 text-gold-300" />} onClick={() => setModal('privacy')}>
+              {t('discover.pillars.privacyBody')}
             </Card>
           </div>
         </section>
@@ -177,54 +180,47 @@ export default function DiscoverPage() {
           <div className="max-w-7xl mx-auto">
             <div className="grid md:grid-cols-2 gap-10 items-start">
               <div className="space-y-6">
-                <h2 className="text-3xl md:text-4xl font-serif">Data Flow</h2>
+                <h2 className="text-3xl md:text-4xl font-serif">{t('discover.dataFlow.title')}</h2>
                 <div className="text-gray-400 space-y-4">
-                  <p>
-                    1) Mobile app posts batched or live points to <code className="text-gold-300">/api/update_location</code>.
-                    Poor-accuracy points are filtered and short hops under a few meters are skipped to reduce jitter.
-                  </p>
-                  <p>
-                    2) The server persists rows in <code className="text-gold-300">Location</code> and links optional <code className="text-gold-300">WifiScan</code>/<code className="text-gold-300">BleScan</code> records for proximity intelligence.
-                  </p>
-                  <p>
-                    3) For route visualization, recent points are sent to <code className="text-gold-300">/api/map_match</code>, which calls OSRM and returns a GeoJSON geometry and confidence.
-                  </p>
+                  <p>{t('discover.dataFlow.step1')}</p>
+                  <p>{t('discover.dataFlow.step2')}</p>
+                  <p>{t('discover.dataFlow.step3')}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div className="border border-white/10 p-4 bg-surface/40">
-                    <div className="text-gold-300 mb-1">Prisma Models</div>
-                    <div className="text-gray-400">User, Device, Location, WifiScan, BleScan, TrackingSession</div>
+                    <div className="text-gold-300 mb-1">{t('discover.dataFlow.prismaTitle')}</div>
+                    <div className="text-gray-400">{t('discover.dataFlow.prismaBody')}</div>
                   </div>
                   <div className="border border-white/10 p-4 bg-surface/40">
-                    <div className="text-gold-300 mb-1">Filters</div>
-                    <div className="text-gray-400">Accuracy threshold, min-distance dedupe, session scoping</div>
+                    <div className="text-gold-300 mb-1">{t('discover.dataFlow.filtersTitle')}</div>
+                    <div className="text-gray-400">{t('discover.dataFlow.filtersBody')}</div>
                   </div>
                 </div>
               </div>
 
               <div className="grid gap-4">
-                <Card title="Realtime Alerts" icon={<Bell className="w-5 h-5 text-gold-300" />}>
-                  Configurable triggers watch for events like sudden stops, long idle in unsafe areas, unusual detours, or unknown devices shadowing you. When thresholds trip, alerts can auto‑notify trusted contacts and, where configured, local responders.
+                <Card title={t('discover.cards.alertsTitle')} icon={<Bell className="w-5 h-5 text-gold-300" />}>
+                  {t('discover.cards.alertsBody')}
                   <div className="mt-3 text-gray-400 text-sm space-y-2">
-                    <div><span className="text-gold-300">Commuter safety:</span> If your route deviates significantly at night, the app asks for confirmation and can share your live session.</div>
-                    <div><span className="text-gold-300">Device stalking:</span> Repeated BLE MAC near you across time windows raises severity from “notice” → “warning” → “urgent”.</div>
-                    <div><span className="text-gold-300">Stranded:</span> No movement + low battery + late hours can notify your emergency contact with last matched route.</div>
+                    <div>{t('discover.cards.alerts.commuter')}</div>
+                    <div>{t('discover.cards.alerts.stalking')}</div>
+                    <div>{t('discover.cards.alerts.stranded')}</div>
                   </div>
                 </Card>
-                <Card title="Health & Safety" icon={<HeartPulse className="w-5 h-5 text-gold-300" />}>
-                  With opt‑in, motion and heart‑rate signals (via wearables) highlight potential falls or cardiac events, prompting fast welfare checks and sharing the last matched route.
+                <Card title={t('discover.cards.healthTitle')} icon={<HeartPulse className="w-5 h-5 text-gold-300" />}>
+                  {t('discover.cards.healthBody')}
                   <div className="mt-3 text-gray-400 text-sm space-y-2">
-                    <div><span className="text-gold-300">Fall detection:</span> Sudden acceleration + no subsequent motion can ping a caregiver with location and time.</div>
-                    <div><span className="text-gold-300">Cardiac risk:</span> Abnormal HR patterns paired with low movement triggers a “check-in” prompt before notifying contacts.</div>
-                    <div><span className="text-gold-300">Outdoor activity:</span> Hiking alone? Share a timed session that escalates if you don’t return by sunset.</div>
+                    <div>{t('discover.cards.health.fall')}</div>
+                    <div>{t('discover.cards.health.cardiac')}</div>
+                    <div>{t('discover.cards.health.outdoor')}</div>
                   </div>
                 </Card>
-                <Card title="Mobile + Web" icon={<Smartphone className="w-5 h-5 text-gold-300" />}>
-                  The website mirrors the mobile feed for authorized viewers, so the right people see the right data at the right time.
+                <Card title={t('discover.cards.mobileTitle')} icon={<Smartphone className="w-5 h-5 text-gold-300" />}>
+                  {t('discover.cards.mobileBody')}
                   <div className="mt-3 text-gray-400 text-sm space-y-2">
-                    <div><span className="text-gold-300">Family check‑ins:</span> Share a live session link that auto‑expires when you arrive safely.</div>
-                    <div><span className="text-gold-300">Care circles:</span> Caregivers can get notified and follow the snapped route when someone needs help.</div>
-                    <div><span className="text-gold-300">Public safety:</span> In emergencies, generate a restricted view for responders with only the essentials.</div>
+                    <div>{t('discover.cards.mobile.family')}</div>
+                    <div>{t('discover.cards.mobile.care')}</div>
+                    <div>{t('discover.cards.mobile.public')}</div>
                   </div>
                 </Card>
               </div>
@@ -235,9 +231,9 @@ export default function DiscoverPage() {
         {/* Mission & Vision */}
         <section className="py-20 px-6 relative">
           <div className="max-w-5xl mx-auto text-center">
-            <h2 className="text-3xl md:text-5xl font-serif mb-6">Mission & Vision</h2>
+            <h2 className="text-3xl md:text-5xl font-serif mb-6">{t('discover.mission.title')}</h2>
             <p className="text-gray-400 max-w-3xl mx-auto">
-              Our mission is simple: give people the tools to be found fast and to deter harm. The vision is a world where location data serves the user first—private, precise, and actionable—so that police, medics, and loved ones reach you when seconds matter.
+              {t('discover.mission.body')}
             </p>
           </div>
           <motion.div
@@ -252,23 +248,13 @@ export default function DiscoverPage() {
         {/* Legal & Privacy */}
         <section className="py-16 md:py-24 px-6 bg-black/20 border-t border-white/10">
           <div className="max-w-5xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-serif mb-6">Legal & Privacy</h2>
+            <h2 className="text-2xl md:text-3xl font-serif mb-6">{t('discover.legal.title')}</h2>
             <div className="space-y-4 text-gray-300 text-sm leading-relaxed">
-              <p>
-                Consent: Users control data collection and sharing. Trusted contacts must be explicitly added by the user. For minors, guardians manage consent.
-              </p>
-              <p>
-                Data Use: We use your data to provide core features (routing, alerts, dashboards). We do not sell data. We do not share with third parties or big ad networks.
-              </p>
-              <p>
-                Security: TLS in transit; encryption at rest. Strict RBAC; short‑lived sessions; audit logs. Suspect access is flagged and rate‑limited.
-              </p>
-              <p>
-                Retention: Raw telemetry is minimized. You can request export or deletion. Aggregated analytics are anonymized.
-              </p>
-              <p>
-                Public Information: When we show public view links, they are scoped to specific sessions with expiring tokens and redaction of sensitive fields.
-              </p>
+              <p>{t('discover.legal.consent')}</p>
+              <p>{t('discover.legal.use')}</p>
+              <p>{t('discover.legal.security')}</p>
+              <p>{t('discover.legal.retention')}</p>
+              <p>{t('discover.legal.public')}</p>
             </div>
           </div>
         </section>
@@ -276,11 +262,11 @@ export default function DiscoverPage() {
         {/* CTA */}
         <section className="py-20 px-6">
           <div className="max-w-4xl mx-auto text-center border border-white/10 bg-surface p-10 relative overflow-hidden group">
-            <h3 className="text-3xl md:text-4xl font-serif mb-4">Ready to Explore More?</h3>
-            <p className="text-gray-400 mb-8">Start a private trial or talk to us about tailored deployments for families, health, or public safety.</p>
+            <h3 className="text-3xl md:text-4xl font-serif mb-4">{t('discover.cta.title')}</h3>
+            <p className="text-gray-400 mb-8">{t('discover.cta.body')}</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a href="/#start-trial" className="px-8 py-3 bg-gold-400 text-black uppercase tracking-[0.2em] text-xs">Start Trial</a>
-              <a href="mailto:contact@example.com" className="px-8 py-3 border border-white/20 uppercase tracking-[0.2em] text-xs">Contact</a>
+              <a href="/#start-trial" className="px-8 py-3 bg-gold-400 text-black uppercase tracking-[0.2em] text-xs">{t('discover.cta.start')}</a>
+              <a href="mailto:contact@example.com" className="px-8 py-3 border border-white/20 uppercase tracking-[0.2em] text-xs">{t('discover.cta.contact')}</a>
             </div>
             <div className="absolute inset-0 -z-10">
               <div className="absolute -top-20 right-10 w-72 h-72 bg-gold-400/10 rounded-full blur-3xl" />

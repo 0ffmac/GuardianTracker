@@ -3,9 +3,10 @@
 import dynamic from "next/dynamic";
 import { useState, useEffect, useMemo } from "react";
 import { Navbar } from "@/components/Navbar";
-
-import { Footer } from "@/components/Footer";
+ 
+ import { Footer } from "@/components/Footer";
 import { MapPin, Clock, TrendingUp, Activity, CalendarDays, DownloadCloud, Bluetooth, ChevronDown } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
  
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const Google3DMap = dynamic(() => import("@/components/Google3DMap"), { ssr: false });
@@ -55,6 +56,7 @@ interface BleDevicePoint {
 
 export default function DashboardMapPage() {
   const [hasMounted, setHasMounted] = useState(false);
+  const { t } = useLanguage();
   useEffect(() => {
     setHasMounted(true);
   }, []);
@@ -426,7 +428,8 @@ export default function DashboardMapPage() {
                 <MapPin className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gold-400">Distance</p>
+                 <p className="text-xs uppercase tracking-wide text-gold-400">{t('dashboard.history.stat.distance')}</p>
+
                 <p className="text-lg font-semibold text-gold-100">
                   {stats.distance.toFixed(2)} km
                 </p>
@@ -437,7 +440,8 @@ export default function DashboardMapPage() {
                 <Clock className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-emerald-400">Duration</p>
+                 <p className="text-xs uppercase tracking-wide text-emerald-400">{t('dashboard.history.stat.duration')}</p>
+
                 <p className="text-lg font-semibold text-emerald-100">{stats.duration} min</p>
               </div>
             </div>
@@ -446,7 +450,8 @@ export default function DashboardMapPage() {
                 <TrendingUp className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-sky-400">Points</p>
+                 <p className="text-xs uppercase tracking-wide text-sky-400">{t('dashboard.history.stat.points')}</p>
+
                 <p className="text-lg font-semibold text-sky-100">{stats.points}</p>
               </div>
             </div>
@@ -455,7 +460,8 @@ export default function DashboardMapPage() {
                 <Activity className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-blue-400">Devices</p>
+                 <p className="text-xs uppercase tracking-wide text-blue-400">{t('dashboard.history.stat.devices')}</p>
+
                 <div className="flex items-center gap-2 mt-1">
                   {stats.deviceIds.length === 0 ? (
                     <span className="text-blue-100">60</span>
@@ -477,7 +483,8 @@ export default function DashboardMapPage() {
                 <CalendarDays className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gold-400">Session</p>
+                 <p className="text-xs uppercase tracking-wide text-gold-400">{t('dashboard.map.session.label')}</p>
+
                 <p className="text-xs text-gold-100">
                   {new Date(stats.start).toLocaleString()}
                 </p>
@@ -491,32 +498,36 @@ export default function DashboardMapPage() {
 
         {nearbySuspiciousLoading && (
           <div className="mb-2 text-xs text-amber-200">
-            Checking for suspicious devices nearby...
+            {t("dashboard.map.suspicious.checking")}
           </div>
         )}
         {nearbySuspiciousError && (
-          <div className="mb-2 text-xs text-red-300">{nearbySuspiciousError}</div>
+          <div className="mb-2 text-xs text-red-300">
+            {t("dashboard.map.suspicious.error")}
+          </div>
         )}
         {nearbySuspiciousCount !== null && nearbySuspiciousCount > 0 && (
           <div className="mb-4 rounded-2xl border border-red-500/40 bg-red-950/70 px-4 py-3 flex items-center justify-between gap-3">
             <div className="text-sm text-red-50">
-              Potential stalker devices detected nearby: {" "}
-              <span className="font-semibold">{nearbySuspiciousCount}</span>. {" "}
-              See details in Settings → Suspicious devices.
+              {t("dashboard.map.suspicious.bannerPrefix")} 
+              <span className="font-semibold">{nearbySuspiciousCount}</span>
+              {t("dashboard.map.suspicious.bannerSuffix")}
             </div>
           </div>
         )}
+
 
         <div className="mt-4 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 items-stretch">
             {/* Session box */}
             <div className="md:col-span-2 flex flex-col justify-between bg-gold-900/30 border border-gold-400/30 rounded-xl px-3 py-2">
-              <label
-                htmlFor="session-select"
-                className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
-              >
-                Session
-              </label>
+               <label
+                 htmlFor="session-select"
+                 className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
+               >
+                {t('dashboard.map.session.label')}
+               </label>
+
               <div className="relative mt-1">
                 {selectedSession?.quality && (
                   <span
@@ -550,54 +561,59 @@ export default function DashboardMapPage() {
 
             {/* Quality box */}
             <div className="flex flex-col justify-between bg-gold-900/30 border border-gold-400/30 rounded-xl px-3 py-2">
-              <label
-                htmlFor="quality-filter"
-                className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
-              >
-                Quality
-              </label>
+               <label
+                 htmlFor="quality-filter"
+                 className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
+               >
+                {t('dashboard.map.quality.label')}
+               </label>
+
               <select
                 id="quality-filter"
                 value={sessionQualityFilter}
                 onChange={(e) => setSessionQualityFilter(e.target.value as "ALL" | "GOOD" | "REGULAR" | "BAD")}
                 className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
-              >
-                <option value="ALL">All tracks</option>
-                <option value="GOOD">Good (green)</option>
-                <option value="REGULAR">Regular (orange)</option>
-                <option value="BAD">Not good (red)</option>
-              </select>
+               >
+                <option value="ALL">{t('dashboard.map.quality.all')}</option>
+                <option value="GOOD">{t('dashboard.map.quality.good')}</option>
+                <option value="REGULAR">{t('dashboard.map.quality.regular')}</option>
+                <option value="BAD">{t('dashboard.map.quality.bad')}</option>
+               </select>
+
             </div>
 
             {/* Search box */}
             <div className="flex flex-col justify-between bg-gold-900/30 border border-gold-400/30 rounded-xl px-3 py-2">
-              <label
-                htmlFor="search-input"
-                className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
-              >
-                Search
-              </label>
-              <input
-                id="search-input"
-                type="text"
-                value={sessionSearch}
-                onChange={(e) => setSessionSearch(e.target.value)}
-                placeholder="Name or date"
-                className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
-              />
+               <label
+                 htmlFor="search-input"
+                 className="text-xs font-semibold uppercase tracking-wide text-gold-300 mb-1"
+               >
+                {t('dashboard.map.search.label')}
+               </label>
+
+               <input
+                 id="search-input"
+                 type="text"
+                 value={sessionSearch}
+                 onChange={(e) => setSessionSearch(e.target.value)}
+                placeholder={t("dashboard.map.search.placeholder")}
+                 className="mt-1 w-full rounded-lg bg-gold-900/40 border border-gold-400/40 px-3 py-2 text-sm text-gold-100 placeholder:text-gold-400/70 focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
+               />
+
             </div>
           </div>
 
           <div className="mt-4 flex justify-end gap-3">
             {/* Route button */}
-            <button
-              type="button"
-              onClick={() => setShowSnapped((v) => !v)}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
-                showSnapped ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
-              }`}
-              title="Toggle snapped route"
-            >
+             <button
+               type="button"
+               onClick={() => setShowSnapped((v) => !v)}
+               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                 showSnapped ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+               }`}
+              title={t("dashboard.map.buttons.route.title")}
+             >
+
               <svg
                 className="w-5 h-5 text-black"
                 fill="none"
@@ -614,14 +630,15 @@ export default function DashboardMapPage() {
             </button>
 
             {/* Wi-Fi button */}
-            <button
-              type="button"
-              onClick={() => setShowWifiDevices((v) => !v)}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
-                showWifiDevices ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
-              }`}
-              title="Toggle Wi-Fi devices"
-            >
+             <button
+               type="button"
+               onClick={() => setShowWifiDevices((v) => !v)}
+               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                 showWifiDevices ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+               }`}
+              title={t("dashboard.map.buttons.wifi.title")}
+             >
+
               <svg
                 className="w-5 h-5 text-black"
                 fill="none"
@@ -638,96 +655,68 @@ export default function DashboardMapPage() {
             </button>
 
             {/* Bluetooth button */}
-            <button
-              type="button"
-              onClick={() => setShowBleDevices((v) => !v)}
-              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
-                showBleDevices ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
-              }`}
-              title="Toggle Bluetooth devices"
-            >
+             <button
+               type="button"
+               onClick={() => setShowBleDevices((v) => !v)}
+               className={`inline-flex h-10 w-10 items-center justify-center rounded-full border text-black shadow-sm transition-colors ${
+                 showBleDevices ? 'border-gold-300 bg-gold-500/80 shadow-gold-500/30' : 'border-gold-500 bg-gold-600/70'
+               }`}
+              title={t("dashboard.map.buttons.ble.title")}
+             >
+
               <Bluetooth className="w-5 h-5 text-black" />
             </button>
 
             {/* Export button */}
-            <button
-              type="button"
-              onClick={handleExportWigle}
-              disabled={!selectedSessionId}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gold-500 hover:bg-gold-400 text-black shadow disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Export all to Wigle"
-            >
-              <span className="sr-only">Export all to Wigle</span>
-              <DownloadCloud className="w-5 h-5" />
-            </button>
+             <button
+               type="button"
+               onClick={handleExportWigle}
+               disabled={!selectedSessionId}
+               className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gold-500 hover:bg-gold-400 text-black shadow disabled:opacity-50 disabled:cursor-not-allowed"
+              title={t("dashboard.map.buttons.export.title")}
+             >
+              <span className="sr-only">{t("dashboard.map.buttons.export.sr")}</span>
+               <DownloadCloud className="w-5 h-5" />
+             </button>
+
           </div>
 
 
-           {showSnapped && osrmConfidence !== null && (
+            {showSnapped && osrmConfidence !== null && (
+ 
+             <div className="mt-3">
+               <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
+                {t('dashboard.map.osrm.confidencePrefix')} {(osrmConfidence * 100).toFixed(1)}%
+               </span>
+             </div>
 
-            <div className="mt-3">
-              <span className="px-3 py-1 rounded-full bg-green-700/80 text-green-100 text-xs font-semibold">
-                OSRM confidence: {(osrmConfidence * 100).toFixed(1)}%
-              </span>
-            </div>
           )}
         </div>
 
         <div className="mt-2 flex flex-wrap gap-3 text-xs text-gray-200">
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
-            <span>GPS</span>
+            <span>{t("dashboard.map.legend.gps")}</span>
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
-            <span>Wi-Fi</span>
+            <span>{t("dashboard.map.legend.wifi")}</span>
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-            <span>Hybrid (GPS + Wi-Fi)</span>
+            <span>{t("dashboard.map.legend.hybrid")}</span>
           </span>
           {focusKey && focusKind && (
             <span className="inline-flex items-center gap-1 text-amber-200">
               <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
               <span>
-                Focused from analytics: {focusKind === "wifi" ? "Wi‑Fi" : "Bluetooth"} {" "}
+                {t("dashboard.map.legend.focusPrefix")} {focusKind === "wifi" ? t("dashboard.map.legend.focus.wifi") : t("dashboard.map.legend.focus.ble")} {" "}
                 <span className="font-mono">{focusKey}</span>
               </span>
             </span>
           )}
         </div>
 
-
-
-        <div className="h-[500px] rounded-xl overflow-hidden mt-4">
-          {hasMounted && (
-            useGoogle3DMaps && googleMapsApiKey ? (
-              <Google3DMap
-                apiKey={googleMapsApiKey}
-                locations={locations}
-                currentLocation={locations[locations.length - 1] || null}
-                fitOnUpdate
-                autoZoomOnFirstPoint
-                snappedGeoJson={showSnapped ? snappedGeoJson : null}
-                wifiDevices={showWifiDevices ? focusedWifiDevices : []}
-                bleDevices={showBleDevices ? focusedBleDevices : []}
-              />
-             ) : (
-               <Map
-                 locations={locations}
-                 currentLocation={locations[locations.length - 1] || null}
-                 fitOnUpdate={false}
-                 autoZoomOnFirstPoint
-                 snappedGeoJson={showSnapped ? snappedGeoJson : null}
-                 wifiDevices={showWifiDevices ? focusedWifiDevices : []}
-                 bleDevices={showBleDevices ? focusedBleDevices : []}
-                 hidePopups
-                 pointZoom={16}
-               />
-             )
-
-          )}
-        </div>
 
         <div className="mt-6 p-6 bg-gold-900/20 rounded-2xl border border-gold-400/20"></div>
       </main>

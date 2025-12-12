@@ -4,9 +4,11 @@ import { motion } from 'framer-motion';
 import { Button } from './ui/Button';
 import { ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from "@/hooks/useLanguage";
 
 export const Hero: React.FC = () => {
   const router = useRouter();
+  const { t } = useLanguage();
   const [scannerReverse, setScannerReverse] = React.useState(false);
   const onBegin = () => {
     const el = document.getElementById('start-trial');
@@ -36,9 +38,10 @@ export const Hero: React.FC = () => {
           >
             <div className="inline-flex items-center gap-3 px-4 py-2 border border-gold-400/30 rounded-full bg-gold-400/5 backdrop-blur-sm">
               <span className="w-1.5 h-1.5 rounded-full bg-gold-400 animate-pulse" />
-              <span className="text-[10px] md:text-xs font-sans font-semibold tracking-[0.2em] uppercase text-gold-300">
-                The New Standard in Safety
-              </span>
+               <span className="text-[10px] md:text-xs font-sans font-semibold tracking-[0.2em] uppercase text-gold-300">
+                {t('hero.badge')}
+               </span>
+
             </div>
           </motion.div>
 
@@ -55,22 +58,22 @@ export const Hero: React.FC = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.5 }}
-            className="text-gray-400 text-sm md:text-base font-sans tracking-wide max-w-xl mx-auto mb-12 leading-relaxed"
-          >
-            {/* Experience the pinnacle of personal security. Military-grade encryption tailored for the discerning individual who demands nothing less than absolute protection. */}
-            Experience next-level personal & family security.
-Military-grade encryption, intelligent route monitoring, and smart proximity alerts that detect unusual patterns, unfamiliar devices, and potential risks—keeping your loved ones safe and connected.
-          </motion.p>
+             className="text-gray-400 text-sm md:text-base font-sans tracking-wide max-w-xl mx-auto mb-12 leading-relaxed"
+           >
+             {t('hero.body')}
+           </motion.p>
+
 
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.7 }}
             className="flex flex-col md:flex-row gap-6"
-          >
-            <Button variant="gold" icon onClick={onBegin} className="min-w-[200px]">Begin Trial</Button>
-            <Button variant="outline" onClick={() => router.push('/discover')} className="min-w-[200px]">Discover More</Button>
-          </motion.div>
+           >
+            <Button variant="gold" icon onClick={onBegin} className="min-w-[200px]">{t('hero.beginTrial')}</Button>
+            <Button variant="outline" onClick={() => router.push('/discover')} className="min-w-[200px]">{t('hero.discoverMore')}</Button>
+           </motion.div>
+
         </div>
 
         {/* Abstract Floating Element */}
@@ -166,14 +169,15 @@ Military-grade encryption, intelligent route monitoring, and smart proximity ale
 
       {/* Scroll Indicator */}
       <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.5, duration: 1 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gold-400/50"
-      >
-        <span className="text-[10px] uppercase tracking-[0.2em]">Explore</span>
-        <ChevronDown className="w-4 h-4 animate-bounce" />
-      </motion.div>
+         initial={{ opacity: 0 }}
+         animate={{ opacity: 1 }}
+         transition={{ delay: 1.5, duration: 1 }}
+         className="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-gold-400/50"
+       >
+        <span className="text-[10px] uppercase tracking-[0.2em]">{t('hero.explore')}</span>
+         <ChevronDown className="w-4 h-4 animate-bounce" />
+       </motion.div>
+
     </section>
   );
 };

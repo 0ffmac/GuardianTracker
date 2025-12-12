@@ -49,8 +49,10 @@ const SpaceScene: React.FC = () => {
 import { motion } from 'framer-motion';
 import { Navbar } from '@/components/Navbar';
 import { Skull } from 'lucide-react';
+import { useLanguage } from "@/hooks/useLanguage";
 
 export default function AboutPage() {
+  const { t } = useLanguage();
   return (
     <div className="min-h-screen bg-background text-white selection:bg-gold-500/30 selection:text-gold-200">
       <Navbar />
@@ -76,31 +78,34 @@ export default function AboutPage() {
 
             {/* Headline */}
             <motion.h1
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.9 }}
-              className="text-5xl md:text-8xl lg:text-[9rem] leading-[0.95] font-serif tracking-tight"
-            >
-              About <span className="text-gold-gradient italic">Guard Royal</span>
-            </motion.h1>
+               initial={{ opacity: 0, y: 20 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ duration: 0.9 }}
+               className="text-5xl md:text-8xl lg:text-[9rem] leading-[0.95] font-serif tracking-tight"
+             >
+              {t('about.hero.titlePrefix')} <span className="text-gold-gradient italic">Guard Royal</span>
+             </motion.h1>
+
 
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15, duration: 0.8 }}
-              className="mt-6 text-xl md:text-2xl text-gold-200"
-            >
-              Under Construction
-            </motion.p>
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ delay: 0.15, duration: 0.8 }}
+               className="mt-6 text-xl md:text-2xl text-gold-200"
+             >
+              {t('about.hero.subtitle')}
+             </motion.p>
+
 
             <motion.p
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25, duration: 0.8 }}
-              className="mt-2 text-sm md:text-base text-gray-400 max-w-2xl mx-auto"
-            >
-              We’re burning the keyboard to GTD — building features, polishing flows, and charting the course. Check back soon for the full voyage log.
-            </motion.p>
+               initial={{ opacity: 0, y: 10 }}
+               animate={{ opacity: 1, y: 0 }}
+               transition={{ delay: 0.25, duration: 0.8 }}
+               className="mt-2 text-sm md:text-base text-gray-400 max-w-2xl mx-auto"
+             >
+              {t('about.hero.body')}
+             </motion.p>
+
 
             {/* Space scene full bleed */}
             <div className="relative mt-14 h-[70vh] md:h-[78vh] border border-white/10 bg-black/10 overflow-hidden">

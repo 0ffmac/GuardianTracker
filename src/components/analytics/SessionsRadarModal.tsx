@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { Bluetooth, Smartphone, Router } from "lucide-react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 export type OverlapDevice = {
   kind: "wifi" | "ble";
@@ -97,6 +98,8 @@ export function SessionsRadarModal(props: Props) {
     openDeviceOnMap,
   } = props;
 
+  const { t } = useLanguage();
+
   const [selectedModalDevice, setSelectedModalDevice] =
     useState<ModalDevice | null>(null);
   const [deviceDistances, setDeviceDistances] = useState<
@@ -110,7 +113,7 @@ export function SessionsRadarModal(props: Props) {
   >({});
   const [sessionMapIds, setSessionMapIds] = useState<string[]>([]);
   const [sessionMapsLoading, setSessionMapsLoading] = useState(false);
-  const [sessionMapsError, setSessionMapsError] = useState<string | null>(null);
+  const [sessionMapsError, setSessionMapsError] = useState<"no-data" | "load-failed" | null>(null);
 
   const getDeviceColor = (
     iconKind: ModalDevice["iconKind"],
@@ -329,11 +332,11 @@ export function SessionsRadarModal(props: Props) {
           prev.includes(sessionId) ? prev : [...prev, sessionId]
         );
       } else {
-        setSessionMapsError("No location data available for this session yet.");
+        setSessionMapsError("no-data");
       }
     } catch (err: any) {
       console.error("[SessionsRadarModal] Failed to load session map", err);
-      setSessionMapsError(err?.message || "Failed to load session map");
+      setSessionMapsError("load-failed");
     } finally {
       setSessionMapsLoading(false);
     }
@@ -348,20 +351,40 @@ export function SessionsRadarModal(props: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-4">
           <h2 className="text-sm font-semibold">
-            Sessions correlation radar – full view
+            {t('analytics.modal.title')}
           </h2>
+
           <div className="flex items-center gap-3 text-[11px] text-gray-300">
             {/* Device kind filter */}
             <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
-              <button
-                type="button"
-                onClick={() => setDeviceKindFilter("all")}
-                className={`px-2 py-0.5 rounded-full ${
-                  deviceKindFilter === "all" ? "bg-white text-black" : "text-gray-300"
-                }`}
-              >
-                All
-              </button>
+               <button
+                 type="button"
+                 onClick={() => setDeviceKindFilter("all")}
+                 className={`px-2 py-0.5 rounded-full ${
+                   deviceKindFilter === "all" ? "bg-white text-black" : "text-gray-300"
+                 }`}
+               >
+                 {t('analytics.modal.deviceKind.all')}
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setDeviceKindFilter("wifi")}
+                 className={`px-2 py-0.5 rounded-full ${
+                   deviceKindFilter === "wifi" ? "bg-white text-black" : "text-gray-300"
+                 }`}
+               >
+                 {t('analytics.modal.deviceKind.wifi')}
+               </button>
+               <button
+                 type="button"
+                 onClick={() => setDeviceKindFilter("ble")}
+                 className={`px-2 py-0.5 rounded-full ${
+                   deviceKindFilter === "ble" ? "bg-white text-black" : "text-gray-300"
+                 }`}
+               >
+                 {t('analytics.modal.deviceKind.ble')}
+               </button>
+
               <button
                 type="button"
                 onClick={() => setDeviceKindFilter("wifi")}
@@ -382,22 +405,23 @@ export function SessionsRadarModal(props: Props) {
               </button>
             </div>
             {/* Hide known toggle */}
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={hideTrusted}
-                onChange={(e) => setHideTrusted(e.target.checked)}
-                className="h-3 w-3"
-              />
-              <span>Hide known devices</span>
-            </label>
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-xs text-gray-300 hover:text-white"
-            >
-              Close
-            </button>
+             <label className="inline-flex items-center gap-2">
+               <input
+                 type="checkbox"
+                 checked={hideTrusted}
+                 onChange={(e) => setHideTrusted(e.target.checked)}
+                 className="h-3 w-3"
+               />
+               <span>{t('analytics.modal.hideKnown')}</span>
+             </label>
+             <button
+               type="button"
+               onClick={onClose}
+               className="text-xs text-gray-300 hover:text-white"
+             >
+               {t('analytics.modal.close')}
+             </button>
+
           </div>
         </div>
 
@@ -407,12 +431,13 @@ export function SessionsRadarModal(props: Props) {
             {/* Session selection */}
             <div className="mb-4">
               <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                Sessions in this range
-              </p>
-              {filteredSessions.length === 0 ? (
-                <p className="text-[11px] text-gray-500">
-                  No sessions match this analytics time window yet.
-                </p>
+                 {t('analytics.modal.sessions.label')}
+               </p>
+               {filteredSessions.length === 0 ? (
+                 <p className="text-[11px] text-gray-500">
+                   {t('analytics.modal.sessions.empty')}
+                 </p>
+
               ) : (
                 <ul className="space-y-1">
                   {filteredSessions.map((s) => {
@@ -447,18 +472,22 @@ export function SessionsRadarModal(props: Props) {
                             <span className={`mt-1 h-2 w-2 rounded-full ${dotClass}`} />
                             <div>
                               <div className="text-[11px] font-semibold text-gray-100">
-                                {s.name || "Session"}
-                              </div>
-                              <div className="text-[10px] text-gray-400">
-                                {s.startTime
-                                  ? new Date(s.startTime).toLocaleString()
-                                  : "Unknown time"}
+                                 {s.name || t('analytics.modal.sessions.fallbackName')}
+                               </div>
+                               <div className="text-[10px] text-gray-400">
+                                 {s.startTime
+                                   ? new Date(s.startTime).toLocaleString()
+                                   : t('analytics.modal.sessions.unknownTime')}
+
                               </div>
                             </div>
                           </div>
-                          <div className="text-[10px] text-gray-400">
-                            {isActive ? "Selected" : "Tap to include"}
-                          </div>
+                           <div className="text-[10px] text-gray-400">
+                             {isActive
+                               ? t('analytics.modal.sessions.selected')
+                               : t('analytics.modal.sessions.tapToInclude')}
+                           </div>
+
                         </button>
                       </li>
                     );
@@ -468,12 +497,13 @@ export function SessionsRadarModal(props: Props) {
             </div>
 
             {/* Devices across selected sessions */}
-            <p className="text-[11px] text-gray-400 mb-2">
-              Devices seen across selected sessions. Click a row to select and inspect.
-            </p>
-            {modalDevices.length === 0 ? (
-              <p className="text-[11px] text-gray-500">
-                No devices for the current session selection and filters.
+             <p className="text-[11px] text-gray-400 mb-2">
+               {t('analytics.modal.devices.caption')}
+             </p>
+             {modalDevices.length === 0 ? (
+               <p className="text-[11px] text-gray-500">
+                 {t('analytics.modal.devices.empty')}
+
               </p>
             ) : (
               <div className="space-y-3">
@@ -481,8 +511,9 @@ export function SessionsRadarModal(props: Props) {
                 {groupedModalDevices.router.length > 0 && (
                   <div>
                     <h3 className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                      Wi‑Fi routers & access points ({groupedModalDevices.router.length})
-                    </h3>
+                       {t('analytics.modal.group.routers')} ({groupedModalDevices.router.length})
+                     </h3>
+
                     <ul className="space-y-2">
                       {groupedModalDevices.router.map((d) => (
                         <li
@@ -511,7 +542,9 @@ export function SessionsRadarModal(props: Props) {
                             </div>
                           </div>
                           <div className="text-[10px] text-gray-400">
-                            {d.isTrusted ? "known" : "possible tracker"}
+                            {d.isTrusted
+                             ? t('analytics.modal.device.known')
+                             : t('analytics.modal.device.possibleTracker')}
                           </div>
                         </li>
                       ))}
@@ -523,8 +556,9 @@ export function SessionsRadarModal(props: Props) {
                 {groupedModalDevices.mobile.length > 0 && (
                   <div>
                     <h3 className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                      Mobiles & phone hotspots ({groupedModalDevices.mobile.length})
-                    </h3>
+                       {t('analytics.modal.group.mobiles')} ({groupedModalDevices.mobile.length})
+                     </h3>
+
                     <ul className="space-y-2">
                       {groupedModalDevices.mobile.map((d) => (
                         <li
@@ -553,7 +587,9 @@ export function SessionsRadarModal(props: Props) {
                             </div>
                           </div>
                           <div className="text-[10px] text-gray-400">
-                            {d.isTrusted ? "known" : "possible tracker"}
+                            {d.isTrusted
+                             ? t('analytics.modal.device.known')
+                             : t('analytics.modal.device.possibleTracker')}
                           </div>
                         </li>
                       ))}
@@ -565,8 +601,9 @@ export function SessionsRadarModal(props: Props) {
                 {groupedModalDevices.bluetooth.length > 0 && (
                   <div>
                     <h3 className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                      Bluetooth devices ({groupedModalDevices.bluetooth.length})
-                    </h3>
+                       {t('analytics.modal.group.bluetooth')} ({groupedModalDevices.bluetooth.length})
+                     </h3>
+
                     <ul className="space-y-2">
                       {groupedModalDevices.bluetooth.map((d) => (
                         <li
@@ -595,7 +632,9 @@ export function SessionsRadarModal(props: Props) {
                             </div>
                           </div>
                           <div className="text-[10px] text-gray-400">
-                            {d.isTrusted ? "known" : "possible tracker"}
+                            {d.isTrusted
+                             ? t('analytics.modal.device.known')
+                             : t('analytics.modal.device.possibleTracker')}
                           </div>
                         </li>
                       ))}
@@ -665,8 +704,9 @@ export function SessionsRadarModal(props: Props) {
                   <div className="absolute inset-0 rounded-full bg-yellow-400/30 blur-xl scale-150" />
                 </div>
                 <span className="text-[10px] font-semibold text-yellow-300 bg-black/60 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                  You
-                </span>
+                   {t('analytics.modal.legend.you')}
+                 </span>
+
               </div>
 
               {/* Devices */}
@@ -838,45 +878,57 @@ export function SessionsRadarModal(props: Props) {
             <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
               {/* Zoom controls for distance bands */}
               <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel("near")}
-                  className={`px-2 py-0.5 rounded-full ${
-                    zoomLevel === "near"
-                      ? "bg-white text-black"
-                      : "text-gray-300"
-                  }`}
-                >
-                  Near
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel("medium")}
-                  className={`px-2 py-0.5 rounded-full ${
-                    zoomLevel === "medium"
-                      ? "bg-white text-black"
-                      : "text-gray-300"
-                  }`}
-                >
-                  Medium
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setZoomLevel("far")}
-                  className={`px-2 py-0.5 rounded-full ${
-                    zoomLevel === "far"
-                      ? "bg-white text-black"
-                      : "text-gray-300"
-                  }`}
-                >
-                  Far
-                </button>
+                 <button
+                   type="button"
+                   onClick={() => setZoomLevel("near")}
+                   className={`px-2 py-0.5 rounded-full ${
+                     zoomLevel === "near"
+                       ? "bg-white text-black"
+                       : "text-gray-300"
+                   }`}
+                 >
+                   {t('analytics.modal.zoom.near')}
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setZoomLevel("medium")}
+                   className={`px-2 py-0.5 rounded-full ${
+                     zoomLevel === "medium"
+                       ? "bg-white text-black"
+                       : "text-gray-300"
+                   }`}
+                 >
+                   {t('analytics.modal.zoom.medium')}
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setZoomLevel("far")}
+                   className={`px-2 py-0.5 rounded-full ${
+                     zoomLevel === "far"
+                       ? "bg-white text-black"
+                       : "text-gray-300"
+                   }`}
+                 >
+                   {t('analytics.modal.zoom.far')}
+                 </button>
+
               </div>
 
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-orange-500/80" />
-                <span>Wi‑Fi routers / access points</span>
-              </div>
+               <div className="flex items-center gap-2">
+                 <span className="w-3 h-3 rounded-full bg-orange-500/80" />
+                 <span>{t('analytics.modal.legend.routers')}</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                 <span>{t('analytics.modal.legend.mobiles')}</span>
+               </div>
+               <div className="flex items-center gap-2">
+                 <span className="w-3 h-3 rounded-full bg-purple-500/80" />
+                 <span>{t('analytics.modal.legend.bluetooth')}</span>
+               </div>
+
               <div className="flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
                 <span>Mobiles & phone hotspots</span>
@@ -888,13 +940,9 @@ export function SessionsRadarModal(props: Props) {
             </div>
 
             <p className="mt-2 text-[11px] text-gray-400">
-              Animated rings show approximate distance bands (scaled by zoom).
-              Each glowing bubble is a device seen across the selected sessions:
-              icon and color show type, size reflects how often it appears, and
-              the small bars indicate relative signal/visibility strength. When
-              distance estimates are known, inline labels show the average
-              meters along each connection line.
-            </p>
+               {t('analytics.modal.description')}
+             </p>
+
 
             {/* Hover info panel */}
             {hoveredDevice && (
@@ -909,31 +957,36 @@ export function SessionsRadarModal(props: Props) {
                         {hoveredDevice.manufacturer}
                       </div>
                     )}
-                    <div className="text-[10px] text-gray-500">
-                      {hoveredDevice.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"} · {""}
-                      {hoveredDevice.isTrusted
-                        ? "known in environment"
-                        : "possible tracker"}
-                    </div>
+                     <div className="text-[10px] text-gray-500">
+                       {hoveredDevice.kind === "wifi"
+                         ? t('analytics.modal.deviceKind.wifi')
+                         : t('analytics.modal.deviceKind.ble')}{' '}
+                       ·{' '}
+                       {hoveredDevice.isTrusted
+                         ? t('analytics.modal.device.known')
+                         : t('analytics.modal.device.possibleTracker')}
+                     </div>
+
                   </div>
                   <div className="text-[10px] text-gray-400 text-right space-y-0.5">
-                    <div>
-                      Sessions: {""}
-                      <span className="font-mono">
-                        {hoveredDevice.sessionCount}
-                      </span>
-                    </div>
-                    <div>
-                      Sightings: {""}
-                      <span className="font-mono">
-                        {hoveredDevice.totalCount}
-                      </span>
-                    </div>
-                    {hoveredDevice.avgMeters != null && (
-                      <div>
-                        Avg dist: ~{Math.round(hoveredDevice.avgMeters)}m
-                      </div>
-                    )}
+                     <div>
+                       {t('analytics.modal.hover.sessions')} {' '}
+                       <span className="font-mono">
+                         {hoveredDevice.sessionCount}
+                       </span>
+                     </div>
+                     <div>
+                       {t('analytics.modal.hover.sightings')} {' '}
+                       <span className="font-mono">
+                         {hoveredDevice.totalCount}
+                       </span>
+                     </div>
+                     {hoveredDevice.avgMeters != null && (
+                       <div>
+                         {t('analytics.modal.hover.avgDist')} ~{Math.round(hoveredDevice.avgMeters)}m
+                       </div>
+                     )}
+
                   </div>
                 </div>
               </div>
@@ -956,45 +1009,52 @@ export function SessionsRadarModal(props: Props) {
                           {selectedModalDevice.manufacturer}
                         </div>
                       )}
-                      <div className="text-[10px] text-gray-500">
-                        {selectedModalDevice.kind === "wifi" ? "Wi‑Fi" : "Bluetooth"} ·{" "}
-                        {selectedModalDevice.isTrusted
-                          ? "known in environment"
-                          : "possible tracker"}
-                      </div>
+                     <div className="text-[10px] text-gray-500">
+                         {selectedModalDevice.kind === "wifi"
+                           ? t('analytics.modal.deviceKind.wifi')
+                           : t('analytics.modal.deviceKind.ble')}{' '}
+                         ·{' '}
+                         {selectedModalDevice.isTrusted
+                           ? t('analytics.modal.device.known')
+                           : t('analytics.modal.device.possibleTracker')}
+                       </div>
+
                     </div>
                   </div>
-                  <div className="text-[10px] text-gray-400 text-right space-y-1">
-                    <div>
-                      Identifier: <span className="font-mono">{selectedModalDevice.key}</span>
-                    </div>
-                    {selectedModalDevice.trustedSourceLabel && (
-                      <div>Env label: {selectedModalDevice.trustedSourceLabel}</div>
-                    )}
-                    {selectedModalDevice.avgMeters != null && (
-                      <div>
-                        Avg distance: ~{Math.round(selectedModalDevice.avgMeters)} m
-                      </div>
-                    )}
-                    {selectedModalDevice.minMeters != null && (
-                      <div>
-                        Closest approach: ~{Math.round(selectedModalDevice.minMeters)} m
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => openDeviceOnMap(selectedModalDevice)}
-                      className="mt-1 inline-flex items-center gap-1 rounded-full border border-gold-400/80 bg-gold-400 px-2 py-0.5 text-[10px] text-black hover:bg-gold-300"
-                    >
-                      <span>Open map</span>
-                    </button>
+                   <div className="text-[10px] text-gray-400 text-right space-y-1">
+                     <div>
+                       {t('analytics.details.identifier')} <span className="font-mono">{selectedModalDevice.key}</span>
+                     </div>
+                     {selectedModalDevice.trustedSourceLabel && (
+                       <div>{t('analytics.details.envLabel')} {selectedModalDevice.trustedSourceLabel}</div>
+                     )}
+                     {selectedModalDevice.avgMeters != null && (
+                       <div>
+                         {t('analytics.details.avgDistance')} ~{Math.round(selectedModalDevice.avgMeters)} m
+                       </div>
+                     )}
+                     {selectedModalDevice.minMeters != null && (
+                       <div>
+                         {t('analytics.details.closest')} ~{Math.round(selectedModalDevice.minMeters)} m
+                       </div>
+                     )}
+
+                     <button
+                       type="button"
+                       onClick={() => openDeviceOnMap(selectedModalDevice)}
+                       className="mt-1 inline-flex items-center gap-1 rounded-full border border-gold-400/80 bg-gold-400 px-2 py-0.5 text-[10px] text-black hover:bg-gold-300"
+                     >
+                       <span>{t('analytics.modal.details.openMap')}</span>
+                     </button>
+
                   </div>
                 </div>
 
                 <div className="mt-1">
-                  <p className="text-[10px] text-gray-400 mb-1">
-                    Sessions where this device appears:
-                  </p>
+                   <p className="text-[10px] text-gray-400 mb-1">
+                     {t('analytics.modal.details.sessionsHeading')}
+                   </p>
+
                   <div className="max-h-32 overflow-y-auto pr-1">
                     <ul className="space-y-1">
                       {selectedModalDevice.sessions.map((s) => {
@@ -1015,10 +1075,11 @@ export function SessionsRadarModal(props: Props) {
                               )}
                             </div>
                             <div className="flex items-center gap-2 text-[10px] text-gray-300">
-                              <span>
-                                sightings: <span className="font-mono">{s.count}</span>
-                              </span>
-                              <button
+                               <span>
+                                 {t('analytics.modal.details.sightingsLabel')} <span className="font-mono">{s.count}</span>
+                               </span>
+                               <button
+
                                 type="button"
                                 onClick={() => handleShowSessionMap(s.id)}
                                 className="inline-flex items-center rounded-full border border-gold-400/70 px-1.5 py-0.5 text-[9px] text-gold-200 hover:bg-gold-400/10"
@@ -1036,25 +1097,34 @@ export function SessionsRadarModal(props: Props) {
                 {sessionMapIds.length > 0 && (
                   <div className="mt-3">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="text-[10px] text-gray-400">
-                        Inline session maps (last known paths)
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setSessionMapIds([])}
-                        className="text-[9px] text-gray-400 hover:text-gray-100 underline-offset-2 hover:underline"
-                      >
-                        Clear maps
-                      </button>
+                       <p className="text-[10px] text-gray-400">
+                         {t('analytics.modal.details.inlineMapsTitle')}
+                       </p>
+
+                       <button
+                         type="button"
+                         onClick={() => setSessionMapIds([])}
+                         className="text-[9px] text-gray-400 hover:text-gray-100 underline-offset-2 hover:underline"
+                       >
+                         {t('analytics.modal.details.clearMaps')}
+                       </button>
+
+
                     </div>
-                    {sessionMapsLoading && (
-                      <p className="text-[10px] text-gray-400 mb-1">
-                        Loading session map data…
-                      </p>
-                    )}
+                     {sessionMapsLoading && (
+                       <p className="text-[10px] text-gray-400 mb-1">
+                         {t('analytics.modal.details.loadingMaps')}
+                       </p>
+                     )}
+
                     {sessionMapsError && (
-                      <p className="text-[10px] text-red-400 mb-1">{sessionMapsError}</p>
-                    )}
+                       <p className="text-[10px] text-red-400 mb-1">
+                         {sessionMapsError === "no-data"
+                           ? t('analytics.modal.details.noSessions')
+                           : t('analytics.modal.details.error.loadFailed')}
+                       </p>
+                     )}
+
                     <div className="flex flex-wrap gap-3">
                       {sessionMapIds.map((sessionId) => {
                         const locs = sessionMapLocations[sessionId] || [];
@@ -1069,8 +1139,9 @@ export function SessionsRadarModal(props: Props) {
                           >
                             <div className="flex items-center justify-between px-2 py-1 text-[10px] text-gray-200 bg-black/70 border-b border-white/10">
                               <div className="flex items-center gap-2 min-w-0">
-                                <span className="truncate">
-                                  {meta?.name || "Session"}
+                                 <span className="truncate">
+                                   {meta?.name || t('analytics.modal.sessions.fallbackName')}
+
                                   {meta?.startTime
                                     ? ` · ${new Date(meta.startTime).toLocaleDateString()}`
                                     : ""}
@@ -1083,21 +1154,25 @@ export function SessionsRadarModal(props: Props) {
                                         : "bg-purple-500/20 border-purple-400/60 text-purple-200"
                                     }`}
                                   >
-                                    {selectedModalDevice.kind === "wifi" ? "Wi‑Fi focus" : "Bluetooth focus"}
+                                     {selectedModalDevice.kind === "wifi"
+                                       ? t('analytics.modal.details.wifiFocus')
+                                       : t('analytics.modal.details.bleFocus')}
+
                                   </span>
                                 )}
                               </div>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSessionMapIds((prev) =>
-                                    prev.filter((id) => id !== sessionId)
-                                  )
-                                }
-                                className="ml-2 text-[9px] text-gray-400 hover:text-gray-100"
-                              >
-                                close
-                              </button>
+                               <button
+                                 type="button"
+                                 onClick={() =>
+                                   setSessionMapIds((prev) =>
+                                     prev.filter((id) => id !== sessionId)
+                                   )
+                                 }
+                                 className="ml-2 text-[9px] text-gray-400 hover:text-gray-100"
+                               >
+                                 {t('analytics.modal.details.closeMap')}
+                               </button>
+
                             </div>
                             <div className="flex-1">
                               <InlineMap

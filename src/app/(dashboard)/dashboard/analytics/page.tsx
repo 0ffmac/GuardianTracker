@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, Fragment } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
+import { useLanguage } from "@/hooks/useLanguage";
 import {
   BarChart3,
   Bell,
@@ -138,6 +139,7 @@ function formatShortDateTime(value: string) {
 
 export default function DashboardAnalyticsPage() {
   const [daysBack, setDaysBack] = useState<7 | 30>(7);
+  const { t } = useLanguage();
   const [timeMode, setTimeMode] = useState<"relative" | "custom">("relative");
   const [customFrom, setCustomFrom] = useState<string>("");
   const [customTo, setCustomTo] = useState<string>("");
@@ -659,143 +661,151 @@ export default function DashboardAnalyticsPage() {
       <Navbar />
       <main className="max-w-7xl mx-auto px-6 py-10 pt-32">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-6">
-          <div>
-            <p className="text-sm text-gray-400">Analytics & Threat Intelligence</p>
-            <h1 className="text-2xl font-bold text-white">Alert & Stalker Analytics</h1>
+           <div>
+            <p className="text-sm text-gray-400">{t('analytics.hero.kicker')}</p>
+            <h1 className="text-2xl font-bold text-white">{t('analytics.hero.title')}</h1>
             <p className="mt-1 text-xs text-gray-400 max-w-2xl">
-              Understand how alerts unfold over time and which nearby devices
-              consistently appear around emergency events.
+              {t('analytics.hero.body')}
             </p>
-          </div>
+           </div>
+
 
           <div className="flex flex-col items-end gap-2">
-            {timeMode === "relative" && (
-              <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/10 text-xs p-1">
-                <button
-                  type="button"
-                  onClick={() => setDaysBack(7)}
-                  className={`px-3 py-1 rounded-full transition-colors ${
-                    daysBack === 7 ? "bg-white text-black" : "text-gray-300"
-                  }`}
-                >
-                  Last 7 days
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDaysBack(30)}
-                  className={`px-3 py-1 rounded-full transition-colors ${
-                    daysBack === 30 ? "bg-white text-black" : "text-gray-300"
-                  }`}
-                >
-                  Last 30 days
-                </button>
-              </div>
-            )}
+             {timeMode === "relative" && (
+               <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/10 text-xs p-1">
+                 <button
+                   type="button"
+                   onClick={() => setDaysBack(7)}
+                   className={`px-3 py-1 rounded-full transition-colors ${
+                     daysBack === 7 ? "bg-white text-black" : "text-gray-300"
+                   }`}
+                 >
+                  {t('analytics.range.last7')}
+                 </button>
+                 <button
+                   type="button"
+                   onClick={() => setDaysBack(30)}
+                   className={`px-3 py-1 rounded-full transition-colors ${
+                     daysBack === 30 ? "bg-white text-black" : "text-gray-300"
+                   }`}
+                 >
+                  {t('analytics.range.last30')}
+                 </button>
+               </div>
+             )}
 
-            {alertsAnalytics && (
-              <p className="text-[11px] text-gray-400">
-                Range: {formatShortDate(alertsAnalytics.range.from)} – {formatShortDate(
-                  alertsAnalytics.range.to
-                )}
-              </p>
+
+             {alertsAnalytics && (
+               <p className="text-[11px] text-gray-400">
+                {t('analytics.range.label')} {formatShortDate(alertsAnalytics.range.from)} – {formatShortDate(
+                   alertsAnalytics.range.to
+                 )}
+               </p>
+
             )}
           </div>
         </div>
 
-        {error && (
-          <div className="mb-4 rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-2 text-sm text-red-100">
-            Failed to load analytics: {error}
-          </div>
-        )}
+         {error && (
+           <div className="mb-4 rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-2 text-sm text-red-100">
+            {t('analytics.error.load')} {error}
+           </div>
+         )}
+
 
         {/* Filters + KPI */}
         <div className="grid grid-cols-1 lg:grid-cols-[250px,1fr] gap-6 mb-8">
           {/* Left: presets and filters */}
           <aside className="bg-surface backdrop-blur-sm rounded-2xl p-4 border border-white/10 flex flex-col gap-4 text-xs">
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                Alert scope
-              </p>
+             <div>
+               <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                {t('analytics.scope.label')}
+               </p>
+
               <div className="space-y-1">
-                <button
-                  type="button"
-                  onClick={() => setAlertTypeFilter("all")}
-                  className={`w-full text-left px-2 py-1 rounded-md transition-colors ${
-                    alertTypeFilter === "all"
-                      ? "bg-white text-black"
-                      : "bg-black/30 text-gray-200 hover:bg-black/50"
-                  }`}
-                >
-                  All alerts
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAlertTypeFilter("sent")}
-                  className={`w-full text-left px-2 py-1 rounded-md transition-colors ${
-                    alertTypeFilter === "sent"
-                      ? "bg-white text-black"
-                      : "bg-black/30 text-gray-200 hover:bg-black/50"
-                  }`}
-                >
-                  Alerts I sent
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAlertTypeFilter("received")}
-                  className={`w-full text-left px-2 py-1 rounded-md transition-colors ${
-                    alertTypeFilter === "received"
-                      ? "bg-white text-black"
-                      : "bg-black/30 text-gray-200 hover:bg-black/50"
-                  }`}
-                >
-                  Alerts I received
-                </button>
+                 <button
+                   type="button"
+                   onClick={() => setAlertTypeFilter("all")}
+                   className={`w-full text-left px-2 py-1 rounded-md transition-colors ${
+                     alertTypeFilter === "all"
+                       ? "bg-white text-black"
+                       : "bg-black/30 text-gray-200 hover:bg-black/50"
+                   }`}
+                 >
+                  {t('analytics.scope.all')}
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setAlertTypeFilter("sent")}
+                   className={`w-full text-left px-2 py-1 rounded-md transition-colors ${
+                     alertTypeFilter === "sent"
+                       ? "bg-white text-black"
+                       : "bg-black/30 text-gray-200 hover:bg-black/50"
+                   }`}
+                 >
+                  {t('analytics.scope.sent')}
+                 </button>
+
+                 <button
+                   type="button"
+                   onClick={() => setAlertTypeFilter("received")}
+                   className={`w-full text-left px-2 py-1 rounded-md transition-colors ${
+                     alertTypeFilter === "received"
+                       ? "bg-white text-black"
+                       : "bg-black/30 text-gray-200 hover:bg-black/50"
+                   }`}
+                 >
+                  {t('analytics.scope.received')}
+                 </button>
+
               </div>
             </div>
 
-            <div>
-              <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
-                Time range
-              </p>
+             <div>
+               <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
+                {t('analytics.time.label')}
+               </p>
+
               <div className="flex flex-col gap-2">
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="time-mode"
-                    checked={timeMode === "relative"}
-                    onChange={() => setTimeMode("relative")}
-                    className="h-3 w-3"
-                  />
-                  <span>Relative (last 7/30 days)</span>
-                </label>
-                <label className="inline-flex items-center gap-2">
-                  <input
-                    type="radio"
-                    name="time-mode"
-                    checked={timeMode === "custom"}
-                    onChange={() => setTimeMode("custom")}
-                    className="h-3 w-3"
-                  />
-                  <span>Custom range</span>
-                </label>
+                 <label className="inline-flex items-center gap-2">
+                   <input
+                     type="radio"
+                     name="time-mode"
+                     checked={timeMode === "relative"}
+                     onChange={() => setTimeMode("relative")}
+                     className="h-3 w-3"
+                   />
+                   <span>{t('analytics.time.relative')}</span>
+                 </label>
+                 <label className="inline-flex items-center gap-2">
+                   <input
+                     type="radio"
+                     name="time-mode"
+                     checked={timeMode === "custom"}
+                     onChange={() => setTimeMode("custom")}
+                     className="h-3 w-3"
+                   />
+                   <span>{t('analytics.time.custom')}</span>
+                 </label>
 
                 {timeMode === "custom" && (
                   <div className="mt-2 space-y-2">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] text-gray-400">From</span>
-                      <input
-                        type="date"
-                        value={customFrom}
-                        onChange={(e) => setCustomFrom(e.target.value)}
+                     <div className="flex flex-col gap-1">
+                       <span className="text-[11px] text-gray-400">{t('analytics.time.from')}</span>
+                       <input
+                         type="date"
+                         value={customFrom}
+                         onChange={(e) => setCustomFrom(e.target.value)}
                         className="w-full rounded-md bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-gray-100"
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <span className="text-[11px] text-gray-400">To</span>
-                      <input
-                        type="date"
-                        value={customTo}
-                        onChange={(e) => setCustomTo(e.target.value)}
+                     <div className="flex flex-col gap-1">
+                       <span className="text-[11px] text-gray-400">{t('analytics.time.to')}</span>
+                       <input
+                         type="date"
+                         value={customTo}
+                         onChange={(e) => setCustomTo(e.target.value)}
                         className="w-full rounded-md bg-black/40 border border-white/10 px-2 py-1 text-[11px] text-gray-100"
                       />
                     </div>
@@ -804,17 +814,17 @@ export default function DashboardAnalyticsPage() {
               </div>
             </div>
 
-            <div className="border-t border-white/10 pt-3 mt-1 flex items-center justify-between gap-2">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={compare}
-                  onChange={(e) => setCompare(e.target.checked)}
-                  className="h-3 w-3"
-                />
-                <span>Compare to previous period</span>
-              </label>
-            </div>
+             <div className="border-t border-white/10 pt-3 mt-1 flex items-center justify-between gap-2">
+               <label className="flex items-center gap-2">
+                 <input
+                   type="checkbox"
+                   checked={compare}
+                   onChange={(e) => setCompare(e.target.checked)}
+                   className="h-3 w-3"
+                 />
+                 <span>{t('analytics.compare.label')}</span>
+               </label>
+             </div>
           </aside>
 
           {/* Right: Top KPI cards */}
@@ -824,15 +834,17 @@ export default function DashboardAnalyticsPage() {
                 <BarChart3 className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-gold-400">Total alerts</p>
+                 <p className="text-xs uppercase tracking-wide text-gold-400">{t('analytics.kpi.total')}</p>
+
                 <p className="text-lg font-semibold text-gold-100">
                   {alertsTotals?.alerts ?? "–"}
                 </p>
                 {alertsTotalsPrev && totalAlertsDelta !== null && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    prev {alertsTotalsPrev.alerts}, Δ {totalAlertsDelta >= 0 ? "+" : ""}
-                    {totalAlertsDelta}
-                  </p>
+                   <p className="text-[10px] text-gray-400 mt-0.5">
+                    {t('analytics.kpi.prevPrefix')} {alertsTotalsPrev.alerts}, {t('analytics.kpi.deltaPrefix')} {totalAlertsDelta >= 0 ? "+" : ""}
+                     {totalAlertsDelta}
+                   </p>
+
                 )}
               </div>
             </div>
@@ -842,15 +854,17 @@ export default function DashboardAnalyticsPage() {
                 <Bell className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-emerald-400">Sent</p>
+                 <p className="text-xs uppercase tracking-wide text-emerald-400">{t('analytics.kpi.sent')}</p>
+
                 <p className="text-lg font-semibold text-emerald-100">
                   {alertsTotals?.sent ?? "–"}
                 </p>
                 {alertsTotalsPrev && sentDelta !== null && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    prev {alertsTotalsPrev.sent}, Δ {sentDelta >= 0 ? "+" : ""}
-                    {sentDelta}
-                  </p>
+                   <p className="text-[10px] text-gray-400 mt-0.5">
+                    {t('analytics.kpi.prevPrefix')} {alertsTotalsPrev.sent}, {t('analytics.kpi.deltaPrefix')} {sentDelta >= 0 ? "+" : ""}
+                     {sentDelta}
+                   </p>
+
                 )}
               </div>
             </div>
@@ -860,15 +874,17 @@ export default function DashboardAnalyticsPage() {
                 <Bell className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-sky-400">Received</p>
+                 <p className="text-xs uppercase tracking-wide text-sky-400">{t('analytics.kpi.received')}</p>
+
                 <p className="text-lg font-semibold text-sky-100">
                   {alertsTotals?.received ?? "–"}
                 </p>
                 {alertsTotalsPrev && receivedDelta !== null && (
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    prev {alertsTotalsPrev.received}, Δ {receivedDelta >= 0 ? "+" : ""}
-                    {receivedDelta}
-                  </p>
+                   <p className="text-[10px] text-gray-400 mt-0.5">
+                    {t('analytics.kpi.prevPrefix')} {alertsTotalsPrev.received}, {t('analytics.kpi.deltaPrefix')} {receivedDelta >= 0 ? "+" : ""}
+                     {receivedDelta}
+                   </p>
+
                 )}
               </div>
             </div>
@@ -878,14 +894,16 @@ export default function DashboardAnalyticsPage() {
                 <ShieldAlert className="w-5 h-5" />
               </div>
               <div>
-                <p className="text-xs uppercase tracking-wide text-red-400">Suspicious devices</p>
+                 <p className="text-xs uppercase tracking-wide text-red-400">{t('analytics.kpi.suspicious')}</p>
+
                 <p className="text-lg font-semibold text-red-100">
-                  {totalSuspicious}
-                  {totalSeenNearAlert > 0 && (
-                    <span className="ml-1 text-[11px] text-amber-300">
-                      ({totalSeenNearAlert} near selected alert)
-                    </span>
-                  )}
+                   {totalSuspicious}
+                   {totalSeenNearAlert > 0 && (
+                     <span className="ml-1 text-[11px] text-amber-300">
+                      ({totalSeenNearAlert} {t('analytics.kpi.nearSelectedAlertSuffix')})
+                     </span>
+                   )}
+
                 </p>
               </div>
             </div>
@@ -894,20 +912,22 @@ export default function DashboardAnalyticsPage() {
 
         {/* Alerts over time + focus */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-          {/* Alerts over time */}
-          <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 lg:col-span-2">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-semibold">Alerts over time</h2>
+             {/* Alerts over time */}
+           <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 lg:col-span-2">
+             <div className="flex items-center justify-between mb-4">
+               <div>
+                <h2 className="text-lg font-semibold">{t('analytics.alertsOverTime.title')}</h2>
                 <p className="text-xs text-gray-400">
-                  Buckets are per {alertsAnalytics?.bucket || "day"}.
+                  {t('analytics.alertsOverTime.subtitlePrefix')} {alertsAnalytics?.bucket || "day"}.
                 </p>
-              </div>
+               </div>
+
             </div>
 
-            {(!alertsAnalytics || alertsAnalytics.timeBuckets.length === 0) && !loading && (
-              <p className="text-sm text-gray-400">No alerts in this time range.</p>
-            )}
+             {(!alertsAnalytics || alertsAnalytics.timeBuckets.length === 0) && !loading && (
+              <p className="text-sm text-gray-400">{t('analytics.alertsOverTime.empty')}</p>
+             )}
+
 
             {alertsAnalytics && alertsAnalytics.timeBuckets.length > 0 && (
               <div className="h-52 flex items-end gap-1 border border-white/5 rounded-lg px-3 py-2 bg-black/20">
@@ -949,51 +969,52 @@ export default function DashboardAnalyticsPage() {
             )}
           </section>
 
-          {/* Alert filter and legend */}
-          <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex flex-col gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Focus on a specific alert</h2>
+           {/* Alert filter and legend */}
+           <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10 flex flex-col gap-4">
+             <div>
+              <h2 className="text-lg font-semibold">{t('analytics.focus.title')}</h2>
               <p className="text-xs text-gray-400">
-                Select an alert to flag suspicious devices that were active around that time.
+                {t('analytics.focus.body')}
               </p>
-            </div>
+             </div>
 
-            <div>
-              <label className="text-xs text-gray-300 mb-1 block">Alert</label>
-              <select
+
+             <div>
+              <label className="text-xs text-gray-300 mb-1 block">{t('analytics.focus.selectLabel')}</label>
+               <select
+
                 value={selectedAlertId}
                 onChange={(e) => setSelectedAlertId(e.target.value)}
                 className="w-full p-2 rounded-lg bg-black/40 border border-white/10 text-xs text-gray-100 focus:outline-none focus:ring-2 focus:ring-gold-500"
-              >
-                <option value="">All alerts</option>
-                {recentAlerts.map((a) => (
-                  <option key={a.id} value={a.id}>
+>
+                 <option value="">{t('analytics.focus.allOption')}</option>
+                 {recentAlerts.map((a) => (
+                   <option key={a.id} value={a.id}>
                     {formatShortDateTime(a.createdAt)} – {a.title}
                   </option>
                 ))}
               </select>
             </div>
 
-            <div className="mt-2 flex flex-col gap-2 text-xs text-gray-300">
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
-                <span>GPS points (from device GNSS)</span>
-              </div>
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
-                <span>Wi‑Fi only points (from AP fingerprints)</span>
-              </div>
-              <div className="inline-flex items-center gap-2">
-                <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
-                <span>Hybrid points (GPS + Wi‑Fi)</span>
-              </div>
-              <div className="mt-1 inline-flex items-center gap-2 text-amber-300">
-                <AlertTriangle className="w-3 h-3" />
-                <span>
-                  Devices marked "seen near alert" appeared within ~30 minutes of the selected
-                  alert.
-                </span>
-              </div>
+             <div className="mt-2 flex flex-col gap-2 text-xs text-gray-300">
+               <div className="inline-flex items-center gap-2">
+                 <span className="inline-block h-2 w-2 rounded-full bg-indigo-400" />
+                 <span>{t('analytics.focus.legend.gps')}</span>
+               </div>
+               <div className="inline-flex items-center gap-2">
+                 <span className="inline-block h-2 w-2 rounded-full bg-orange-400" />
+                 <span>{t('analytics.focus.legend.wifi')}</span>
+               </div>
+               <div className="inline-flex items-center gap-2">
+                 <span className="inline-block h-2 w-2 rounded-full bg-emerald-400" />
+                 <span>{t('analytics.focus.legend.hybrid')}</span>
+               </div>
+               <div className="mt-1 inline-flex items-center gap-2 text-amber-300">
+                 <AlertTriangle className="w-3 h-3" />
+                 <span>
+                   {t('analytics.focus.legend.nearAlert')}
+                 </span>
+               </div>
             </div>
           </section>
         </div>

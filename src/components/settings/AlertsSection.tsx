@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useLanguage } from "@/hooks/useLanguage";
 
 interface AlertsSectionProps {
   alerts: any[];
@@ -25,36 +26,47 @@ export function AlertsSection({
   handleDeleteAllAlerts,
   handleDeleteAlert,
 }: AlertsSectionProps) {
+  const { t } = useLanguage();
+
   return (
     <section className="bg-surface backdrop-blur-sm rounded-2xl p-6 border border-white/10">
       <div className="flex items-center justify-between gap-3 mb-2">
-        <h2 className="text-lg font-semibold">Alerts</h2>
+        <h2 className="text-lg font-semibold">
+          {t("settings.alerts.title")}
+        </h2>
         {alerts.length > 0 && (
           <button
             className="px-3 py-1 text-xs rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
             onClick={handleDeleteAllAlerts}
           >
-            Delete all
+            {t("settings.alerts.deleteAll")}
           </button>
         )}
       </div>
+
       <p className="text-sm text-gray-300">
-        See alerts you've sent or received, and filter them.
+        {t("settings.alerts.body")}
       </p>
+
       <div className="mt-4 flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-300">Type</span>
+          <span className="text-gray-300">
+            {t("settings.alerts.typeLabel")}
+          </span>
           <select
             className="bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 rounded-lg px-2 py-1 appearance-none focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
             value={alertType}
             onChange={(e) => setAlertType(e.target.value as "sent" | "received")}
           >
-            <option value="sent">Sent</option>
-            <option value="received">Received</option>
+            <option value="sent">{t("settings.alerts.type.sent")}</option>
+            <option value="received">{t("settings.alerts.type.received")}</option>
           </select>
         </div>
+
         <div className="flex items-center gap-2 text-sm">
-          <span className="text-gray-300">Status</span>
+          <span className="text-gray-300">
+            {t("settings.alerts.statusLabel")}
+          </span>
           <select
             className="bg-gold-900/40 border border-gold-400/40 text-sm text-gold-100 rounded-lg px-2 py-1 appearance-none focus:outline-none focus:ring-2 focus:ring-gold-500 focus:border-gold-500"
             value={alertStatus}
@@ -70,16 +82,19 @@ export function AlertsSection({
           </select>
         </div>
       </div>
+
       {alertsError && (
         <div className="mt-3 text-sm text-red-400">{alertsError}</div>
       )}
+
       <div className="mt-6">
         {alertsLoading ? (
-          <div className="text-sm text-gray-400">Loading alerts...</div>
+          <div className="text-sm text-gray-400">
+            {t("settings.alerts.loading")}
+          </div>
         ) : alerts.length === 0 ? (
           <div className="text-sm text-gray-400">
-            No alerts found for this filter. Trigger or receive an alert and they'll
-            appear here.
+            {t("settings.alerts.empty")}
           </div>
         ) : (
           <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
@@ -90,7 +105,7 @@ export function AlertsSection({
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="text-sm font-medium">
-                    {alert.title || "Alert"}
+                    {alert.title || t("settings.alerts.item.fallbackTitle")}
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] px-2 py-0.5 rounded-full bg-white/10 text-gray-200">
@@ -100,7 +115,7 @@ export function AlertsSection({
                       className="px-2 py-0.5 text-[11px] rounded bg-red-600 text-white hover:bg-red-700 transition"
                       onClick={() => handleDeleteAlert(alert.id as string)}
                     >
-                      Delete
+                      {t("settings.alerts.item.delete")}
                     </button>
                   </div>
                 </div>
@@ -114,7 +129,7 @@ export function AlertsSection({
                 )}
                 <div className="mt-1 flex flex-wrap gap-2 text-[11px] text-gray-300">
                   <span>
-                    Recipients: {" "}
+                    {t("settings.alerts.item.recipients")} {" "}
                     {alert.recipients
                       ? alert.recipients.length
                       : alert.alertRecipients
@@ -122,10 +137,14 @@ export function AlertsSection({
                       : 0}
                   </span>
                   <span>
-                    Audio messages: {alert.audioMessages?.length || 0}
+                    {t("settings.alerts.item.audioMessages")} {" "}
+                    {alert.audioMessages?.length || 0}
                   </span>
                   {alert.recipientStatus && (
-                    <span>My status: {alert.recipientStatus}</span>
+                    <span>
+                      {t("settings.alerts.item.myStatus")} {" "}
+                      {alert.recipientStatus}
+                    </span>
                   )}
                 </div>
               </li>
