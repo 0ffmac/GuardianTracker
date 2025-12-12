@@ -14,6 +14,7 @@
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.10",
     "bcryptjs": "^3.0.3",
+    "chart.js": "^4.5.1",
     "deps": "^1.0.0",
     "framer-motion": "^12.23.24",
     "googleapis": "^166.0.0",
@@ -25,6 +26,7 @@
     "nodemailer": "^7.0.11",
     "peer": "^1.0.2",
     "react": "18.2.0",
+    "react-chartjs-2": "^5.3.1",
     "react-dom": "18.2.0"
   },
   "devDependencies": {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/Navbar";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -9,12 +9,28 @@ import {
   Bell,
   ShieldAlert,
   AlertTriangle,
-  Activity,
-  Filter,
-  Smartphone,
-  Bluetooth,
-  Router,
 } from "lucide-react";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Bar } from "react-chartjs-2";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend
+);
 
 import {
   SessionsRadarModal,
@@ -506,6 +522,35 @@ export default function DashboardAnalyticsPage() {
       0
     );
   }, [alertsAnalytics]);
+
+  const alertsOverTimeChartData = useMemo(() => {
+    if (!alertsAnalytics || alertsAnalytics.timeBuckets.length === 0) return null;
+
+    const labels = alertsAnalytics.timeBuckets.map((b) => formatShortDate(b.end));
+    const barData = alertsAnalytics.timeBuckets.map((b) => b.total);
+
+    const lifecycleData: (number | null)[] = Array(labels.length).fill(null);
+    const lifecycleEventsByBucket: Record<number, AlertTimelineEvent[]> = {};
+
+    if (alertTimeline && alertTimeline.events.length > 0) {
+      const buckets = alertsAnalytics.timeBuckets;
+      const bucketStartMs = buckets.map((b) => new Date(b.start).getTime());
+      const bucketEndMs = buckets.map((b) => new Date(b.end).getTime());
+
+      alertTimeline.events.forEach((ev) => {
+        const t = new Date(ev.time).getTime();
+        const idx = bucketStartMs.findIndex(
+          (start, i) => t >= start && t < bucketEndMs[i]
+        );
+        if (idx === -1) return;
+        lifecycleData[idx] = (lifecycleData[idx] ?? 0) + 1;
+        if (!lifecycleEventsByBucket[idx]) lifecycleEventsByBucket[idx] = [];
+        lifecycleEventsByBucket[idx].push(ev);
+      });
+    }
+
+    return { labels, barData, lifecycleData, lifecycleEventsByBucket };
+  }, [alertsAnalytics, alertTimeline]);
 
   const sessionsInRange = useMemo(() => {
     if (trackingSessions.length === 0) return [] as TrackingSession[];
@@ -1017,30 +1062,92 @@ export default function DashboardAnalyticsPage() {
              )}
 
 
-            {alertsAnalytics && alertsAnalytics.timeBuckets.length > 0 && (
-              <div className="h-52 flex items-end gap-1 border border-white/5 rounded-lg px-3 py-2 bg-black/20">
-                {alertsAnalytics.timeBuckets.map((b, idx) => {
-                  const heightPct = maxBucketTotal
-                    ? Math.max(6, (b.total / maxBucketTotal) * 100)
-                    : 0;
-                  return (
-                    <div
-                      key={`${b.start}-${idx}`}
-                      className="flex-1 flex flex-col items-center justify-end gap-1"
-                    >
-                      <div
-                        className="w-full rounded-t-md bg-gradient-to-t from-gold-500/80 to-sky-400/80"
-                        style={{ height: `${heightPct}%` }}
-                        title={`${b.total} alerts`}
-                      />
-                       <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                        {formatShortDate(b.end)}
-                       </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {alertsAnalytics &&
+              alertsAnalytics.timeBuckets.length > 0 &&
+              alertsOverTimeChartData && (
+                <div className="h-52 border border-white/5 rounded-lg px-3 py-2 bg-black/20">
+                  <Bar
+                    data={{
+                      labels: alertsOverTimeChartData.labels,
+                      datasets: [
+                        {
+                          type: "bar" as const,
+                          label: "Alerts",
+                          data: alertsOverTimeChartData.barData,
+                          backgroundColor: "rgba(212, 175, 55, 0.85)", // gold
+                          borderRadius: 4,
+                        },
+                        {
+                          type: "line" as const,
+                          label: "Lifecycle events (focused alert)",
+                          data: alertsOverTimeChartData.lifecycleData,
+                          borderColor: "rgba(125, 211, 252, 0.95)", // sky
+                          backgroundColor: "rgba(125, 211, 252, 0.95)",
+                          pointRadius: 4,
+                          pointHoverRadius: 6,
+                          showLine: false,
+                          tension: 0,
+                          spanGaps: true,
+                          yAxisID: "y",
+                        },
+                      ],
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      scales: {
+                        x: {
+                          grid: { display: false },
+                          ticks: {
+                            color: "#9CA3AF",
+                            font: { size: 10 },
+                          },
+                        },
+                        y: {
+                          beginAtZero: true,
+                          grid: { color: "rgba(255,255,255,0.06)" },
+                          ticks: {
+                            color: "#9CA3AF",
+                            font: { size: 10 },
+                            stepSize: 1,
+                          },
+                        },
+                      },
+                      plugins: {
+                        legend: {
+                          display: true,
+                          labels: {
+                            color: "#D1D5DB",
+                            boxWidth: 10,
+                            font: { size: 10 },
+                          },
+                        },
+                        tooltip: {
+                          callbacks: {
+                            afterBody: (items) => {
+                              if (!items.length) return "";
+                              const item = items[0];
+                              const idx = item.dataIndex;
+                              const eventsForBucket =
+                                alertsOverTimeChartData.lifecycleEventsByBucket[idx] || [];
+                              if (!eventsForBucket.length) return "";
+                              const lines = eventsForBucket.map((ev) => {
+                                const timeStr = formatShortDateTime(ev.time);
+                                const parts: string[] = [ev.kind];
+                                if (ev.status) parts.push(ev.status);
+                                if (ev.recipientName) parts.push(ev.recipientName);
+                                if (ev.byUserName) parts.push(ev.byUserName);
+                                return `${timeStr} – ${parts.join(" · ")}`;
+                              });
+                              return ["", ...lines];
+                            },
+                          },
+                        },
+                      },
+                    }}
+                  />
+                </div>
+              )}
 
             {alertsAnalytics && (
               <div className="mt-3 flex flex-col gap-2 text-xs text-gray-300">
