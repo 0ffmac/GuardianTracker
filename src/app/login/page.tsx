@@ -15,9 +15,12 @@ function LoginContent() {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [info, setInfo] = useState("");
   const searchParams = useSearchParams();
   const errorParam = searchParams.get("error");
+  const verificationStatus = searchParams.get("verification");
   const oauthError = (() => {
+
     switch (errorParam) {
       case "SignupRequired":
         return "Please create an account first, then try signing in with GitHub/Google.";
@@ -46,10 +49,17 @@ function LoginContent() {
       .catch(() => setProvidersLoaded(true));
   }, []);
 
+  useEffect(() => {
+    if (verificationStatus === "success") {
+      setInfo("Your email has been verified. You can now sign in.");
+    }
+  }, [verificationStatus]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setInfo("");
 
     console.log("Submitting form:", { email, password });
 
@@ -78,12 +88,9 @@ function LoginContent() {
         console.log("Register response status:", res.status);
 
         if (res.ok) {
-          await signIn("credentials", {
-            email,
-            password,
-            redirect: false,
-          });
-          router.push("/dashboard");
+          setIsLogin(true);
+          setInfo("Account created. Please check your email to verify your address before signing in.");
+          setLoading(false);
         } else {
           const data = await res.json();
           console.log("Register response body:", data);
@@ -208,6 +215,17 @@ function LoginContent() {
             </motion.div>
           )}
 
+          {/* Info Message */}
+          {info && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/50 rounded-xl text-emerald-100 text-sm"
+            >
+              {info}
+            </motion.div>
+          )}
+
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -259,6 +277,7 @@ function LoginContent() {
               onClick={() => {
                 setIsLogin(!isLogin);
                 setError("");
+                setInfo("");
               }}
               className="text-gray-400 hover:text-white transition-colors"
             >

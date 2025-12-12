@@ -60,7 +60,7 @@ export default function DiscoverPage() {
                   transition={{ duration: 0.8 }}
                   className="text-4xl md:text-6xl font-serif tracking-tight leading-tight"
                 >
-                  Discover <span className="text-gold-gradient italic">Guardian</span> Technology
+                  Discover <span className="text-gold-gradient italic">Guard Royal</span> Technology
                 </motion.h1>
                 <motion.p
                   initial={{ opacity: 0, y: 20 }}

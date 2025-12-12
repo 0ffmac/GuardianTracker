@@ -309,7 +309,7 @@ export function AccountAndContactsSection({
           </div>
           <p className="text-sm text-gray-300">
             Add trusted people who can receive alerts about your location. Only
-            existing Guardian accounts can be added for now.
+            existing Guard Royal accounts can be added for now.
           </p>
           <form
             onSubmit={handleAddContact}
@@ -463,7 +463,7 @@ export function AccountAndContactsSection({
           <h3 className="text-base font-semibold mb-1">People Who Trust You</h3>
           <p className="text-sm text-gray-300">
             These people have added you as an emergency contact in their
-            Guardian account.
+            Guard Royal account.
           </p>
           {trustedBy.length > 0 && (
             <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-emerald-900/40 border border-emerald-400/40 px-4 py-2 text-xs font-semibold text-emerald-200">
@@ -508,7 +508,7 @@ export function AccountAndContactsSection({
                   >
                     <div>
                       <div className="text-sm font-medium">
-                        {t.owner?.name || t.owner?.email || "Guardian user"}
+                        {t.owner?.name || t.owner?.email || "Guard Royal user"}
                       </div>
                       {t.owner?.email && (
                         <div className="text-xs text-gray-400">

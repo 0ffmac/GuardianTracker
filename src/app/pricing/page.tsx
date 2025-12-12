@@ -81,7 +81,7 @@ export default function PricingPage() {
               </motion.div>
             </motion.div>
 
-            {/* Combined Title Block (Guardian Elite + is Free) */}
+            {/* Combined Title Block (Guard Royal + is Free) */}
             <div className="relative">
               <AnimatePresence mode="wait">
                 {visible && (
@@ -95,11 +95,11 @@ export default function PricingPage() {
                       show: { transition: { staggerChildren: 0.1, delayChildren: 0.1 } },
                     }}
                   >
-                    {/* 1. Guardian Elite Title (motion.h1) */}
+                    {/* 1. Guard Royal Title (motion.h1) */}
                     <motion.h1
                       className="text-5xl md:text-8xl lg:text-[10rem] leading-[0.9] font-serif tracking-tight"
                     >
-                      {Array.from('Guardian ').map((ch, i) => (
+                      {Array.from('Guard ').map((ch, i) => (
                         <motion.span
                           key={`g-${cycle}-${i}`}
                           className={ch === ' ' ? 'inline-block w-6 md:w-8' : swap ? 'inline-block text-gold-gradient italic' : 'inline-block text-white' }
@@ -108,7 +108,7 @@ export default function PricingPage() {
                           {ch}
                         </motion.span>
                       ))}
-                      {Array.from('Elite').map((ch, i) => (
+                      {Array.from('Royal').map((ch, i) => (
                         <motion.span
                           key={`e-${cycle}-${i}`}
                           className={swap ? 'inline-block text-white' : 'inline-block text-gold-gradient italic' }

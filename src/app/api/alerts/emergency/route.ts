@@ -40,7 +40,7 @@ async function sendAndroidEmergencyPush(tokens: string[], alert: any) {
   const url = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
 
   const title = `Emergency Alert from ${
-    alert.user?.name || alert.user?.email || "Guardian"
+    alert.user?.name || alert.user?.email || "Guard Royal"
   }`;
   const body = alert.description || "Tap to open emergency alert";
 
@@ -64,7 +64,7 @@ async function sendAndroidEmergencyPush(tokens: string[], alert: any) {
               alertId: alert.id,
               fromUserId: alert.userId,
               fromUserName:
-                alert.user?.name || alert.user?.email || "Guardian",
+                alert.user?.name || alert.user?.email || "Guard Royal",
             },
           },
         }),

@@ -105,9 +105,24 @@ export const authOptions: NextAuthOptions = {
       }
       return true;
     },
+    async jwt({ token }) {
+      if (!token?.sub) return token;
+
+      const user = await prisma.user.findUnique({
+        where: { id: token.sub },
+        select: { emailVerified: true },
+      });
+
+      if (user) {
+        (token as any).emailVerified = !!user.emailVerified;
+      }
+
+      return token;
+    },
     async session({ session, token }) {
       if (session.user && token?.sub) {
         (session.user as any).id = token.sub;
+        (session.user as any).emailVerified = (token as any).emailVerified ?? null;
       }
       return session;
     },

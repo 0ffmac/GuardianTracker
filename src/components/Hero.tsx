@@ -48,7 +48,7 @@ export const Hero: React.FC = () => {
             transition={{ duration: 1, delay: 0.3 }}
             className="text-5xl md:text-7xl lg:text-9xl font-serif text-white leading-none mb-8 tracking-tight"
           >
-            Guardian <span className="text-gold-gradient italic pr-2">Elite</span>
+            Guard <span className="text-gold-gradient italic pr-2">Royal</span>
           </motion.h1>
 
           <motion.p

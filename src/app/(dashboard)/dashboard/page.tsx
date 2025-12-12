@@ -566,7 +566,7 @@ export default function DashboardPage() {
                     Enable Real-Time Tracking
                 </h3>
                 <p className="text-gold-300/80 text-sm">
-                    Download the Guardian Client App to send live location data from your device.
+                    Download the Guard Royal Client App to send live location data from your device.
                 </p>
             </div>
             <a
@@ -1106,7 +1106,7 @@ export default function DashboardPage() {
               Suspicious observations
             </h3>
             <p className="text-sm text-gray-300">
-              Once Guardian has enough tracking history, Wi-Fi and Bluetooth
+              Once Guard Royal has enough tracking history, Wi-Fi and Bluetooth
               devices that seem to follow you across different places will be
               surfaced here.
             </p>

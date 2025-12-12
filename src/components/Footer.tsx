@@ -14,7 +14,7 @@ export const Footer: React.FC = () => {
           <div className="md:col-span-5 space-y-8">
             <div className="flex items-center gap-3">
               <Shield className="w-6 h-6 text-white" />
-              <span className="text-2xl font-serif text-white tracking-widest">GUARDIAN</span>
+              <span className="text-2xl font-serif text-white tracking-widest">GUARD ROYAL</span>
             </div>
             <p className="text-gray-400 text-sm leading-7 max-w-sm font-sans">
               Redefining personal security for the modern era. We combine cutting-edge technology with timeless design principles.
@@ -80,7 +80,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-gray-600 font-sans tracking-wide uppercase">
-          <p>© 2024 Guardian Systems Inc.</p>
+          <p>© 2024 Guard Royal Systems Inc.</p>
           <p>Designed for Excellence</p>
         </div>
       </div>

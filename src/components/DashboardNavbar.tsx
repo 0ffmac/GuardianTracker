@@ -29,7 +29,7 @@ export default function DashboardNavbar() {
             </div>
           </div>
           <span className="text-xl md:text-2xl font-serif tracking-[0.1em] text-white group-hover:text-gold-300 transition-colors uppercase">
-            Guardian
+            Guard Royal
           </span>
         </button>
 

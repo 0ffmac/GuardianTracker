@@ -81,7 +81,7 @@ export default function AboutPage() {
               transition={{ duration: 0.9 }}
               className="text-5xl md:text-8xl lg:text-[9rem] leading-[0.95] font-serif tracking-tight"
             >
-              About <span className="text-gold-gradient italic">Guardian</span>
+              About <span className="text-gold-gradient italic">Guard Royal</span>
             </motion.h1>
 
             <motion.p
