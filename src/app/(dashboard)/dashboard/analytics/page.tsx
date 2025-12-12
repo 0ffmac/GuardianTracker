@@ -221,29 +221,36 @@ export default function DashboardAnalyticsPage() {
           type: alertTypeFilter,
         }).toString();
 
-        const [alertsRes, suspiciousRes, alertsListRes] = await Promise.all([
-          fetch(`/api/analytics/alerts?${params}`),
-          fetch(
-            `/api/analytics/suspicious_devices?${new URLSearchParams({
-              from: fromIso,
-              to: toIso,
-              limit: "20",
-              ...(selectedAlertId ? { alertId: selectedAlertId } : {}),
-            }).toString()}`
-          ),
-          fetch(
-            "/api/alerts?" +
-              new URLSearchParams({ type: "sent", status: "ALL" }).toString()
-          ),
-        ]);
+        const [alertsRes, suspiciousRes, sentAlertsRes, receivedAlertsRes] =
+          await Promise.all([
+            fetch(`/api/analytics/alerts?${params}`),
+            fetch(
+              `/api/analytics/suspicious_devices?${new URLSearchParams({
+                from: fromIso,
+                to: toIso,
+                limit: "20",
+                ...(selectedAlertId ? { alertId: selectedAlertId } : {}),
+              }).toString()}`
+            ),
+            fetch(
+              "/api/alerts?" +
+                new URLSearchParams({ type: "sent", status: "ALL" }).toString()
+            ),
+            fetch(
+              "/api/alerts?" +
+                new URLSearchParams({ type: "received", status: "ALL" }).toString()
+            ),
+          ]);
 
         if (!alertsRes.ok) throw new Error("Failed to load alerts analytics");
         if (!suspiciousRes.ok) throw new Error("Failed to load suspicious analytics");
-        if (!alertsListRes.ok) throw new Error("Failed to load alerts list");
+        if (!sentAlertsRes.ok || !receivedAlertsRes.ok)
+          throw new Error("Failed to load alerts list");
 
         const alertsData = (await alertsRes.json()) as AlertsAnalytics;
         const suspiciousData = (await suspiciousRes.json()) as SuspiciousAnalytics;
-        const alertsListRaw = (await alertsListRes.json()) as { alerts: any[] };
+        const sentAlertsRaw = (await sentAlertsRes.json()) as { alerts: any[] };
+        const receivedAlertsRaw = (await receivedAlertsRes.json()) as { alerts: any[] };
 
         let compareData: AlertsAnalytics | null = null;
         if (compare) {
@@ -259,7 +266,18 @@ export default function DashboardAnalyticsPage() {
           }
         }
 
-        const alertsList: AlertSummary[] = (alertsListRaw.alerts || []).map((a) => ({
+        const mergedAlertsRaw = [
+          ...(sentAlertsRaw.alerts || []),
+          ...(receivedAlertsRaw.alerts || []),
+        ];
+
+        mergedAlertsRaw.sort((a, b) => {
+          const aTime = new Date(a.createdAt as string).getTime();
+          const bTime = new Date(b.createdAt as string).getTime();
+          return bTime - aTime;
+        });
+
+        const alertsList: AlertSummary[] = mergedAlertsRaw.map((a) => ({
           id: a.id as string,
           title: (a.title as string) || "Alert",
           status: (a.status as string) || "UNKNOWN",
