@@ -1127,6 +1127,43 @@ export default function DashboardAnalyticsPage() {
                   {t('analytics.focus.timelineLabel')}
                 </p>
 
+                {/* Compact horizontal lifecycle line with nodes at each event time */}
+                {alertTimeline &&
+                  alertTimeline.events.length > 0 &&
+                  !timelineLoading &&
+                  !timelineError &&
+                  (() => {
+                    const events = alertTimeline.events;
+                    const startMs = new Date(events[0].time).getTime();
+                    const endMs = new Date(events[events.length - 1].time).getTime();
+                    const span = Math.max(1, endMs - startMs);
+
+                    return (
+                      <div className="mb-3 relative h-10">
+                        <div className="absolute inset-x-0 top-1/2 h-[2px] bg-white/20" />
+                        {events.map((ev) => {
+                          const t = new Date(ev.time).getTime();
+                          const ratio = span === 0 ? 0 : (t - startMs) / span;
+                          const leftPct = Math.min(100, Math.max(0, ratio * 100));
+                          const key = `${ev.kind}-${ev.time}-${ev.recipientId || ev.byUserId || ''}`;
+                          return (
+                            <div
+                              key={key}
+                              className="absolute -translate-x-1/2 -translate-y-1/2 top-1/2 flex flex-col items-center gap-1"
+                              style={{ left: `${leftPct}%` }}
+                            >
+                              <span className="w-2 h-2 rounded-full bg-gold-400 shadow-[0_0_6px_rgba(212,175,55,0.9)]" />
+                              <span className="max-w-[120px] truncate text-[9px] text-gray-300">
+                                {ev.kind}
+                                {ev.status ? ` · ${ev.status}` : ""}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
                 {timelineLoading && (
                   <p className="text-[11px] text-gray-400">
                     {t('analytics.focus.timelineLoading')}
@@ -1142,7 +1179,10 @@ export default function DashboardAnalyticsPage() {
                 {alertTimeline && alertTimeline.events.length > 0 && (
                   <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
                     {alertTimeline.events.map((ev) => (
-                      <div key={`${ev.kind}-${ev.time}-${ev.recipientId || ev.byUserId || ''}`} className="flex flex-col">
+                      <div
+                        key={`${ev.kind}-${ev.time}-${ev.recipientId || ev.byUserId || ''}`}
+                        className="flex flex-col"
+                      >
                         <span className="text-[11px] text-gray-400">
                           {formatShortDateTime(ev.time)}
                         </span>
@@ -1157,11 +1197,14 @@ export default function DashboardAnalyticsPage() {
                   </div>
                 )}
 
-                {alertTimeline && alertTimeline.events.length === 0 && !timelineLoading && !timelineError && (
-                  <p className="text-[11px] text-gray-400">
-                    {t('analytics.focus.timelineEmpty')}
-                  </p>
-                )}
+                {alertTimeline &&
+                  alertTimeline.events.length === 0 &&
+                  !timelineLoading &&
+                  !timelineError && (
+                    <p className="text-[11px] text-gray-400">
+                      {t('analytics.focus.timelineEmpty')}
+                    </p>
+                  )}
               </div>
             )}
            </section>
