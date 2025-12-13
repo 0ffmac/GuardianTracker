@@ -203,7 +203,7 @@ export function SessionsRadarModal(props: Props) {
   }, [filteredOverlapDevices, envWifiDevices, envBleDevices, deviceDistances]);
 
   const radarDevicesFull = useMemo<ModalDevice[]>(() => {
-    const max = 10;
+    const max = 20;
     if (modalDevices.length === 0) return [];
     const suspicious = modalDevices.filter((d) => !d.isTrusted);
     const trustedList = modalDevices.filter((d) => d.isTrusted);
@@ -720,50 +720,58 @@ export function SessionsRadarModal(props: Props) {
               {radarDevicesFull.map((d, index) => {
                 const angle =
                   (index / Math.max(radarDevicesFull.length, 1)) * 2 * Math.PI;
-
-                let effectiveMeters: number | null = d.avgMeters ?? null;
-                if (effectiveMeters == null) {
-                  const intensity =
-                    (d.sessionCount || 1) /
-                    (modalRadarStats.maxSessionCount || 1);
-                  effectiveMeters =
-                    bandEdges[bandEdges.length - 1] * intensity;
-                }
-
-                let bandIndex = 0;
-                for (let i = 1; i < bandEdges.length; i++) {
-                  if (effectiveMeters <= bandEdges[i]) {
-                    bandIndex = i;
-                    break;
-                  }
-                  bandIndex = i + 1;
-                }
-
-                const radius = getBandRadius(bandIndex);
-
-                const x = 50 + radius * Math.cos(angle);
-                const y = 50 + radius * Math.sin(angle);
-
-                const midRadius = radius * 0.5;
-                const midX = 50 + midRadius * Math.cos(angle);
-                const midY = 50 + midRadius * Math.sin(angle);
-
+ 
+                // Signal strength (001) controls visual size and bars
                 const strength =
                   modalRadarStats.maxTotalCount > 0
                     ? (d.totalCount || 1) / modalRadarStats.maxTotalCount
                     : 0.5;
-
+ 
+                // Distance estimation in meters:
+                // 1. Prefer real avgMeters when > 0.
+                // 2. Otherwise, distribute devices across rings based on their
+                //    rank (index) so that some are clearly closer/farther.
+                const maxBandDistance = bandEdges[bandEdges.length - 1] || 20;
+                const minVisualDistance = maxBandDistance * 0.15; // avoid everything at 0m
+                const positionRatio =
+                  radarDevicesFull.length > 1
+                    ? index / (radarDevicesFull.length - 1)
+                    : 0;
+ 
+                let distanceMeters: number =
+                  d.avgMeters && d.avgMeters > 0
+                    ? Math.min(d.avgMeters, maxBandDistance)
+                    : minVisualDistance + positionRatio * (maxBandDistance - minVisualDistance);
+ 
+                let bandIndex = bandEdges.length - 1;
+                for (let i = 1; i < bandEdges.length; i++) {
+                  if (distanceMeters <= bandEdges[i]) {
+                    bandIndex = i;
+                    break;
+                  }
+                }
+ 
+                const radius = getBandRadius(bandIndex);
+ 
+                const x = 50 + radius * Math.cos(angle);
+                const y = 50 + radius * Math.sin(angle);
+ 
+                const midRadius = radius * 0.5;
+                const midX = 50 + midRadius * Math.cos(angle);
+                const midY = 50 + midRadius * Math.sin(angle);
+ 
                 const deviceCount = radarDevicesFull.length || 1;
                 const densityFactor = Math.min(deviceCount / 10, 2);
-
-                // Map strength (0–1) into a clear visual size range
+ 
+                // Map strength (001) into a clear visual size range
                 const minSize = 20;
                 const maxSize = 46;
                 let size = minSize + strength * (maxSize - minSize);
-
+ 
                 // Light global shrink when there are many devices to reduce overlap
                 const densityScale = 1 / (1 + densityFactor * 0.25);
                 size *= densityScale;
+
 
                 const id = `${d.kind}-${d.key}`;
                 const isHovered = hoveredDeviceId === id;
@@ -785,8 +793,8 @@ export function SessionsRadarModal(props: Props) {
                       }}
                     />
 
-                    {/* Mid-line distance label (when meters are known) */}
-                    {d.avgMeters != null && (
+                    {/* Mid-line distance label using estimated meters */}
+                    {distanceMeters != null && (
                       <div
                         className="absolute text-[9px] text-gray-200 bg-black/70 px-1.5 py-0.5 rounded-full backdrop-blur-sm border border-white/10"
                         style={{
@@ -795,7 +803,7 @@ export function SessionsRadarModal(props: Props) {
                           transform: "translate(-50%, -50%)",
                         }}
                       >
-                        ~{Math.round(d.avgMeters)}m
+                        ~{Math.round(distanceMeters)}m
                       </div>
                     )}
 
@@ -852,9 +860,9 @@ export function SessionsRadarModal(props: Props) {
                         <div className="text-[10px] font-medium text-white text-center truncate bg-black/70 px-2 py-1 rounded-lg backdrop-blur-sm border border-white/10">
                           {d.label}
                         </div>
-                        {d.avgMeters != null && (
+                        {distanceMeters != null && (
                           <div className="text-[9px] text-gray-400 text-center mt-0.5">
-                            ~{Math.round(d.avgMeters)}m
+                            ~{Math.round(distanceMeters)}m
                           </div>
                         )}
                       </div>
