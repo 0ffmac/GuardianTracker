@@ -326,11 +326,9 @@ export default function Map({
         }
       });
     }
+ 
+     if (!bounds) {
 
-      });
-    }
-
-    if (!bounds) {
       // Nothing to fit or center on
       return;
     }
