@@ -33,6 +33,11 @@
   const [bleMapLoading, setBleMapLoading] = useState(false);
   const [bleMapError, setBleMapError] = useState<string | null>(null);
 
+  const selectedBleDevice = useMemo(
+    () => bleDevices.find((d) => d.address === selectedBleAddress) || null,
+    [bleDevices, selectedBleAddress],
+  );
+
   useEffect(() => {
     const fetchLocationHistory = async () => {
       const res = await fetch("/api/locations");
@@ -458,24 +463,33 @@
                </div>
  
                {bleDeviceLocations.length > 0 && (
+                 <div className="mt-4 h-[420px] rounded-2xl border border-gold-400/30 bg-gold-900/20 p-3">
+                   <h3 className="mb-2 text-sm font-semibold">
+                     {t('dashboard.metrics.bleTop.mapTitle')}
+                   </h3>
+                   <div className="h-[340px]">
+                     <Map
+                       locations={[]}
+                       currentLocation={null}
+                       fitOnUpdate
+                       autoZoomOnFirstPoint
+                       hidePopups
+                       wifiDevices={[]}
+                       bleDevices={bleDeviceLocations.map((loc) => ({
+                         address: selectedBleAddress || "",
+                         name: selectedBleDevice?.name ?? null,
+                         latitude: loc.latitude,
+                         longitude: loc.longitude,
+                         count: 1,
+                         avgRssi: null,
+                         firstSeen: loc.timestamp,
+                         lastSeen: loc.timestamp,
+                       }))}
+                     />
+                   </div>
+                 </div>
+               )}
 
-                <div className="mt-4 h-80 rounded-2xl border border-gold-400/30 bg-gold-900/20 p-3">
-                  <h3 className="mb-2 text-sm font-semibold">
-                    {t('dashboard.metrics.bleTop.mapTitle')}
-                  </h3>
-                  <div className="h-[260px]">
-                    <Map
-                      locations={bleDeviceLocations}
-                      currentLocation={bleDeviceLocations[bleDeviceLocations.length - 1]}
-                      fitOnUpdate
-                      autoZoomOnFirstPoint
-                      hidePopups
-                      wifiDevices={[]}
-                      bleDevices={[]}
-                    />
-                  </div>
-                </div>
-              )}
 
               {selectedBleAddress && !bleMapLoading &&
                 bleDeviceLocations.length === 0 &&
