@@ -27,7 +27,8 @@
     "peer": "^1.0.2",
     "react": "18.2.0",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "18.2.0"
+    "react-dom": "18.2.0",
+    "three": "^0.170.0"
   },
   "devDependencies": {
     "@types/leaflet": "^1.9.21",

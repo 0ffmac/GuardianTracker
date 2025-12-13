@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, Fragment } from "react";
+import { useEffect, useMemo, useState, useRef, Fragment } from "react";
 import dynamic from "next/dynamic";
 import { Bluetooth, Smartphone, Router } from "lucide-react";
 import { useLanguage } from "@/hooks/useLanguage";
@@ -107,6 +107,11 @@ export function SessionsRadarModal(props: Props) {
   >(new Map());
   const [zoomLevel, setZoomLevel] = useState<"near" | "medium" | "far">("medium");
   const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
+  const [radarZoom, setRadarZoom] = useState(1);
+  const [radarPan, setRadarPan] = useState({ x: 0, y: 0 });
+  const isPanningRef = useRef(false);
+  const panStartRef = useRef<{ x: number; y: number; mouseX: number; mouseY: number } | null>(null);
+  const [leftPanelHover, setLeftPanelHover] = useState(false);
 
   const [sessionMapLocations, setSessionMapLocations] = useState<
     Record<string, SessionMapLocation[]>
@@ -225,9 +230,7 @@ export function SessionsRadarModal(props: Props) {
   const hoveredDevice = useMemo(
     () =>
       hoveredDeviceId
-        ?
-            radarDevicesFull.find((d) => `${d.kind}-${d.key}` === hoveredDeviceId) ??
-          null
+        ? radarDevicesFull.find((d) => `${d.kind}-${d.key}` === hoveredDeviceId) ?? null
         : null,
     [hoveredDeviceId, radarDevicesFull]
   );
@@ -258,6 +261,7 @@ export function SessionsRadarModal(props: Props) {
   };
 
   const bandEdgesByZoom: Record<"near" | "medium" | "far", number[]> = {
+
     // Near: focus on 0–5m only
     near: [0, 5],
     // Medium: show 0–20m with a bit more spread
@@ -349,61 +353,24 @@ export function SessionsRadarModal(props: Props) {
     <div className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm overflow-y-auto flex items-start justify-center pt-24 pb-4">
       <div className="relative w-full max-w-7xl bg-surface rounded-2xl border border-white/20 shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 gap-4">
+        <div className="relative z-0 flex items-center justify-between px-4 py-3 border-b border-white/10 gap-4">
           <h2 className="text-sm font-semibold">
             {t('analytics.modal.title')}
           </h2>
 
           <div className="flex items-center gap-3 text-[11px] text-gray-300">
             {/* Device kind filter */}
-            <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
-               <button
-                 type="button"
-                 onClick={() => setDeviceKindFilter("all")}
-                 className={`px-2 py-0.5 rounded-full ${
-                   deviceKindFilter === "all" ? "bg-white text-black" : "text-gray-300"
-                 }`}
-               >
-                 {t('analytics.modal.deviceKind.all')}
-               </button>
-               <button
-                 type="button"
-                 onClick={() => setDeviceKindFilter("wifi")}
-                 className={`px-2 py-0.5 rounded-full ${
-                   deviceKindFilter === "wifi" ? "bg-white text-black" : "text-gray-300"
-                 }`}
-               >
-                 {t('analytics.modal.deviceKind.wifi')}
-               </button>
-               <button
-                 type="button"
-                 onClick={() => setDeviceKindFilter("ble")}
-                 className={`px-2 py-0.5 rounded-full ${
-                   deviceKindFilter === "ble" ? "bg-white text-black" : "text-gray-300"
-                 }`}
-               >
-                 {t('analytics.modal.deviceKind.ble')}
-               </button>
+            <DeviceKindFilterChips
+              value={deviceKindFilter}
+              onChange={setDeviceKindFilter}
+              labels={{
+                all: t('analytics.modal.deviceKind.all'),
+                wifi: t('analytics.modal.deviceKind.wifi'),
+                ble: t('analytics.modal.deviceKind.ble'),
+              }}
+              compact
+            />
 
-              <button
-                type="button"
-                onClick={() => setDeviceKindFilter("wifi")}
-                className={`px-2 py-0.5 rounded-full ${
-                  deviceKindFilter === "wifi" ? "bg-white text-black" : "text-gray-300"
-                }`}
-              >
-                Wi‑Fi
-              </button>
-              <button
-                type="button"
-                onClick={() => setDeviceKindFilter("ble")}
-                className={`px-2 py-0.5 rounded-full ${
-                  deviceKindFilter === "ble" ? "bg-white text-black" : "text-gray-300"
-                }`}
-              >
-                Bluetooth
-              </button>
-            </div>
             {/* Hide known toggle */}
              <label className="inline-flex items-center gap-2">
                <input
@@ -425,9 +392,17 @@ export function SessionsRadarModal(props: Props) {
           </div>
         </div>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-[280px,1fr] gap-4 p-4">
+        <div className="flex-1 relative z-10 grid grid-cols-1 md:grid-cols-[280px,1fr] gap-4 p-4">
           {/* Left: sessions + grouped devices */}
-          <div className="overflow-y-auto pr-2 text-xs">
+          <div
+            className={`relative z-10 text-xs transition-[opacity,transform,width] duration-300 ${
+              radarZoom > 1.05 && !leftPanelHover
+                ? "opacity-0 -translate-x-12 w-0 overflow-hidden pointer-events-none"
+                : "opacity-100 translate-x-0 w-auto overflow-y-auto pr-2 pointer-events-auto"
+            }`}
+            onMouseEnter={() => setLeftPanelHover(true)}
+            onMouseLeave={() => setLeftPanelHover(false)}
+          >
             {/* Session selection */}
             <div className="mb-4">
               <p className="text-[11px] uppercase tracking-wide text-gray-400 mb-1">
@@ -647,20 +622,52 @@ export function SessionsRadarModal(props: Props) {
 
           {/* Right: large radar + legend + details */}
           <div
-            className={`flex flex-col gap-4 ${
-              zoomLevel === "near" ? "overflow-y-auto pr-2" : ""
+            className={`relative z-20 flex flex-col gap-4 ${
+              zoomLevel === "near" ? "overflow-y-auto pr-2" : "overflow-hidden"
             }`}
           >
-            <div className="relative mx-auto mt-12 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-gradient-to-br from-black/60 via-gray-900/60 to-gray-900/80 overflow-hidden shadow-2xl">
-              {/* Animated scanning effect */}
-              <div className="absolute inset-0 rounded-full overflow-hidden">
-                <div
-                  className="absolute inset-0 bg-gradient-conic from-transparent via-blue-500/10 to-transparent animate-spin"
-                  style={{ animationDuration: "8s" }}
-                />
-              </div>
+            <div
+              className="relative z-30 mx-auto mt-12 aspect-square w-full max-w-xl rounded-full border border-white/15 bg-gradient-to-br from-black/60 via-gray-900/60 to-gray-900/80 overflow-visible shadow-2xl origin-center cursor-grab"
+              style={{
+                transform: `translate(${radarPan.x}px, ${radarPan.y}px) scale(${radarZoom})`,
+              }}
+              onWheel={(e) => {
+                e.preventDefault();
+                const direction = e.deltaY > 0 ? -0.1 : 0.1;
+                setRadarZoom((z) => {
+                  const next = z + direction;
+                  // clamp between 0.7x and 2x zoom
+                  return Math.min(2, Math.max(0.7, next));
+                });
+              }}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                isPanningRef.current = true;
+                panStartRef.current = {
+                  x: radarPan.x,
+                  y: radarPan.y,
+                  mouseX: e.clientX,
+                  mouseY: e.clientY,
+                };
+              }}
+              onMouseMove={(e) => {
+                if (!isPanningRef.current || !panStartRef.current) return;
+                const { x, y, mouseX, mouseY } = panStartRef.current;
+                const dx = e.clientX - mouseX;
+                const dy = e.clientY - mouseY;
+                setRadarPan({ x: x + dx, y: y + dy });
+              }}
+              onMouseUp={() => {
+                isPanningRef.current = false;
+                panStartRef.current = null;
+              }}
+              onMouseLeave={() => {
+                isPanningRef.current = false;
+                panStartRef.current = null;
+              }}
+            >
+               {/* Distance rings with glow and dynamic labels */}
 
-              {/* Distance rings with glow and dynamic labels */}
               {bandEdges.slice(1).map((distance, idx) => {
                 const size = ringBaseSize + (idx + 1) * ringStep;
                 return (
@@ -853,20 +860,25 @@ export function SessionsRadarModal(props: Props) {
                       </div>
 
                       {/* Signal strength indicator */}
-                      <div className="flex gap-0.5 mt-1">
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <div
-                            key={i}
-                            className="w-0.5 rounded-full transition-colors"
-                            style={{
-                              height: 4 + i * 2,
-                              background:
-                                i < strength * 5
-                                  ? color
-                                  : "rgba(255,255,255,0.2)",
-                            }}
-                          />
-                        ))}
+                      <div className="flex items-center gap-1 mt-1">
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: 5 }).map((_, i) => (
+                            <div
+                              key={i}
+                              className="w-0.5 rounded-full transition-colors"
+                              style={{
+                                height: 4 + i * 2,
+                                background:
+                                  i < strength * 5
+                                    ? color
+                                    : "rgba(255,255,255,0.2)",
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[9px] text-gray-300 font-mono">
+                          {Math.round(strength * 100)}%
+                        </span>
                       </div>
                     </button>
                   </Fragment>
@@ -878,43 +890,35 @@ export function SessionsRadarModal(props: Props) {
             <div className="mt-4 flex flex-wrap items-center justify-center gap-4 text-[11px] text-gray-300">
               {/* Zoom controls for distance bands */}
               <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
-                 <button
-                   type="button"
-                   onClick={() => setZoomLevel("near")}
-                   className={`px-2 py-0.5 rounded-full ${
-                     zoomLevel === "near"
-                       ? "bg-white text-black"
-                       : "text-gray-300"
-                   }`}
-                 >
-                   {t('analytics.modal.zoom.near')}
-                 </button>
-
-                 <button
-                   type="button"
-                   onClick={() => setZoomLevel("medium")}
-                   className={`px-2 py-0.5 rounded-full ${
-                     zoomLevel === "medium"
-                       ? "bg-white text-black"
-                       : "text-gray-300"
-                   }`}
-                 >
-                   {t('analytics.modal.zoom.medium')}
-                 </button>
-
-                 <button
-                   type="button"
-                   onClick={() => setZoomLevel("far")}
-                   className={`px-2 py-0.5 rounded-full ${
-                     zoomLevel === "far"
-                       ? "bg-white text-black"
-                       : "text-gray-300"
-                   }`}
-                 >
-                   {t('analytics.modal.zoom.far')}
-                 </button>
-
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel("near")}
+                  className={`px-2 py-0.5 rounded-full ${
+                    zoomLevel === "near" ? "bg-white text-black" : "text-gray-300"
+                  }`}
+                >
+                  {t('analytics.modal.zoom.near')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel("medium")}
+                  className={`px-2 py-0.5 rounded-full ${
+                    zoomLevel === "medium" ? "bg-white text-black" : "text-gray-300"
+                  }`}
+                >
+                  {t('analytics.modal.zoom.medium')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setZoomLevel("far")}
+                  className={`px-2 py-0.5 rounded-full ${
+                    zoomLevel === "far" ? "bg-white text-black" : "text-gray-300"
+                  }`}
+                >
+                  {t('analytics.modal.zoom.far')}
+                </button>
               </div>
+
 
                <div className="flex items-center gap-2">
                  <span className="w-3 h-3 rounded-full bg-orange-500/80" />
@@ -929,15 +933,17 @@ export function SessionsRadarModal(props: Props) {
                  <span>{t('analytics.modal.legend.bluetooth')}</span>
                </div>
 
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
-                <span>Mobiles & phone hotspots</span>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-emerald-500/80" />
+                  <span>Mobiles & phone hotspots</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3 h-3 rounded-full bg-purple-500/80" />
+                  <span>Bluetooth devices</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-purple-500/80" />
-                <span>Bluetooth devices</span>
-              </div>
-            </div>
+
+
 
             <p className="mt-2 text-[11px] text-gray-400">
                {t('analytics.modal.description')}
@@ -1198,3 +1204,51 @@ export function SessionsRadarModal(props: Props) {
     </div>
   );
 }
+
+interface DeviceKindFilterChipsProps {
+  value: "all" | "wifi" | "ble";
+  onChange: (value: "all" | "wifi" | "ble") => void;
+  labels: { all: string; wifi: string; ble: string };
+  compact?: boolean;
+}
+
+function DeviceKindFilterChips({
+  value,
+  onChange,
+  labels,
+  compact,
+}: DeviceKindFilterChipsProps) {
+  const chipBase = compact ? "px-2 py-0.5 text-[11px]" : "px-2 py-1 text-[11px]";
+
+  const chipClass = (kind: "all" | "wifi" | "ble") =>
+    `${chipBase} rounded-full ${
+      value === kind ? "bg-white text-black" : "text-gray-300"
+    }`;
+
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-black/40 border border-white/15 p-1">
+      <button
+        type="button"
+        onClick={() => onChange("all")}
+        className={chipClass("all")}
+      >
+        {labels.all}
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("wifi")}
+        className={chipClass("wifi")}
+      >
+        {labels.wifi}
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("ble")}
+        className={chipClass("ble")}
+      >
+        {labels.ble}
+      </button>
+    </div>
+  );
+}
+

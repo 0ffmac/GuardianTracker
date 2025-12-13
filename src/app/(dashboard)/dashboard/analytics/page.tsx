@@ -22,7 +22,7 @@ import {
   BarController,
   LineController,
 } from "chart.js";
-import { Bar } from "react-chartjs-2";
+import { Chart as ReactChart } from "react-chartjs-2";
 
 ChartJS.register(
   CategoryScale,
@@ -1070,7 +1070,8 @@ export default function DashboardAnalyticsPage() {
               alertsAnalytics.timeBuckets.length > 0 &&
               alertsOverTimeChartData && (
                 <div className="h-52 border border-white/5 rounded-lg px-3 py-2 bg-black/20">
-                  <Bar
+                  <ReactChart<'bar' | 'line', (number | null)[]>
+                    type="bar"
                     data={{
                       labels: alertsOverTimeChartData.labels,
                       datasets: [

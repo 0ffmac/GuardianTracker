@@ -89,6 +89,7 @@ export function SessionsCorrelationSection({
   const [overlapPage, setOverlapPage] = useState(0);
   const pageSize = 15;
   const { t } = useLanguage();
+  const [showMiniRadar, setShowMiniRadar] = useState(true);
 
   // Reset pagination when filters or selection change
   useEffect(() => {
@@ -321,8 +322,21 @@ export function SessionsCorrelationSection({
 
         {/* Right: radar + overlapping devices table */}
         <div className="space-y-4">
-          {/* Mini radar */}
-          <div className="relative mx-auto aspect-square max-w-xs rounded-full border border-white/15 bg-black/40 overflow-hidden">
+          <div className="flex items-center justify-between text-[11px] text-gray-300">
+            <span className="font-semibold">
+              {t("analytics.sessions.radar.caption")}
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowMiniRadar((v) => !v)}
+              className="px-2 py-0.5 rounded-full border border-white/15 text-[10px] text-gray-200 hover:bg-white/10 transition-colors"
+            >
+              {showMiniRadar ? "Hide" : "Show"}
+            </button>
+          </div>
+
+          {showMiniRadar && (
+            <div className="relative mx-auto aspect-square max-w-xs rounded-full border border-white/15 bg-black/40 overflow-hidden">
             {/* Concentric rings */}
             <div className="absolute inset-6 rounded-full border border-white/5" />
             <div className="absolute inset-12 rounded-full border border-white/5" />
@@ -375,10 +389,7 @@ export function SessionsCorrelationSection({
             <div className="absolute left-1/2 top-0 -translate-x-1/2 h-full w-px bg-white/5" />
             <div className="absolute top-1/2 left-0 -translate-y-1/2 w-full h-px bg-white/5" />
           </div>
-
-          <p className="text-[11px] text-gray-400 text-center">
-            {t("analytics.sessions.radar.caption")}
-          </p>
+          )}
 
           <div className="mt-2 flex justify-center">
             <button
