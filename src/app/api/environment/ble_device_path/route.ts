@@ -40,6 +40,7 @@ export async function GET(request: Request) {
             deviceId: true,
             timestamp: true,
             source: true,
+            trackingSessionId: true,
           },
         },
       },

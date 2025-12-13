@@ -1,5 +1,6 @@
-"use client";
- import { useState, useEffect } from "react";
+ "use client";
+  import { useState, useEffect, useMemo } from "react";
+
  import dynamic from "next/dynamic";
  import { Navbar } from "@/components/Navbar";
  import { useLanguage } from "@/hooks/useLanguage";
@@ -13,6 +14,7 @@
    deviceId: string | null;
    timestamp: string;
    source?: "gps" | "wifi" | "hybrid" | null;
+   trackingSessionId?: string | null;
  }
  
  export default function DashboardMetricsPage() {
@@ -25,6 +27,9 @@
   const [environmentSummary, setEnvironmentSummary] = useState<any>(null);
   const [selectedBleAddress, setSelectedBleAddress] = useState<string | null>(null);
   const [bleDeviceLocations, setBleDeviceLocations] = useState<Location[]>([]);
+  const [bleDeviceLocationsRaw, setBleDeviceLocationsRaw] = useState<Location[]>([]);
+  const [bleRangeFrom, setBleRangeFrom] = useState<string>("");
+  const [bleRangeTo, setBleRangeTo] = useState<string>("");
   const [bleMapLoading, setBleMapLoading] = useState(false);
   const [bleMapError, setBleMapError] = useState<string | null>(null);
 
@@ -62,6 +67,26 @@
      loadEnvironment();
    }, [selectedSessionId]);
 
+   useEffect(() => {
+     if (!bleDeviceLocationsRaw || bleDeviceLocationsRaw.length === 0) {
+       setBleDeviceLocations([]);
+       return;
+     }
+
+     const fromTime = bleRangeFrom ? new Date(bleRangeFrom).getTime() : null;
+     const toTime = bleRangeTo ? new Date(bleRangeTo).getTime() : null;
+
+     const filtered = bleDeviceLocationsRaw.filter((loc) => {
+       const ts = new Date(loc.timestamp).getTime();
+       if (Number.isNaN(ts)) return false;
+       if (fromTime !== null && ts < fromTime) return false;
+       if (toTime !== null && ts > toTime) return false;
+       return true;
+     });
+
+     setBleDeviceLocations(filtered);
+   }, [bleDeviceLocationsRaw, bleRangeFrom, bleRangeTo]);
+
    const handleShowBleDeviceMap = async () => {
      if (!selectedBleAddress) return;
      try {
@@ -74,18 +99,96 @@
          throw new Error("Failed to load BLE device path");
        }
        const data = await res.json();
-       setBleDeviceLocations((data.locations || []) as Location[]);
+       const locations = (data.locations || []) as Location[];
+       setBleDeviceLocationsRaw(locations);
      } catch (err) {
        console.error("Failed to load BLE device path", err);
        setBleMapError("Failed to load Bluetooth device map.");
+       setBleDeviceLocationsRaw([]);
        setBleDeviceLocations([]);
      } finally {
        setBleMapLoading(false);
      }
    };
 
+   const bleSessionsSummary = useMemo(() => {
+     if (!selectedBleAddress || bleDeviceLocations.length === 0) return [];
 
-  return (
+     const locationsBySession: Record<string, Location[]> = {};
+
+     const distanceMeters = (
+       lat1: number,
+       lon1: number,
+       lat2: number,
+       lon2: number,
+     ) => {
+       const R = 6371000; // meters
+       const toRad = (v: number) => (v * Math.PI) / 180;
+       const dLat = toRad(lat2 - lat1);
+       const dLon = toRad(lon2 - lon1);
+       const a =
+         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+         Math.cos(toRad(lat1)) *
+           Math.cos(toRad(lat2)) *
+           Math.sin(dLon / 2) *
+           Math.sin(dLon / 2);
+       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+       return R * c;
+     };
+
+     bleDeviceLocations.forEach((loc) => {
+       const sid = (loc as any).trackingSessionId || "unknown";
+       if (!locationsBySession[sid]) {
+         locationsBySession[sid] = [];
+       }
+       locationsBySession[sid].push(loc);
+     });
+
+     const summaries = Object.entries(locationsBySession).map(([sid, locs]) => {
+       if (locs.length === 0) {
+         return {
+           sessionId: sid,
+           label: t("settings.sessions.sessionFallback"),
+           count: 0,
+           multiPlace: false,
+         };
+       }
+
+       let maxDist = 0;
+       for (let i = 0; i < locs.length; i++) {
+         for (let j = i + 1; j < locs.length; j++) {
+           const d = distanceMeters(
+             locs[i].latitude,
+             locs[i].longitude,
+             locs[j].latitude,
+             locs[j].longitude,
+           );
+           if (d > maxDist) maxDist = d;
+         }
+       }
+
+       const session =
+         trackingSessions.find((s) => s.id === sid) || null;
+       const label =
+         session?.name ||
+         (session
+           ? `Session ${new Date(session.startTime).toLocaleString()}`
+           : t("settings.sessions.sessionFallback"));
+
+       return {
+         sessionId: sid,
+         label,
+         count: locs.length,
+         multiPlace: maxDist >= 20,
+       };
+     });
+
+     return summaries;
+   }, [bleDeviceLocations, trackingSessions, selectedBleAddress, t]);
+
+
+   return (
+
     <div className="min-h-screen bg-background text-white">
       <Navbar />
       <div className="max-w-7xl mx-auto px-6 py-8 pt-20">
@@ -227,12 +330,20 @@
                       >
                         <td className="py-1 pr-2 align-middle">
                           <input
-                            type="radio"
-                            name="ble-top-select"
-                            className="h-4 w-4 cursor-pointer accent-gold-400"
-                            checked={selectedBleAddress === dev.address}
-                            onChange={() => setSelectedBleAddress(dev.address)}
-                          />
+                             type="radio"
+                             name="ble-top-select"
+                             className="h-4 w-4 cursor-pointer accent-gold-400"
+                             checked={selectedBleAddress === dev.address}
+                             onChange={() => {
+                               setSelectedBleAddress(dev.address);
+                               setBleDeviceLocationsRaw([]);
+                               setBleDeviceLocations([]);
+                               setBleRangeFrom("");
+                               setBleRangeTo("");
+                               setBleMapError(null);
+                             }}
+                           />
+
                         </td>
                         <td className="py-1 pr-4 text-white">
                           {dev.name || (
@@ -250,23 +361,104 @@
                 </tbody>
               </table>
 
-              <div className="mt-4 flex flex-col gap-2">
-                <button
-                  type="button"
-                  onClick={handleShowBleDeviceMap}
-                  disabled={!selectedBleAddress || bleMapLoading}
-                  className="inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-black shadow disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {bleMapLoading
-                    ? t('dashboard.metrics.bleTop.mapButton.loading')
-                    : t('dashboard.metrics.bleTop.mapButton')}
-                </button>
-                {bleMapError && (
-                  <p className="text-xs text-red-400">{bleMapError}</p>
-                )}
-              </div>
+               <div className="mt-4 flex flex-col gap-2">
+                 <button
+                   type="button"
+                   onClick={handleShowBleDeviceMap}
+                   disabled={!selectedBleAddress || bleMapLoading}
+                   className="inline-flex items-center justify-center rounded-lg bg-gold-500 px-4 py-2 text-sm font-semibold text-black shadow disabled:cursor-not-allowed disabled:opacity-60"
+                 >
+                   {bleMapLoading
+                     ? t('dashboard.metrics.bleTop.mapButton.loading')
+                     : t('dashboard.metrics.bleTop.mapButton')}
+                 </button>
+                 {bleMapError && (
+                   <p className="text-xs text-red-400">{bleMapError}</p>
+                 )}
+               </div>
 
-              {bleDeviceLocations.length > 0 && (
+               <div className="mt-4 grid gap-3 text-xs text-gray-200 md:grid-cols-3">
+                 <div className="md:col-span-2 flex flex-wrap items-end gap-3">
+                   <span className="font-semibold text-sm text-gold-200">
+                     {t('dashboard.metrics.bleTop.range.label')}
+                   </span>
+                   <div className="flex flex-col gap-1">
+                     <label className="text-[11px] uppercase tracking-wide text-gray-400">
+                       {t('dashboard.metrics.bleTop.range.from')}
+                     </label>
+                     <input
+                       type="datetime-local"
+                       value={bleRangeFrom}
+                       onChange={(e) => setBleRangeFrom(e.target.value)}
+                       className="rounded-md bg-gold-950/40 border border-gold-500/40 px-2 py-1 text-[11px] text-gold-100 focus:outline-none focus:ring-1 focus:ring-gold-400"
+                     />
+                   </div>
+                   <div className="flex flex-col gap-1">
+                     <label className="text-[11px] uppercase tracking-wide text-gray-400">
+                       {t('dashboard.metrics.bleTop.range.to')}
+                     </label>
+                     <input
+                       type="datetime-local"
+                       value={bleRangeTo}
+                       onChange={(e) => setBleRangeTo(e.target.value)}
+                       className="rounded-md bg-gold-950/40 border border-gold-500/40 px-2 py-1 text-[11px] text-gold-100 focus:outline-none focus:ring-1 focus:ring-gold-400"
+                     />
+                   </div>
+                 </div>
+                 {bleSessionsSummary.length > 0 && (
+                   <div className="md:col-span-1">
+                     <p className="mb-1 text-[11px] uppercase tracking-wide text-gray-400">
+                       {t('dashboard.metrics.bleTop.sessionsTitle')}
+                     </p>
+                     <div className="max-h-32 overflow-auto rounded-md border border-white/10 bg-black/20">
+                       <table className="min-w-full text-[11px]">
+                         <thead>
+                           <tr className="text-left text-gray-400 border-b border-white/10">
+                             <th className="py-1 px-2">
+                               {t('dashboard.metrics.bleTop.sessions.columns.session')}
+                             </th>
+                             <th className="py-1 px-2">
+                               {t('dashboard.metrics.bleTop.sessions.columns.sightings')}
+                             </th>
+                             <th className="py-1 px-2">
+                               {t('dashboard.metrics.bleTop.sessions.columns.multiPlace')}
+                             </th>
+                           </tr>
+                         </thead>
+                         <tbody>
+                           {bleSessionsSummary.map((row) => (
+                             <tr
+                               key={row.sessionId}
+                               className="border-b border-white/5 last:border-b-0"
+                             >
+                               <td className="py-1 px-2 text-gray-100">{row.label}</td>
+                               <td className="py-1 px-2 text-gold-200 font-semibold">
+                                 {row.count}
+                               </td>
+                               <td className="py-1 px-2">
+                                 <span
+                                   className={
+                                     row.multiPlace
+                                       ? "inline-flex items-center rounded-full bg-emerald-600/60 px-2 py-0.5 text-[10px] font-semibold text-emerald-50"
+                                       : "inline-flex items-center rounded-full bg-gray-700/70 px-2 py-0.5 text-[10px] font-semibold text-gray-100"
+                                   }
+                                 >
+                                   {row.multiPlace
+                                     ? t('dashboard.metrics.bleTop.sessions.multiPlace.yes')
+                                     : t('dashboard.metrics.bleTop.sessions.multiPlace.no')}
+                                 </span>
+                               </td>
+                             </tr>
+                           ))}
+                         </tbody>
+                       </table>
+                     </div>
+                   </div>
+                 )}
+               </div>
+ 
+               {bleDeviceLocations.length > 0 && (
+
                 <div className="mt-4 h-80 rounded-2xl border border-gold-400/30 bg-gold-900/20 p-3">
                   <h3 className="mb-2 text-sm font-semibold">
                     {t('dashboard.metrics.bleTop.mapTitle')}
