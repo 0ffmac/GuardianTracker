@@ -5,8 +5,86 @@ import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
 import fs from "fs/promises";
 import path from "path";
+import { google } from "googleapis";
 
 export const runtime = "nodejs";
+
+const FCM_SCOPES = ["https://www.googleapis.com/auth/firebase.messaging"];
+const FCM_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+
+async function getFcmAccessToken(): Promise<string> {
+  if (!FCM_PROJECT_ID) {
+    throw new Error("FIREBASE_PROJECT_ID is not set");
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    scopes: FCM_SCOPES,
+  });
+
+  const client = await auth.getClient();
+  const accessTokenObj = await client.getAccessToken();
+  const accessToken = accessTokenObj?.token;
+
+  if (!accessToken) {
+    throw new Error("Unable to obtain FCM access token");
+  }
+
+  return accessToken;
+}
+
+async function sendAndroidAlertAudioPush(
+  tokens: string[],
+  payload: {
+    alertId: string;
+    senderId: string;
+    senderName: string;
+    title: string;
+  }
+) {
+  if (!tokens.length) return;
+
+  const accessToken = await getFcmAccessToken();
+  const url = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
+
+  const { alertId, senderId, senderName, title } = payload;
+  const notificationTitle = `New audio message from ${senderName}`;
+  const body = title || "Tap to listen to the message";
+
+  for (const token of tokens) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: {
+              title: notificationTitle,
+              body,
+            },
+            data: {
+              type: "EMERGENCY_ALERT",
+              event: "AUDIO_MESSAGE",
+              alertId,
+              fromUserId: senderId,
+              fromUserName: senderName,
+            },
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "<no body>");
+        console.error("[alerts/[id]/audio] FCM v1 send failed", res.status, text);
+      }
+    } catch (err) {
+      console.error("[alerts/[id]/audio] Error sending FCM v1 push", err);
+    }
+  }
+}
 
 // Handle audio message uploads for a specific alert
 export async function POST(request: Request, { params }: { params: { id: string } }) {
@@ -47,7 +125,21 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     // Verify that the alert exists and that the user has permission to add audio to it
     const alert = await prisma.alert.findUnique({
-      where: { id: alertId }
+      where: { id: alertId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        alertRecipients: {
+          select: {
+            contactId: true,
+          },
+        },
+      },
     });
 
     if (!alert) {
@@ -167,10 +259,74 @@ export async function POST(request: Request, { params }: { params: { id: string 
       });
     }
 
+    // After saving the audio message, notify intended recipients via push
+    try {
+      const message: any = audioMessage;
+      const alertWithRecipients: any = alert;
+
+      if (message && alertWithRecipients) {
+        const senderId: string = message.senderId;
+        const senderName: string =
+          message.sender?.name || message.sender?.email || "Emergency contact";
+
+        let targetUserIds: string[] = [];
+
+        if (message.receiverId) {
+          // Direct message to a single user
+          targetUserIds = [message.receiverId as string];
+        } else if (isCreator) {
+          // Broadcast from alert creator to all recipients
+          const recipients =
+            (alertWithRecipients.alertRecipients || []) as { contactId: string }[];
+          targetUserIds = recipients.map((r) => r.contactId);
+        }
+
+        // Avoid notifying the sender themself
+        targetUserIds = targetUserIds.filter((id) => id && id !== senderId);
+
+        if (targetUserIds.length > 0) {
+          const pushTokens = await (prisma as any).pushToken.findMany({
+            where: {
+              userId: { in: targetUserIds },
+              platform: "android",
+            },
+          });
+
+          const distinctTokens: string[] = [];
+          const seen = new Set<string>();
+          for (const t of pushTokens || []) {
+            const token = (t as any).token as string | undefined;
+            if (token && !seen.has(token)) {
+              seen.add(token);
+              distinctTokens.push(token);
+            }
+          }
+
+          if (distinctTokens.length > 0) {
+            const alertTitle: string =
+              alertWithRecipients.title || "Emergency Alert";
+
+            await sendAndroidAlertAudioPush(distinctTokens, {
+              alertId,
+              senderId,
+              senderName,
+              title: alertTitle,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[alerts/[id]/audio] Failed to send audio push notifications",
+        err
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      audioMessage
+      audioMessage,
     });
+
   } catch (error) {
     console.error("Error creating audio message:", error);
     return NextResponse.json(

@@ -3,8 +3,98 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import jwt from "jsonwebtoken";
+import { google } from "googleapis";
 
 export const runtime = "nodejs";
+
+const FCM_SCOPES = ["https://www.googleapis.com/auth/firebase.messaging"];
+const FCM_PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
+
+async function getFcmAccessToken(): Promise<string> {
+  if (!FCM_PROJECT_ID) {
+    throw new Error("FIREBASE_PROJECT_ID is not set");
+  }
+
+  const auth = new google.auth.GoogleAuth({
+    scopes: FCM_SCOPES,
+  });
+
+  const client = await auth.getClient();
+  const accessTokenObj = await client.getAccessToken();
+  const accessToken = accessTokenObj?.token;
+
+  if (!accessToken) {
+    throw new Error("Unable to obtain FCM access token");
+  }
+
+  return accessToken;
+}
+
+async function sendAndroidAlertResponsePush(
+  tokens: string[],
+  payload: {
+    alertId: string;
+    action: string;
+    responderName: string;
+    responderId: string;
+    creatorId: string;
+    alertTitle: string;
+  }
+) {
+  if (!tokens.length) return;
+
+  const accessToken = await getFcmAccessToken();
+  const url = `https://fcm.googleapis.com/v1/projects/${FCM_PROJECT_ID}/messages:send`;
+
+  const { alertId, action, responderName, responderId, creatorId, alertTitle } = payload;
+
+  const actionLabel =
+    action === "acknowledge"
+      ? "acknowledged"
+      : action === "dismiss"
+      ? "dismissed"
+      : "responded to";
+
+  const title = `${responderName} ${actionLabel} your alert`;
+  const body = alertTitle || "Tap to view the alert thread";
+
+  for (const token of tokens) {
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json; charset=UTF-8",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          message: {
+            token,
+            notification: {
+              title,
+              body,
+            },
+            data: {
+              type: "EMERGENCY_ALERT",
+              event: "RECIPIENT_RESPONSE",
+              alertId,
+              action,
+              fromUserId: responderId,
+              fromUserName: responderName,
+              toUserId: creatorId,
+            },
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "<no body>");
+        console.error("[alerts/[id]/respond] FCM v1 send failed", res.status, text);
+      }
+    } catch (err) {
+      console.error("[alerts/[id]/respond] Error sending FCM v1 push", err);
+    }
+  }
+}
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   try {
@@ -46,8 +136,28 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const alertRecipient = await prisma.alertRecipient.findFirst({
       where: {
         alertId,
-        contactId: userId
-      }
+        contactId: userId,
+      },
+      include: {
+        alert: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
     
     if (!alertRecipient) {
@@ -104,17 +214,68 @@ export async function POST(request: Request, { params }: { params: { id: string 
     // Update the alert recipient status
     const updatedAlertRecipient = await prisma.alertRecipient.update({
       where: {
-        id: alertRecipient.id
+        id: alertRecipient.id,
       },
       data: {
         status: newStatus,
-        respondedAt
-      }
+        respondedAt,
+      },
     });
-    
+
+    // For non-read actions, notify the alert creator via push
+    try {
+      if (
+        action !== "read" &&
+        alertRecipient.alert &&
+        alertRecipient.alert.user &&
+        alertRecipient.alert.user.id &&
+        alertRecipient.contact
+      ) {
+        const creatorUserId = alertRecipient.alert.user.id;
+        const responder = alertRecipient.contact;
+
+        const pushTokens = await (prisma as any).pushToken.findMany({
+          where: {
+            userId: creatorUserId,
+            platform: "android",
+          },
+        });
+
+        const distinctTokens: string[] = [];
+        const seen = new Set<string>();
+        for (const t of pushTokens || []) {
+          const token = (t as any).token as string | undefined;
+          if (token && !seen.has(token)) {
+            seen.add(token);
+            distinctTokens.push(token);
+          }
+        }
+
+        if (distinctTokens.length > 0) {
+          const responderName =
+            responder.name || responder.email || "Emergency contact";
+          const alertTitle = alertRecipient.alert.title || "Emergency Alert";
+
+          await sendAndroidAlertResponsePush(distinctTokens, {
+            alertId,
+            action,
+            responderName,
+            responderId: responder.id,
+            creatorId: creatorUserId,
+            alertTitle,
+          });
+        }
+      }
+    } catch (err) {
+      console.error(
+        "[alerts/[id]/respond] Failed to send response push notifications",
+        err
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      alertRecipient: updatedAlertRecipient
+      alertRecipient: updatedAlertRecipient,
     });
   } catch (error) {
     console.error("Error responding to alert:", error);
