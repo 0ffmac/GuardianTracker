@@ -176,57 +176,154 @@ export default function Map({
 
     layerGroup.clearLayers();
 
-    if (locations.length === 0) return;
+    let bounds: L.LatLngBounds | null = null;
 
+    if (locations.length > 0) {
+      // Draw snapped polyline if available
+      if (
+        snappedGeoJson &&
+        snappedGeoJson.type === "LineString" &&
+        Array.isArray(snappedGeoJson.coordinates)
+      ) {
+        const snappedCoords = snappedGeoJson.coordinates.map(
+          ([lon, lat]: [number, number]) => [lat, lon],
+        );
+        const polyline = L.polyline(snappedCoords, {
+          color: "#00e676",
+          weight: 5,
+          opacity: 0.95,
+          smoothFactor: 1,
+        }).addTo(layerGroup);
+        bounds = polyline.getBounds();
+      } else {
+        // Fallback: draw raw points
+        const coords: [number, number][] = locations.map((l) => [
+          l.latitude,
+          l.longitude,
+        ]);
+        const polyline = L.polyline(coords, {
+          color: "#667eea",
+          weight: 4,
+          opacity: 0.85,
+          smoothFactor: 1,
+        }).addTo(layerGroup);
+        bounds = polyline.getBounds();
+      }
 
-    let bounds: L.LatLngBoundsExpression | null = null;
+      // Place Marker on the Last Location
+      const lastLocationData = locations[locations.length - 1];
+      const lastLatLng: L.LatLngExpression = [
+        lastLocationData.latitude,
+        lastLocationData.longitude,
+      ];
+      const sourceLabel =
+        lastLocationData.source === "wifi"
+          ? "Wi-Fi"
+          : lastLocationData.source === "hybrid"
+          ? "Hybrid (GPS + Wi-Fi)"
+          : "GPS";
 
-    // Draw snapped polyline if available
-    if (snappedGeoJson && snappedGeoJson.type === "LineString" && Array.isArray(snappedGeoJson.coordinates)) {
-      const snappedCoords = snappedGeoJson.coordinates.map(([lon, lat]: [number, number]) => [lat, lon]);
-      const polyline = L.polyline(snappedCoords, {
-        color: "#00e676",
-        weight: 5,
-        opacity: 0.95,
-        smoothFactor: 1,
+      const currentMarker = L.marker(lastLatLng, {
+        icon: getCustomIcon(lastLocationData.source),
       }).addTo(layerGroup);
-      bounds = polyline.getBounds();
+
+      if (!hidePopups) {
+        currentMarker.bindPopup(
+          `<strong>Current Location</strong><br><small>${new Date(
+            lastLocationData.timestamp,
+          ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`,
+        );
+      }
+    }
+
+    // Wi-Fi device markers
+    if (Array.isArray(wifiDevices)) {
+      wifiDevices.forEach((d) => {
+        const latLng = L.latLng(d.latitude, d.longitude);
+        const marker = L.circleMarker(latLng, {
+          radius: 6,
+          color: "#38bdf8",
+          weight: 1,
+          fillColor: "#0ea5e9",
+          fillOpacity: 0.85,
+        }).addTo(layerGroup);
+
+        bounds = bounds ? bounds.extend(latLng) : L.latLngBounds(latLng, latLng);
+
+        if (!hidePopups) {
+          marker.bindPopup(
+            `<strong>Wi-Fi</strong><br />SSID: ${
+              d.ssid || "(hidden)"
+            }<br />BSSID: ${d.bssid}<br />Samples: ${d.count}<br />Avg RSSI: ${
+              d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
+            }<br /><small>${
+              d.firstSeen
+                ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />`
+                : ""
+            }${
+              d.lastSeen
+                ? `Last: ${new Date(d.lastSeen).toLocaleString()}`
+                : ""
+            }</small>`,
+          );
+        }
+      });
+    }
+
+    // BLE device markers
+    if (Array.isArray(bleDevices)) {
+      bleDevices.forEach((d) => {
+        const latLng = L.latLng(d.latitude, d.longitude);
+        const marker = L.circleMarker(latLng, {
+          radius: 6,
+          color: "#a855f7",
+          weight: 1,
+          fillColor: "#c4b5fd",
+          fillOpacity: 0.85,
+        }).addTo(layerGroup);
+
+        bounds = bounds ? bounds.extend(latLng) : L.latLngBounds(latLng, latLng);
+
+        if (!hidePopups) {
+          marker.bindPopup(
+            `<strong>Bluetooth</strong><br />Name: ${
+              d.name || "(unknown)"
+            }<br />Address: ${d.address}<br />Samples: ${d.count}<br />Avg RSSI: ${
+              d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
+            }<br /><small>${
+              d.firstSeen
+                ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />`
+                : ""
+            }${
+              d.lastSeen
+                ? `Last: ${new Date(d.lastSeen).toLocaleString()}`
+                : ""
+            }</small>`,
+          );
+        }
+      });
+    }
+
+    if (!bounds) {
+      // Nothing to fit or center on
+      return;
+    }
+
+    // Fit Bounds to show the entire route or device cloud
+    if (locations.length === 0) {
+      if (fitOnUpdate) {
+        map.fitBounds(bounds, {
+          padding: [50, 50],
+          maxZoom: 16,
+        });
+      }
     } else {
-      // Fallback: draw raw points
-      const coords: [number, number][] = locations.map((l) => [l.latitude, l.longitude]);
-      const polyline = L.polyline(coords, {
-        color: "#667eea",
-        weight: 4,
-        opacity: 0.85,
-        smoothFactor: 1,
-      }).addTo(layerGroup);
-      bounds = polyline.getBounds();
-    }
+      const lastLocationData = locations[locations.length - 1];
+      const lastLatLng: L.LatLngExpression = [
+        lastLocationData.latitude,
+        lastLocationData.longitude,
+      ];
 
-    // Place Marker on the Last Location
-    const lastLocationData = locations[locations.length - 1];
-    const lastLatLng: L.LatLngExpression = [lastLocationData.latitude, lastLocationData.longitude];
-    const sourceLabel =
-      lastLocationData.source === "wifi"
-        ? "Wi-Fi"
-        : lastLocationData.source === "hybrid"
-        ? "Hybrid (GPS + Wi-Fi)"
-        : "GPS";
-
-    const currentMarker = L.marker(lastLatLng, { icon: getCustomIcon(lastLocationData.source) }).addTo(
-      layerGroup
-    );
-
-    if (!hidePopups) {
-      currentMarker.bindPopup(
-        `<strong>Current Location</strong><br><small>${new Date(
-          lastLocationData.timestamp
-        ).toLocaleString()}</small><br/><small>Source: ${sourceLabel}</small>`
-      );
-    }
-
-    // Fit Bounds to show the entire route
-    if (bounds) {
       if (locations.length === 1 && autoZoomOnFirstPoint) {
         map.setView(lastLatLng, 16);
       } else if (fitOnUpdate) {
@@ -237,54 +334,6 @@ export default function Map({
       } else {
         map.setView(lastLatLng, pointZoom);
       }
-    }
-
-    // Wi-Fi device markers
-    if (Array.isArray(wifiDevices)) {
-      wifiDevices.forEach((d) => {
-        const latLng: L.LatLngExpression = [d.latitude, d.longitude];
-        const marker = L.circleMarker(latLng, {
-          radius: 6,
-          color: "#38bdf8",
-          weight: 1,
-          fillColor: "#0ea5e9",
-          fillOpacity: 0.85,
-        }).addTo(layerGroup);
-
-        if (!hidePopups) {
-          marker.bindPopup(
-            `<strong>Wi-Fi</strong><br />SSID: ${d.ssid || "(hidden)"}<br />BSSID: ${d.bssid}<br />Samples: ${d.count}<br />Avg RSSI: ${
-              d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
-            }<br /><small>${
-              d.firstSeen ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />` : ""
-            }${d.lastSeen ? `Last: ${new Date(d.lastSeen).toLocaleString()}` : ""}</small>`
-          );
-        }
-      });
-    }
-
-    // BLE device markers
-    if (Array.isArray(bleDevices)) {
-      bleDevices.forEach((d) => {
-        const latLng: L.LatLngExpression = [d.latitude, d.longitude];
-        const marker = L.circleMarker(latLng, {
-          radius: 6,
-          color: "#a855f7",
-          weight: 1,
-          fillColor: "#c4b5fd",
-          fillOpacity: 0.85,
-        }).addTo(layerGroup);
-
-        if (!hidePopups) {
-          marker.bindPopup(
-            `<strong>Bluetooth</strong><br />Name: ${d.name || "(unknown)"}<br />Address: ${d.address}<br />Samples: ${d.count}<br />Avg RSSI: ${
-              d.avgRssi != null ? `${Math.round(d.avgRssi)} dBm` : "–"
-            }<br /><small>${
-              d.firstSeen ? `First: ${new Date(d.firstSeen).toLocaleString()}<br />` : ""
-            }${d.lastSeen ? `Last: ${new Date(d.lastSeen).toLocaleString()}` : ""}</small>`
-          );
-        }
-      });
     }
     // If fitOnUpdate is false, do not change zoom/center unless autoZoomOnFirstPoint triggers above
   }, [
