@@ -475,16 +475,18 @@
                        autoZoomOnFirstPoint
                        hidePopups
                        wifiDevices={[]}
-                       bleDevices={bleDeviceLocations.map((loc) => ({
-                         address: selectedBleAddress || "",
-                         name: selectedBleDevice?.name ?? null,
-                         latitude: loc.latitude,
-                         longitude: loc.longitude,
-                         count: 1,
-                         avgRssi: null,
-                         firstSeen: loc.timestamp,
-                         lastSeen: loc.timestamp,
-                       }))}
+                        bleDevices={bleDeviceLocations.map((loc) => ({
+                          address: selectedBleAddress || "",
+                          name: selectedBleDevice?.name ?? null,
+                          latitude: loc.latitude,
+                          longitude: loc.longitude,
+                          count: 1,
+                          avgRssi: null,
+                          firstSeen: loc.timestamp,
+                          lastSeen: loc.timestamp,
+                          sessionId: (loc as any).trackingSessionId ?? null,
+                        }))}
+
                      />
                    </div>
                  </div>

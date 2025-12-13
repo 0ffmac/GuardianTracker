@@ -34,6 +34,8 @@ interface BleDevicePoint {
   avgRssi: number | null;
   firstSeen: string;
   lastSeen: string;
+  /** Optional tracking session id, used for coloring */
+  sessionId?: string | null;
 }
 
 interface MapProps {
@@ -272,13 +274,32 @@ export default function Map({
 
     // BLE device markers
     if (Array.isArray(bleDevices)) {
+      const palette = [
+        { stroke: "#a855f7", fill: "#c4b5fd" },
+        { stroke: "#22c55e", fill: "#4ade80" },
+        { stroke: "#f97316", fill: "#fdba74" },
+        { stroke: "#38bdf8", fill: "#7dd3fc" },
+        { stroke: "#e11d48", fill: "#fb7185" },
+      ];
+
+      const colorForSession = (sessionId?: string | null) => {
+        if (!sessionId) return palette[0];
+        let hash = 0;
+        for (let i = 0; i < sessionId.length; i += 1) {
+          hash = (hash * 31 + sessionId.charCodeAt(i)) | 0;
+        }
+        const idx = Math.abs(hash) % palette.length;
+        return palette[idx];
+      };
+
       bleDevices.forEach((d) => {
         const latLng = L.latLng(d.latitude, d.longitude);
+        const { stroke, fill } = colorForSession(d.sessionId);
         const marker = L.circleMarker(latLng, {
           radius: 6,
-          color: "#a855f7",
+          color: stroke,
           weight: 1,
-          fillColor: "#c4b5fd",
+          fillColor: fill,
           fillOpacity: 0.85,
         }).addTo(layerGroup);
 
@@ -298,9 +319,12 @@ export default function Map({
               d.lastSeen
                 ? `Last: ${new Date(d.lastSeen).toLocaleString()}`
                 : ""
-            }</small>`,
+            }</small>`
           );
         }
+      });
+    }
+
       });
     }
 
