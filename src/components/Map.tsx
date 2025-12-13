@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+import type { JSX } from "react";
+
 // Interface for type safety (uses camelCase to match the dashboard component)
 interface Location {
   id: string;
@@ -109,7 +111,7 @@ export default function Map({
   bleDevices = [],
   hidePopups = false,
   pointZoom = 10,
-}: MapProps) {
+}: MapProps): JSX.Element {
   const mapRef = useRef<L.Map | null>(null);
   const layerGroupRef = useRef<L.LayerGroup | null>(null);
   const baseLayersRef = useRef<{ street?: L.TileLayer; satellite?: L.TileLayer }>({});
