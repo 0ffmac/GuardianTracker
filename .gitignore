@@ -60,5 +60,7 @@ cookies.txt
 *gitignore*
 prisma/*
 dart/
+.vscode
+.gitignore
 
 dev.backup.before_call_cleanup.db

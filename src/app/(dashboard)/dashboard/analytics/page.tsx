@@ -556,29 +556,8 @@ export default function DashboardAnalyticsPage() {
     return { labels, barData, lifecycleData, lifecycleEventsByBucket };
   }, [alertsAnalytics, alertTimeline]);
 
-  const sessionsInRange = useMemo(() => {
-    if (trackingSessions.length === 0) return [] as TrackingSession[];
-    if (!alertsAnalytics) return trackingSessions;
-
-    const from = new Date(alertsAnalytics.range.from);
-    const to = new Date(alertsAnalytics.range.to);
-    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
-      return trackingSessions;
-    }
-
-    return trackingSessions.filter((s) => {
-      const start = s.startTime ? new Date(s.startTime) : null;
-      const end = s.endTime ? new Date(s.endTime) : null;
-      if (!start && !end) return true;
-      const effectiveStart = start || end;
-      const effectiveEnd = end || start;
-      if (!effectiveStart || !effectiveEnd) return false;
-      return effectiveEnd >= from && effectiveStart <= to;
-    });
-  }, [trackingSessions, alertsAnalytics]);
-
   const filteredSessions = useMemo(() => {
-    const base = sessionsInRange;
+    const base = trackingSessions;
     if (!sessionSearch.trim()) return base;
     const q = sessionSearch.trim().toLowerCase();
     return base.filter((s) => {
@@ -588,7 +567,7 @@ export default function DashboardAnalyticsPage() {
         : "";
       return name.includes(q) || start.includes(q);
     });
-  }, [sessionsInRange, sessionSearch]);
+  }, [trackingSessions, sessionSearch]);
 
   type OverlapDevice = {
     kind: "wifi" | "ble";

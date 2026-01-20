@@ -114,10 +114,13 @@ export async function POST(request: Request, { params }: { params: { id: string 
       }
 
       // Verify the JWT token
-      let decodedToken: any;
+      let decodedToken: { userId: string; deviceId: string };
       try {
-        decodedToken = jwt.verify(token, JWT_SECRET) as { userId: string; deviceId: string };
-      } catch (error) {
+        decodedToken = jwt.verify(token, JWT_SECRET) as {
+          userId: string;
+          deviceId: string;
+        };
+      } catch {
         return NextResponse.json({ error: "Invalid token" }, { status: 401 });
       }
 
@@ -129,7 +132,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
 
-      userId = (session.user as any).id as string;
+      const sessionUser = session.user as { id: string };
+      userId = sessionUser.id;
     }
     
     // Verify that the alert exists and that the user is a recipient
@@ -234,7 +238,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         const creatorUserId = alertRecipient.alert.user.id;
         const responder = alertRecipient.contact;
 
-        const pushTokens = await (prisma as any).pushToken.findMany({
+        const pushTokens = await prisma.pushToken.findMany({
           where: {
             userId: creatorUserId,
             platform: "android",
@@ -243,8 +247,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
         const distinctTokens: string[] = [];
         const seen = new Set<string>();
-        for (const t of pushTokens || []) {
-          const token = (t as any).token as string | undefined;
+        for (const t of pushTokens) {
+          const token = t.token;
           if (token && !seen.has(token)) {
             seen.add(token);
             distinctTokens.push(token);
