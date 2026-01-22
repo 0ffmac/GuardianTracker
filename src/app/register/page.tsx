@@ -8,7 +8,7 @@ import { Github, Mail, Lock, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useLanguage } from "@/hooks/useLanguage";
 
-function LoginContent() {
+function RegisterContent() {
   const router = useRouter();
   const { t } = useLanguage();
   const [email, setEmail] = useState("");
@@ -18,7 +18,6 @@ function LoginContent() {
   const [info, setInfo] = useState("");
   const searchParams = useSearchParams();
   const errorParam = searchParams.get("error");
-  const verificationStatus = searchParams.get("verification");
   
   const oauthError = (() => {
     switch (errorParam) {
@@ -36,32 +35,33 @@ function LoginContent() {
   const [oauthProviders, setOauthProviders] = useState<{ github: boolean; google: boolean }>({ github: true, google: true });
   const [providersLoaded, setProvidersLoaded] = useState(true);
 
-  useEffect(() => {
-    if (verificationStatus === "success") {
-      setInfo(t("auth.info.verified"));
-    } else if (verificationStatus === "sent") {
-      setInfo(t("auth.info.checkEmail"));
-    }
-  }, [verificationStatus, t]);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError("");
     setInfo("");
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
+    try {
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
 
-    if (result?.error) {
-      console.error("Login error:", result.error);
-      setError(t("auth.error.invalid"));
+      if (res.ok) {
+        setInfo(t("auth.success.created"));
+        setLoading(false);
+        // Optionally redirect to login after some time
+        setTimeout(() => router.push("/login?verification=sent"), 3000);
+      } else {
+        const data = await res.json();
+        setError(data.error || t("auth.error.registrationFailed"));
+        setLoading(false);
+      }
+    } catch (error) {
+      console.error("Register request failed:", error);
+      setError(t("auth.error.generic"));
       setLoading(false);
-    } else {
-      router.push("/dashboard");
     }
   };
 
@@ -95,8 +95,8 @@ function LoginContent() {
             <div className="inline-block p-3 bg-gradient-to-br from-gold-500 to-gold-400 rounded-2xl mb-4">
               <Lock className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">{t("auth.login.title")}</h1>
-            <p className="text-gray-400">{t("auth.login.subtitle")}</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t("auth.register.title")}</h1>
+            <p className="text-gray-400">{t("auth.register.subtitle")}</p>
           </div>
 
           {oauthError && (
@@ -145,7 +145,7 @@ function LoginContent() {
             </div>
             <div className="relative flex justify-center text-sm">
               <span className="px-4 bg-transparent text-gray-400">
-                {t("auth.continueEmail")}
+                {t("auth.registerEmail")}
               </span>
             </div>
           </div>
@@ -210,17 +210,17 @@ function LoginContent() {
               disabled={loading}
               className="w-full py-3 bg-gradient-to-r from-gold-500 to-gold-400 hover:from-gold-600 hover:to-gold-500 text-white font-semibold rounded-xl transition-all hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-gold-500/50"
             >
-              {loading ? t("auth.loading") : t("auth.login.submit")}
+              {loading ? t("auth.loading") : t("auth.register.submit")}
             </button>
           </form>
 
           <div className="mt-6 text-center">
             <Link
-              href="/register"
+              href="/login"
               className="text-gray-400 hover:text-white transition-colors"
             >
-              {t("auth.login.noAccount")}{" "}
-              <span className="text-gold-400 font-semibold">{t("auth.login.signUpLink")}</span>
+              {t("auth.register.hasAccount")}{" "}
+              <span className="text-gold-400 font-semibold">{t("auth.register.signInLink")}</span>
             </Link>
           </div>
         </div>
@@ -250,10 +250,10 @@ function LoginContent() {
   );
 }
 
-export default function LoginPage() {
+export default function RegisterPage() {
   return (
     <Suspense>
-      <LoginContent />
+      <RegisterContent />
     </Suspense>
   );
 }

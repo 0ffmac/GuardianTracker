@@ -645,9 +645,43 @@ const messages: Record<Language, Messages> = {
      "settings.alerts.item.fallbackTitle": "Alert",
      "settings.alerts.item.delete": "Delete",
      "settings.alerts.item.recipients": "Recipients:",
-     "settings.alerts.item.audioMessages": "Audio messages:",
-     "settings.alerts.item.myStatus": "My status:",
-
+         "settings.alerts.item.audioMessages": "Audio messages:",
+         "settings.alerts.item.myStatus": "My status:",
+     
+         // Auth (Login & Register)
+         "auth.backToHome": "Back to home",
+         "auth.email.label": "Email",
+         "auth.email.placeholder": "you@example.com",
+         "auth.password.label": "Password",
+         "auth.password.placeholder": "••••••••",
+         "auth.loading": "Loading...",
+         "auth.continueEmail": "Or continue with email",
+         "auth.registerEmail": "Or register with email",
+         "auth.github": "Continue with GitHub",
+         "auth.google": "Continue with Google",
+         "auth.error.invalid": "Invalid email or password",
+         "auth.error.generic": "Something went wrong",
+         "auth.error.registrationFailed": "Registration failed",
+         "auth.success.created": "Account created. Please check your email to verify your address before signing in.",
+         "auth.info.verified": "Your email has been verified. You can now sign in.",
+         "auth.info.checkEmail": "Please check your email to verify your address before signing in.",
+     
+         "auth.login.title": "Welcome Back",
+         "auth.login.subtitle": "Sign in to access your dashboard",
+         "auth.login.submit": "Sign In",
+         "auth.login.noAccount": "Don't have an account?",
+         "auth.login.signUpLink": "Sign up",
+     
+         "auth.register.title": "Create Account",
+         "auth.register.subtitle": "Start protecting what matters most",
+         "auth.register.submit": "Sign Up",
+         "auth.register.hasAccount": "Already have an account?",
+         "auth.register.signInLink": "Sign in",
+     
+         // OAuth Errors
+         "auth.oauth.SignupRequired": "Please create an account first, then try signing in with GitHub/Google.",
+         "auth.oauth.EmailMissing": "Your OAuth provider did not return an email. Please use email/password sign up first.",
+         "auth.oauth.DomainNotAllowed": "Your Google account domain is not allowed for sign-in.",
     },
     es: {
 
@@ -1289,6 +1323,41 @@ const messages: Record<Language, Messages> = {
      "settings.alerts.item.recipients": "Destinatarios:",
      "settings.alerts.item.audioMessages": "Mensajes de audio:",
      "settings.alerts.item.myStatus": "Mi estado:",
+
+    // Auth (Login & Register)
+    "auth.backToHome": "Volver al inicio",
+    "auth.email.label": "Correo electrónico",
+    "auth.email.placeholder": "tucorreo@ejemplo.com",
+    "auth.password.label": "Contraseña",
+    "auth.password.placeholder": "••••••••",
+    "auth.loading": "Cargando...",
+    "auth.continueEmail": "O continuar con correo",
+    "auth.registerEmail": "O registrarse con correo",
+    "auth.github": "Continuar con GitHub",
+    "auth.google": "Continuar con Google",
+    "auth.error.invalid": "Correo o contraseña inválidos",
+    "auth.error.generic": "Algo salió mal",
+    "auth.error.registrationFailed": "Error en el registro",
+    "auth.success.created": "Cuenta creada. Por favor verifica tu correo antes de iniciar sesión.",
+    "auth.info.verified": "Tu correo ha sido verificado. Ya puedes iniciar sesión.",
+    "auth.info.checkEmail": "Por favor revisa tu correo para verificar tu dirección antes de iniciar sesión.",
+
+    "auth.login.title": "Bienvenido de nuevo",
+    "auth.login.subtitle": "Inicia sesión para acceder a tu panel",
+    "auth.login.submit": "Iniciar Sesión",
+    "auth.login.noAccount": "¿No tienes cuenta?",
+    "auth.login.signUpLink": "Regístrate",
+
+    "auth.register.title": "Crear Cuenta",
+    "auth.register.subtitle": "Empieza a proteger lo que más importa",
+    "auth.register.submit": "Registrarse",
+    "auth.register.hasAccount": "¿Ya tienes cuenta?",
+    "auth.register.signInLink": "Inicia sesión",
+
+    // OAuth Errors
+    "auth.oauth.SignupRequired": "Por favor crea una cuenta primero, luego intenta iniciar sesión con GitHub/Google.",
+    "auth.oauth.EmailMissing": "Tu proveedor OAuth no devolvió un correo. Por favor regístrate con correo/contraseña primero.",
+    "auth.oauth.DomainNotAllowed": "El dominio de tu cuenta Google no está permitido para iniciar sesión.",
 
     },
   };
